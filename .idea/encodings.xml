@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/analytics-insights-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/audit-compliance-tracking-service/audit-compliance-tracking-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/audit-compliance-tracking-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compliance-reporting-service/compliance-reporting-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/compliance-reporting-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/discovery-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gateway-service/gateway-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/gateway-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/notification-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/role-access-control-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/sop-content-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/sop-recommendation-service/sop-recommendation-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/sop-recommendation-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/sop-workflow-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/user-management-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/version-control-service/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/version-control-service/version-control-service/src/main/java" charset="UTF-8" />
+  </component>
+</project>
