@@ -6,16 +6,16 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="sop-workflow-service (2)" />
         <module name="user-management-service" />
         <module name="gateway-service" />
         <module name="audit-compliance-tracking-service" />
         <module name="compliance-reporting-service" />
         <module name="version-control-service" />
-        <module name="sop-content-service" />
         <module name="sop-recommendation-service" />
         <module name="role-access-control-service" />
+        <module name="sop-workflow-service (1)" />
         <module name="notification-service" />
-        <module name="sop-workflow-service" />
         <module name="discovery-service" />
         <module name="analytics-insights-service" />
       </profile>
@@ -33,6 +33,8 @@
       <module name="sop-content-service" options="-parameters" />
       <module name="sop-recommendation-service" options="-parameters" />
       <module name="sop-workflow-service" options="-parameters" />
+      <module name="sop-workflow-service (1)" options="-parameters" />
+      <module name="sop-workflow-service (2)" options="-parameters" />
       <module name="user-management-service" options="-parameters" />
       <module name="version-control-service" options="-parameters" />
     </option>
