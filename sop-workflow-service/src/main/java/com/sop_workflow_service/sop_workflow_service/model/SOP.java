@@ -16,7 +16,7 @@ public class SOP {
     private String title;
     private String description;
     private String version;
-    private String status; // Example: DRAFT, REVIEW, APPROVAL
+    private String status; // DRAFT, REVIEW, APPROVAL
 
     @DBRef
     private List<Author> author; // References to authors
