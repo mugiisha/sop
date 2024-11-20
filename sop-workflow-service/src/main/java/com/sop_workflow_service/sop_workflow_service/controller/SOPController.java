@@ -1,42 +1,47 @@
 package com.sop_workflow_service.sop_workflow_service.controller;
 
-
+import com.sop_workflow_service.sop_workflow_service.dto.SOPRequestDto;
 import com.sop_workflow_service.sop_workflow_service.model.SOP;
 import com.sop_workflow_service.sop_workflow_service.service.SOPService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/sops")
-@RequiredArgsConstructor
 public class SOPController {
 
-    private final SOPService sopService;
+    @Autowired
+    private SOPService sopService;
 
     @PostMapping
-    public SOP createSOP(@RequestBody SOP sop) {
-        return sopService.createSOP(sop);
+    public ResponseEntity<SOP> createSOP(@RequestBody SOPRequestDto sopRequestDto) {
+        SOP sop = sopService.createSOP(sopRequestDto);
+        return ResponseEntity.status(201).body(sop);
     }
 
     @GetMapping
-    public List<SOP> getAllSOPs() {
-        return sopService.getAllSOPs();
+    public ResponseEntity<List<SOP>> getAllSOPs() {
+        return ResponseEntity.ok(sopService.getAllSOPs());
     }
 
     @GetMapping("/{id}")
-    public SOP getSOPById(@PathVariable Long id) {
-        return sopService.getSOPById(id);
+    public ResponseEntity<SOP> getSOPById(@PathVariable String id) {
+        SOP sop = sopService.getSOPById(id);
+        return ResponseEntity.ok(sop);
     }
 
     @PutMapping("/{id}")
-    public SOP updateSOP(@PathVariable Long id, @RequestBody SOP updatedSop) {
-        return sopService.updateSOP(id, updatedSop);
+    public ResponseEntity<SOP> updateSOP(@PathVariable String id, @RequestBody SOPRequestDto sopRequestDto) {
+        SOP updatedSOP = sopService.updateSOP(id, sopRequestDto);
+        return ResponseEntity.ok(updatedSOP);
     }
 
     @DeleteMapping("/{id}")
-    public void deleteSOP(@PathVariable Long id) {
+    public ResponseEntity<Void> deleteSOP(@PathVariable String id) {
         sopService.deleteSOP(id);
+        return ResponseEntity.noContent().build();
     }
 }

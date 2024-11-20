@@ -1,38 +1,29 @@
 package com.sop_workflow_service.sop_workflow_service.model;
+import lombok.Data;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.DBRef;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-import jakarta.persistence.*;
-import lombok.*;
-import java.time.LocalDateTime;
 import java.util.List;
 
-@Entity
 @Data
-@Builder
-@NoArgsConstructor
-@AllArgsConstructor
+@Document(collection = "sops")
 public class SOP {
+
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     private String title;
+    private String description;
+    private String version;
+    private String status; // Example: DRAFT, REVIEW, APPROVAL
 
-    @Enumerated(EnumType.STRING)
-    private Visibility visibility;
+    @DBRef
+    private List<Author> author; // References to authors
 
-    private Long authorId;
+    @DBRef
+    private List<Reviewer> reviewers; // References to reviewers
 
-    @ElementCollection
-    private List<Long> reviewerIds;
-
-    private Long approverId;
-
-    private String status;
-
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
-
-    public enum Visibility {
-        DEPARTMENT, ORGANIZATION
-    }
+    @DBRef
+    private List<Approver> approvers; // References to approvers
 }
