@@ -8,4 +8,6 @@ import java.util.List;
 public interface SopRepository extends MongoRepository<SopModel, String> {
     List<SopModel> findAllByOrderByCreatedAtDesc();
     List<SopModel> findByStatusOrderByCreatedAtDesc(String status);
+    boolean existsById(String id);
+
 }

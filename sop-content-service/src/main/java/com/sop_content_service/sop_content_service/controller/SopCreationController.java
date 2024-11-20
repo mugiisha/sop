@@ -14,7 +14,7 @@ import java.util.List;
 
 @RestController
 @RequestMapping("/api/sops")
-public class SopController {
+public class SopCreationController {
 
     @Autowired
     private SopService sopService;
@@ -23,8 +23,9 @@ public class SopController {
     private ObjectMapper objectMapper;
 
     // Endpoint to create a new SOP
-    @PostMapping("/create")
+    @PatchMapping("/create/{sopId}")
     public ResponseEntity<ApiResponse<SopModel>> createSOP(
+            @PathVariable String sopId,
             @RequestPart("sop") String sopJson,
             @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
             @RequestPart(value = "documentFile", required = false) MultipartFile documentFile) throws JsonProcessingException {
@@ -33,7 +34,7 @@ public class SopController {
         SopModel sopModel = objectMapper.readValue(sopJson, SopModel.class);
 
         // Delegate to service and return the response
-        return sopService.createSOP(sopModel, imageFile, documentFile);
+        return sopService.createSOP(sopId,sopModel, imageFile, documentFile);
     }
 
     @GetMapping("/get-All")

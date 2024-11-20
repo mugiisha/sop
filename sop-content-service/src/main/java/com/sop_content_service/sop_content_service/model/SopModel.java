@@ -5,16 +5,19 @@ import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.Date;
+import java.util.List;
 
-@Document(collection = "sops") // Specifies the MongoDB collection name
+@Document(collection = "sops_model") // Specifies the MongoDB collection name
 @Data // Lombok annotation to generate getters, setters, toString, equals, and hashCode
+@NoArgsConstructor // Generates a no-argument constructor
 public class SopModel {
     @Id
     private String id; // MongoDB's unique identifier
 
-    private String sopId;
+    private String title; // Title of the SOP
     private String description;
     private String newSection;
     private String code;
@@ -22,23 +25,24 @@ public class SopModel {
     private String imageUrl; // URL of the image
     private String status = "Draft"; // Default status
     private String version = "1.0"; // Default version
+    private String visibility; // Visibility (e.g., "Public" or "Private")
+
+    private List<String> author; // List of authors
+    private List<String> reviewer; // List of reviewers
+    private List<String> approver; // List of approvers
 
     @CreatedDate
     private Date createdAt;  // Automatically populated with the creation timestamp
 
     @LastModifiedDate
-    private Date updatedAt;
+    private Date updatedAt; // Automatically updated when the document changes
 
-    // Constructor with parameters
-    public SopModel(String sopId, String description, String newSection, String code, String documentUrl, String imageUrl) {
-        this.sopId = sopId;
-        this.description = description;
-        this.newSection = newSection;
-        this.code = code;
-        this.documentUrl = documentUrl;
-        this.imageUrl = imageUrl;
-        this.status = "Draft"; // Default value
-        this.version = "1.0"; // Default value
+    // Constructor with all parameters
+    public SopModel(String title, String visibility, List<String> author, List<String> reviewer, List<String> approver) {
+        this.title = title;
+        this.visibility = visibility;
+        this.author = author;
+        this.reviewer = reviewer;
+        this.approver = approver;
     }
-
 }

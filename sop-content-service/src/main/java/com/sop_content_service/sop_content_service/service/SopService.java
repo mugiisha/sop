@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import java.lang.reflect.Field;
 
 import java.io.IOException;
 import java.util.List;
@@ -28,26 +29,41 @@ public class SopService {
     @Autowired
     private Cloudinary cloudinary;
 
-    public ResponseEntity<ApiResponse<SopModel>> createSOP(SopModel sopModel, MultipartFile imageFile, MultipartFile documentFile) {
+    public ResponseEntity<ApiResponse<SopModel>> createSOP(
+            String sopId, SopModel sopModel, MultipartFile imageFile, MultipartFile documentFile) {
         try {
-            // Upload image and set URL if provided
+            // Check if the provided SOP ID exists in the database
+            SopModel existingSop = sopRepository.findById(sopId)
+                    .orElseThrow(() -> new SopException.SopNotFoundException("SOP with ID " + sopId + " does not exist."));
+
+            // Update fields from the request, keeping existing values for null fields
+            if (sopModel.getTitle() != null) existingSop.setTitle(sopModel.getTitle());
+            if (sopModel.getDescription() != null) existingSop.setDescription(sopModel.getDescription());
+            if (sopModel.getNewSection() != null) existingSop.setNewSection(sopModel.getNewSection());
+            if (sopModel.getCode() != null) existingSop.setCode(sopModel.getCode());
+            if (sopModel.getVisibility() != null) existingSop.setVisibility(sopModel.getVisibility());
+            if (sopModel.getAuthor() != null) existingSop.setAuthor(sopModel.getAuthor());
+            if (sopModel.getReviewer() != null) existingSop.setReviewer(sopModel.getReviewer());
+            if (sopModel.getApprover() != null) existingSop.setApprover(sopModel.getApprover());
+
+            // Upload and update image URL if provided
             if (imageFile != null && !imageFile.isEmpty()) {
                 String imageUrl = uploadImageToCloudinary(imageFile);
-                sopModel.setImageUrl(imageUrl);
+                existingSop.setImageUrl(imageUrl);
             }
 
-            // Upload document and set URL if provided
+            // Upload and update document URL if provided
             if (documentFile != null && !documentFile.isEmpty()) {
                 String documentUrl = uploadDocumentToCloudinary(documentFile);
-                sopModel.setDocumentUrl(documentUrl);
+                existingSop.setDocumentUrl(documentUrl);
             }
 
-            // Save SOP to the database
-            SopModel createdSop = sopRepository.save(sopModel);
+            // Save the updated SOP to the database
+            SopModel updatedSop = sopRepository.save(existingSop);
 
-            // Return the created SOP wrapped in ApiResponse with HttpStatus.CREATED (201)
-            ApiResponse<SopModel> response = new ApiResponse<>("SOP Draft created successfully", createdSop);
-            return new ResponseEntity<>(response, HttpStatus.CREATED);
+            // Return the updated SOP wrapped in ApiResponse with HttpStatus.OK (200)
+            ApiResponse<SopModel> response = new ApiResponse<>("SOP Draft updated successfully", updatedSop);
+            return new ResponseEntity<>(response, HttpStatus.OK);
 
         } catch (IOException e) {
             // Handle IOException during file upload
@@ -60,6 +76,7 @@ public class SopService {
             }
         }
     }
+
 
     private String uploadImageToCloudinary(MultipartFile file) throws IOException {
         Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
