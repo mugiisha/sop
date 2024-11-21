@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sop_content_service.sop_content_service.dto.ApiResponse;
 import com.sop_content_service.sop_content_service.model.SopModel;
 import com.sop_content_service.sop_content_service.service.SopService;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ public class SopCreationController {
     // Endpoint to create a new SOP
     @PatchMapping("/create/{sopId}")
     public ResponseEntity<ApiResponse<SopModel>> createSOP(
+            @Valid
             @PathVariable String sopId,
             @RequestPart("sop") String sopJson,
             @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
