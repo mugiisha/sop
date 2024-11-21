@@ -7,17 +7,18 @@
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="sop-workflow-service (2)" />
-        <module name="user-management-service" />
-        <module name="gateway-service" />
-        <module name="audit-compliance-tracking-service" />
         <module name="compliance-reporting-service" />
-        <module name="version-control-service" />
-        <module name="sop-recommendation-service" />
         <module name="role-access-control-service" />
-        <module name="sop-workflow-service (1)" />
         <module name="notification-service" />
         <module name="discovery-service" />
         <module name="analytics-insights-service" />
+        <module name="user-management-service" />
+        <module name="gateway-service" />
+        <module name="audit-compliance-tracking-service" />
+        <module name="version-control-service" />
+        <module name="sop-recommendation-service" />
+        <module name="sop-workflow-service (1)" />
+        <module name="sop-workflow-service" />
       </profile>
     </annotationProcessing>
   </component>
