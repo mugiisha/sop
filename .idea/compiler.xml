@@ -2,24 +2,22 @@
 <project version="4">
   <component name="CompilerConfiguration">
     <annotationProcessing>
-      <profile default="true" name="Default" enabled="true" />
       <profile name="Maven default annotation processors profile" enabled="true">
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
         <module name="sop-workflow-service (2)" />
-        <module name="compliance-reporting-service" />
-        <module name="role-access-control-service" />
-        <module name="notification-service" />
-        <module name="discovery-service" />
-        <module name="analytics-insights-service" />
         <module name="user-management-service" />
         <module name="gateway-service" />
         <module name="audit-compliance-tracking-service" />
+        <module name="compliance-reporting-service" />
         <module name="version-control-service" />
-        <module name="sop-content-service" />
         <module name="sop-recommendation-service" />
-        <module name="sop-workflow-service" />
+        <module name="role-access-control-service" />
+        <module name="sop-workflow-service (1)" />
+        <module name="notification-service" />
+        <module name="discovery-service" />
+        <module name="analytics-insights-service" />
       </profile>
     </annotationProcessing>
   </component>
