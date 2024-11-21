@@ -63,6 +63,14 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
-
+    // Handle SOP not found exception
+    @ExceptionHandler(SopException.SopNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ResponseBody
+    public Map<String, String> handleSopNotFoundException(SopException.SopNotFoundException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("errorMessage", ex.getMessage()); // Use the message from the exception
+        return response;
+    }
 
 }
