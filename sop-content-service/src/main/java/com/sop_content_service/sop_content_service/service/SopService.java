@@ -6,6 +6,7 @@ import com.sop_content_service.sop_content_service.dto.ApiResponse;
 import com.sop_content_service.sop_content_service.exception.SopException;
 import com.sop_content_service.sop_content_service.model.SopModel;
 import com.sop_content_service.sop_content_service.repository.SopRepository;
+import com.sop_content_service.sop_content_service.util.SopModelUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -32,48 +33,37 @@ public class SopService {
     public ResponseEntity<ApiResponse<SopModel>> createSOP(
             String sopId, SopModel sopModel, MultipartFile imageFile, MultipartFile documentFile) {
         try {
-            // Check if the provided SOP ID exists in the database
             SopModel existingSop = sopRepository.findById(sopId)
                     .orElseThrow(() -> new SopException.SopNotFoundException("SOP with ID " + sopId + " does not exist."));
 
-            // Update fields from the request, keeping existing values for null fields
-            if (sopModel.getTitle() != null) existingSop.setTitle(sopModel.getTitle());
-            if (sopModel.getDescription() != null) existingSop.setDescription(sopModel.getDescription());
-            if (sopModel.getNewSection() != null) existingSop.setNewSection(sopModel.getNewSection());
-            if (sopModel.getCode() != null) existingSop.setCode(sopModel.getCode());
-            if (sopModel.getVisibility() != null) existingSop.setVisibility(sopModel.getVisibility());
-            if (sopModel.getAuthor() != null) existingSop.setAuthor(sopModel.getAuthor());
-            if (sopModel.getReviewer() != null) existingSop.setReviewer(sopModel.getReviewer());
-            if (sopModel.getApprover() != null) existingSop.setApprover(sopModel.getApprover());
+            // Use utility class to update fields
+            SopModelUtils.updateTitle(existingSop, sopModel);
+            SopModelUtils.updateDescription(existingSop, sopModel);
+            SopModelUtils.updateNewSection(existingSop, sopModel);
+            SopModelUtils.updateCode(existingSop, sopModel);
+            SopModelUtils.updateVisibility(existingSop, sopModel);
+            SopModelUtils.updateAuthor(existingSop, sopModel);
+            SopModelUtils.updateReviewer(existingSop, sopModel);
+            SopModelUtils.updateApprover(existingSop, sopModel);
 
-            // Upload and update image URL if provided
+            // Upload image and document if provided
             if (imageFile != null && !imageFile.isEmpty()) {
                 String imageUrl = uploadImageToCloudinary(imageFile);
                 existingSop.setImageUrl(imageUrl);
             }
 
-            // Upload and update document URL if provided
             if (documentFile != null && !documentFile.isEmpty()) {
                 String documentUrl = uploadDocumentToCloudinary(documentFile);
                 existingSop.setDocumentUrl(documentUrl);
             }
 
-            // Save the updated SOP to the database
+            // Save and return updated SOP
             SopModel updatedSop = sopRepository.save(existingSop);
-
-            // Return the updated SOP wrapped in ApiResponse with HttpStatus.OK (200)
             ApiResponse<SopModel> response = new ApiResponse<>("SOP Draft updated successfully", updatedSop);
             return new ResponseEntity<>(response, HttpStatus.OK);
 
         } catch (IOException e) {
-            // Handle IOException during file upload
-            if (imageFile != null && !imageFile.isEmpty()) {
-                throw new SopException.ImageUploadException("Failed to upload image");
-            } else if (documentFile != null && !documentFile.isEmpty()) {
-                throw new SopException.DocumentUploadException("Failed to upload document");
-            } else {
-                throw new RuntimeException("An unknown error occurred while processing the files.");
-            }
+            throw new RuntimeException("An error occurred while processing files.", e);
         }
     }
 

@@ -27,7 +27,8 @@ public class SopInitializeService {
                     sopModel.getVisibility(),
                     sopModel.getAuthor(),
                     sopModel.getReviewer(),
-                    sopModel.getApprover()
+                    sopModel.getApprover(),
+                    sopModel.getCategory()
             );
 
             // Save the SOP initialization to the database
@@ -63,6 +64,7 @@ public class SopInitializeService {
                 .append("A new Standard Operating Procedure (SOP) has been initialized.\n\n")
                 .append("Here are the details:\n")
                 .append("Title: ").append(sop.getTitle()).append("\n")
+                .append("Category: ").append(sop.getCategory()).append("\n")
                 .append("Visibility: ").append(sop.getVisibility()).append("\n")
                 .append("Version: ").append(sop.getVersion()).append("\n")
                 .append("Status: ").append(sop.getStatus()).append("\n\n")
