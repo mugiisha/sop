@@ -5,11 +5,14 @@ import com.user_management_service.user_management_service.models.User;
 import com.user_management_service.user_management_service.enums.Role;
 import com.user_management_service.user_management_service.repositories.DepartmentRepository;
 import com.user_management_service.user_management_service.repositories.UserRepository;
+import com.user_management_service.user_management_service.services.UserRoleClientService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.transaction.annotation.Transactional;
+import sopService.GetRoleByNameResponse;
+import sopService.GetRoleByUserIdResponse;
 
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -21,7 +24,8 @@ public class SuperUserDataLoader {
     public CommandLineRunner loadSuperUser(
             UserRepository userRepository,
             DepartmentRepository departmentRepository,
-            PasswordEncoder passwordEncoder
+            PasswordEncoder passwordEncoder,
+            UserRoleClientService userRoleClientService
     ) {
         return new CommandLineRunner() {
             @Override
@@ -33,10 +37,17 @@ public class SuperUserDataLoader {
                 Optional<User> existingUser = userRepository.findByEmail(superUserEmail);
                 if (existingUser.isPresent()) {
                     User user = existingUser.get();
+
+                    // get users role
+                    GetRoleByUserIdResponse userRole = userRoleClientService.getUserRoles(user.getId().toString());
                     // Ensure the existing user has ADMIN role
-                    if (user.getRole() != Role.ADMIN) {
-                        user.setRole(Role.ADMIN);
-                        userRepository.save(user);
+                    if (!userRole.getSuccess() || !userRole.getRoleName().equals("ADMIN")) {
+                        // assign the Admin role to the user
+                        userRoleClientService.assignRole(
+                                user.getId().toString(),
+                                userRole.getRoleId(),
+                                user.getDepartment().getId().toString());
+
                         System.out.println("Updated existing superuser role to ADMIN.");
                     } else {
                         System.out.println("Superuser already exists with ADMIN role. Skipping creation.");
@@ -66,9 +77,18 @@ public class SuperUserDataLoader {
                 superUser.setCreatedAt(LocalDateTime.now());
                 superUser.setUpdatedAt(LocalDateTime.now());
                 superUser.setFailedLoginAttempts(0);
-                superUser.setRole(Role.ADMIN); // Set the role to ADMIN
 
                 User savedUser = userRepository.save(superUser);
+
+                // get Admin role by it's name
+                GetRoleByNameResponse response = userRoleClientService.getRoleByName("ADMIN");
+
+                // Assign the role to the user
+                userRoleClientService.assignRole(
+                        savedUser.getId().toString(),
+                        response.getRoleId(),
+                        adminDept.getId().toString());
+
                 System.out.println("Created new superuser with ADMIN role: " + savedUser.getEmail());
             }
         };

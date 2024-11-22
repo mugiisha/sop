@@ -10,6 +10,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import sopService.GetRoleByUserIdResponse;
 
 import java.time.LocalDateTime;
 
@@ -23,6 +24,7 @@ public class AuthService {
     private final JwtService jwtService;
     private final OtpService otpService;
     private final AuditService auditService;
+    private final UserRoleClientService userRoleClientService;
 
     private static final int MAX_LOGIN_ATTEMPTS = 10;
 
@@ -34,6 +36,9 @@ public class AuthService {
                     log.warn("Login attempt for non-existent user: {}", loginDTO.getEmail());
                     return new AuthenticationException("Invalid credentials");
                 });
+
+        GetRoleByUserIdResponse userRole = userRoleClientService.getUserRoles(user.getId().toString());
+        String roleName = userRole.getRoleName();
 
         validateUserStatus(user);
 
@@ -47,7 +52,7 @@ public class AuthService {
         String token = jwtService.generateToken(user);
 
         log.info("Successfully logged in user: {}", loginDTO.getEmail());
-        return createLoginResponse(user, token);
+        return createLoginResponse(user, token, roleName);
     }
 
     @Transactional
@@ -194,7 +199,7 @@ public class AuthService {
         auditService.logEmailVerification(user.getId(), user.getEmail());
     }
 
-    private LoginResponseDTO createLoginResponse(User user, String token) {
+    private LoginResponseDTO createLoginResponse(User user, String token, String roleName) {
         UserDTO userDTO = new UserDTO(
                 user.getId().toString(),
                 user.getEmail(),
@@ -203,7 +208,7 @@ public class AuthService {
         );
 
         return new LoginResponseDTO(
-                user.getRole().toString(),
+                roleName,
                 token,
                 userDTO
         );

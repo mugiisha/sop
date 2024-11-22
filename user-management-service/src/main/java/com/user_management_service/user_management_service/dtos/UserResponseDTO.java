@@ -19,15 +19,15 @@ public class UserResponseDTO {
     private String departmentName;
     private boolean active;
     private boolean emailVerified;
-    private Role role;
+    private String roleName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Convert the Role enum to a Spring Security GrantedAuthority
-        if (role != null) {
+        if (roleName != null) {
             return Collections.singletonList(
-                    new SimpleGrantedAuthority("ROLE_" + role.name())
+                    new SimpleGrantedAuthority("ROLE_" + roleName)
             );
         }
         // Return empty list if no role is assigned

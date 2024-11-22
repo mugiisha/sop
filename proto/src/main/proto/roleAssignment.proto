@@ -1,0 +1,75 @@
+syntax = "proto3";
+
+package sopService;
+
+option java_multiple_files = true;
+
+service RoleAssignmentService {
+  rpc assignRole(AssignRoleRequest) returns (AssignRoleResponse) {}
+  rpc getRoleAssignmentsByUserId(GetRoleByUserIdRequest) returns (GetRoleByUserIdResponse) {}
+  rpc getRoleAssignmentsByRoleIdAndDepartmentId(GetRoleAssignmentsByRoleIdAndDepartmentIdRequest) returns (GetRoleAssignmentsByRoleIdAndDepartmentIdResponse) {}
+  rpc updateUserRole(AssignRoleRequest) returns (AssignRoleResponse) {}
+  rpc deleteUserRole(DeleteUserRoleRequest) returns (DeleteUserRoleResponse) {}
+  rpc getRoleByName(GetRoleByNameRequest) returns (GetRoleByNameResponse) {}
+}
+
+message AssignRoleRequest {
+  string userId = 1;
+  string roleId = 2;
+  string departmentId = 3;
+}
+
+message GetRoleByNameRequest {
+  string roleName = 1;
+}
+
+message GetRoleByNameResponse {
+  bool success = 1;
+  string roleName = 2;
+  string roleId = 3;
+  string errorMessage = 4;
+}
+
+message AssignRoleResponse {
+  bool success = 1;
+  string assignmentId  = 2;
+  string errorMessage = 3;
+}
+
+message Role {
+  string roleId = 1;
+  string roleName = 2;
+
+}
+
+message GetRoleByUserIdRequest {
+  string userId = 1;
+}
+
+message DeleteUserRoleRequest {
+  string userId = 1;
+}
+
+message DeleteUserRoleResponse {
+  bool success = 1;
+  string errorMessage = 2;
+}
+
+message    GetRoleByUserIdResponse{
+  bool success = 1;
+  string roleName = 2;
+  string roleId = 3;
+  string errorMessage = 4 ;
+}
+
+message GetRoleAssignmentsByRoleIdAndDepartmentIdRequest {
+  string roleId = 1;
+  string departmentId = 2;
+}
+
+message GetRoleAssignmentsByRoleIdAndDepartmentIdResponse {
+  bool success = 1;
+  repeated string userIds = 2;
+  string errorMessage = 3;
+}
+
