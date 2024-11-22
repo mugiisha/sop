@@ -12,17 +12,17 @@
 	</parent>
 
 	<groupId>com.sop</groupId>
-	<artifactId>sop-workflow-service</artifactId>
+	<artifactId>sop-content-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>sop-workflow-service</name>
-	<description>SOP Workflow Service</description>
+	<name>sop-content-service</name>
+	<description>SOP Content Service</description>
 
 	<properties>
 		<java.version>21</java.version>
 		<spring-cloud.version>2023.0.0</spring-cloud.version>
 		<springdoc.version>2.3.0</springdoc.version>
-		<sonar.projectKey>sop-workflow-service</sonar.projectKey>
-		<sonar.projectName>SOP Workflow Service</sonar.projectName>
+		<sonar.projectKey>sop-content-service</sonar.projectKey>
+		<sonar.projectName>SOP Content Service</sonar.projectName>
 		<sonar.projectVersion>1.0</sonar.projectVersion>
 		<sonar.sources>src</sonar.sources>
 		<sonar.host.url>http://localhost:9000</sonar.host.url>
