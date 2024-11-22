@@ -25,9 +25,10 @@ public class SopInitializeService {
             SopModel sop = new SopModel(
                     sopModel.getTitle(),
                     sopModel.getVisibility(),
-                    sopModel.getAuthor(),
-                    sopModel.getReviewer(),
-                    sopModel.getApprover()
+                    sopModel.getAuthors(),
+                    sopModel.getReviewers(),
+                    sopModel.getApprovers(),
+                    sopModel.getCategory()
             );
 
             // Save the SOP initialization to the database
@@ -51,7 +52,7 @@ public class SopInitializeService {
         String message = generateEmailContent(sop);
 
         // Loop through authors and send emails
-        for (String authorEmail : sop.getAuthor()) {
+        for (String authorEmail : sop.getAuthors()) {
             emailService.sendEmail(authorEmail, subject, message);
         }
     }
@@ -63,11 +64,12 @@ public class SopInitializeService {
                 .append("A new Standard Operating Procedure (SOP) has been initialized.\n\n")
                 .append("Here are the details:\n")
                 .append("Title: ").append(sop.getTitle()).append("\n")
+                .append("Category: ").append(sop.getCategory()).append("\n")
                 .append("Visibility: ").append(sop.getVisibility()).append("\n")
                 .append("Version: ").append(sop.getVersion()).append("\n")
                 .append("Status: ").append(sop.getStatus()).append("\n\n")
-                .append("Reviewers: ").append(String.join(", ", sop.getReviewer())).append("\n")
-                .append("Approvers: ").append(String.join(", ", sop.getApprover())).append("\n\n")
+                .append("Reviewers: ").append(String.join(", ", sop.getReviewers())).append("\n")
+                .append("Approvers: ").append(String.join(", ", sop.getApprovers())).append("\n\n")
                 .append("Please take action and create this SOP at your earliest convenience.\n\n")
                 .append("Best regards,\n")
                 .append("Staff");

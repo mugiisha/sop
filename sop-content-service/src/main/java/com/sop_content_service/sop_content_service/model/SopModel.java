@@ -32,7 +32,7 @@ public class SopModel {
     private String newSection;
 
     @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "Code must only contain letters, numbers, underscores, or hyphens")
-    @Size(max = 500, message = "Code must not exceed 50 characters")
+    @Size(max = 50, message = "Code must not exceed 50 characters")
     private String code;
 
     @URL(message = "Document URL must be a valid URL")
@@ -51,11 +51,15 @@ public class SopModel {
     private String visibility; // Visibility (e.g., "Public" or "Private")
 
     @NotEmpty(message = "At least one author is required")
-    private List<@NotBlank(message = "Author name cannot be blank") String> author; // List of authors
+    private List<@NotBlank(message = "Author name cannot be blank") String> authors; // List of authors
 
-    private List<@NotBlank(message = "Reviewer name cannot be blank") String> reviewer; // List of reviewers
+    private List<@NotBlank(message = "Reviewer name cannot be blank") String> reviewers; // List of reviewers
 
-    private List<@NotBlank(message = "Approver name cannot be blank") String> approver; // List of approvers
+    private List<@NotBlank(message = "Approver name cannot be blank") String> approvers; // List of approvers
+
+    @NotBlank(message = "Category cannot be blank")
+    @Size(max = 50, message = "Category must not exceed 50 characters")
+    private String category; // New field: category
 
     @CreatedDate
     private Date createdAt;  // Automatically populated with the creation timestamp
@@ -64,11 +68,12 @@ public class SopModel {
     private Date updatedAt; // Automatically updated when the document changes
 
     // Constructor with all parameters
-    public SopModel(String title, String visibility, List<String> author, List<String> reviewer, List<String> approver) {
+    public SopModel(String title, String visibility, List<String> authors, List<String> reviewers, List<String> approvers, String category) {
         this.title = title;
         this.visibility = visibility;
-        this.author = author;
-        this.reviewer = reviewer;
-        this.approver = approver;
+        this.authors = authors;
+        this.reviewers = reviewers;
+        this.approvers = approvers;
+        this.category = category;
     }
 }

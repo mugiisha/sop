@@ -8,8 +8,12 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.ResponseStatus;
 
+
+
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 @ControllerAdvice
 public class GlobalExceptionHandler {
@@ -45,10 +49,28 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationException(MethodArgumentNotValidException ex) {
-        Map<String, String> errors = new HashMap<>();
-        ex.getBindingResult().getFieldErrors().forEach(error ->
-                errors.put(error.getField(), error.getDefaultMessage()));
-        return new ResponseEntity<>(errors, HttpStatus.BAD_REQUEST);
+    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
+        // Extract error messages directly
+        List<String> errorMessages = ex.getBindingResult()
+                .getAllErrors()
+                .stream()
+                .map(objectError -> objectError.getDefaultMessage())
+                .collect(Collectors.toList());
+
+        // Return the first error message as "errorMessage"
+        Map<String, String> response = new HashMap<>();
+        response.put("errorMessage", errorMessages.get(0));
+
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
+    // Handle SOP not found exception
+    @ExceptionHandler(SopException.SopNotFoundException.class)
+    @ResponseStatus(HttpStatus.NOT_FOUND)
+    @ResponseBody
+    public Map<String, String> handleSopNotFoundException(SopException.SopNotFoundException ex) {
+        Map<String, String> response = new HashMap<>();
+        response.put("errorMessage", ex.getMessage()); // Use the message from the exception
+        return response;
+    }
+
 }
