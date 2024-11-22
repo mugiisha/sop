@@ -33,7 +33,8 @@ public class GlobalExceptionHandler {
             InvalidTokenException.class,
             InvalidOtpException.class,
             OtpExpiredException.class,
-            OtpLimitExceededException.class
+            OtpLimitExceededException.class,
+            RoleServerException.class
     })
     public ResponseEntity<ErrorResponse> handleCustomExceptions(RuntimeException ex) {
         ErrorResponse error = new ErrorResponse(

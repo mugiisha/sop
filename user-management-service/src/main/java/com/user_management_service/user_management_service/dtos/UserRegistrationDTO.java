@@ -22,4 +22,7 @@ public class UserRegistrationDTO {
 
     @NotNull(message = "Department ID is required")
     private UUID departmentId;
+
+    @NotNull(message = "Role ID is required")
+    private UUID roleId;
 }

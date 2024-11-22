@@ -26,3 +26,7 @@
  # Environment Variables
 .env
 .idea/
+
+**/target/
+**/.idea/
+mvnw

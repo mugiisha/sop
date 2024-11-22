@@ -13,6 +13,8 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import sopService.AssignRoleResponse;
+import sopService.GetRoleByUserIdResponse;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -28,13 +30,14 @@ public class UserService {
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final AuditService auditService;
+    private final UserRoleClientService userRoleClientService;
 
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "usersByDepartment", allEntries = true),
             @CacheEvict(value = "unverifiedUsers", allEntries = true)
     })
-    public UserResponseDTO createUser(UserRegistrationDTO registrationDTO) {
+    public UserResponseDTO createUser(UserRegistrationDTO registrationDTO) throws RoleServerException {
         log.info("Creating new user with email: {}", registrationDTO.getEmail());
 
         if (userRepository.existsByEmail(registrationDTO.getEmail())) {
@@ -47,19 +50,39 @@ public class UserService {
         User user = createNewUser(registrationDTO, department);
         User savedUser = userRepository.save(user);
 
+        // call role access control service to assign role to user
+        AssignRoleResponse response = userRoleClientService.assignRole(savedUser.getId().toString(),
+                registrationDTO.getRoleId().toString(),
+                registrationDTO.getDepartmentId().toString());
+
+        // Check if role assignment was successful and delete user if it was not
+        if (!response.getSuccess()) {
+            userRepository.delete(savedUser);
+            throw new RoleServerException(response.getErrorMessage());
+        }
+
         createDefaultNotificationPreferences(savedUser);
         emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getName());
         auditService.logUserCreation(savedUser.getId(), savedUser.getEmail());
 
-        return mapToUserResponseDTO(savedUser);
+        return mapToUserResponseDTO(savedUser, "");
     }
 
     @Cacheable(value = "users", key = "#id")
-    public UserResponseDTO getUserById(UUID id) {
+    public UserResponseDTO getUserById(UUID id) throws RoleServerException {
         log.debug("Fetching user by ID: {}", id);
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        return mapToUserResponseDTO(user);
+
+        // get user role from role access control service
+        GetRoleByUserIdResponse userRole = userRoleClientService
+                .getUserRoles(user.getId().toString());
+
+        if(!userRole.getSuccess()){
+            throw new RoleServerException(userRole.getErrorMessage());
+        }
+
+        return mapToUserResponseDTO(user, userRole.getRoleName());
     }
 
     @Transactional
@@ -87,7 +110,7 @@ public class UserService {
         User updatedUser = userRepository.save(user);
         auditService.logUserUpdate(user.getId(), user.getEmail());
 
-        return mapToUserResponseDTO(updatedUser);
+        return mapToUserResponseDTO(updatedUser,"");
     }
 
     @Transactional
@@ -124,7 +147,7 @@ public class UserService {
 
         List<User> users = userRepository.findActiveUsersByDepartment(departmentId);
         return users.stream()
-                .map(this::mapToUserResponseDTO)
+                .map(user -> mapToUserResponseDTO(user, ""))
                 .toList();
     }
 
@@ -133,7 +156,7 @@ public class UserService {
         log.debug("Fetching all unverified users");
         List<User> unverifiedUsers = userRepository.findByEmailVerifiedFalse();
         return unverifiedUsers.stream()
-                .map(this::mapToUserResponseDTO)
+                .map(user -> mapToUserResponseDTO(user, ""))
                 .toList();
     }
 
@@ -147,7 +170,7 @@ public class UserService {
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
         List<User> inactiveUsers = userRepository.findByLastLoginBeforeOrLastLoginIsNull(cutoffDate);
         return inactiveUsers.stream()
-                .map(this::mapToUserResponseDTO)
+                .map(user -> mapToUserResponseDTO(user, ""))
                 .toList();
     }
 
@@ -245,7 +268,6 @@ public class UserService {
         user.setEmailVerified(false);
         user.setEmailVerificationToken(generateVerificationToken());
         user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
-        user.setRole(Role.USER);
         user.setCreatedAt(LocalDateTime.now());
         return user;
     }
@@ -262,7 +284,7 @@ public class UserService {
         return UUID.randomUUID().toString();
     }
 
-    private UserResponseDTO mapToUserResponseDTO(User user) {
+    private UserResponseDTO mapToUserResponseDTO(User user, String roleName) {
         UserResponseDTO dto = new UserResponseDTO();
         dto.setId(user.getId());
         dto.setName(user.getName());
@@ -271,7 +293,7 @@ public class UserService {
         dto.setDepartmentName(user.getDepartment().getName());
         dto.setActive(user.isActive());
         dto.setEmailVerified(user.isEmailVerified());
-        dto.setRole(user.getRole());
+        dto.setRoleName(roleName);
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
         return dto;

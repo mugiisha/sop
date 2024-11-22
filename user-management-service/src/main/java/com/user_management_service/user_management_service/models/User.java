@@ -1,6 +1,5 @@
 package com.user_management_service.user_management_service.models;
 
-import com.user_management_service.user_management_service.enums.Role;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -63,13 +62,9 @@ public class User {
     @Column
     private LocalDateTime lastFailedLogin;
 
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "department_id", foreignKey = @ForeignKey(name = "fk_user_department"))
     private Department department;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private Role role = Role.USER;
 
     @PrePersist
     protected void onCreate() {
