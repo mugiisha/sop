@@ -25,7 +25,7 @@ import java.util.UUID;
 public class UserController {
     private final UserService userService;
 
-    @PostMapping
+    @PostMapping("/register")
     @Operation(summary = "Create a new user")
     @ApiResponse(responseCode = "200", description = "User created successfully")
     @ApiResponse(responseCode = "400", description = "Invalid input")

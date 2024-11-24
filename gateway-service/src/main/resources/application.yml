@@ -15,16 +15,38 @@ spring:
           predicates:
             - Path=/workflow/**
           filters:
-            - RewritePath=/workflow/v3/api-docs, /v3/api-docs
-            - RewritePath=/workflow/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /workflow/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /workflow/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /workflow/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: user-management-service
           uri: lb://user-management-service
           predicates:
             - Path=/users/**
           filters:
-            - RewritePath=/users/v3/api-docs, /v3/api-docs
-            - RewritePath=/users/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /users/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /users/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /users/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: analytics-insights-service
           uri: lb://analytics-insights-service
@@ -32,72 +54,170 @@ spring:
             - Path=/analytics/**
             - Method=GET,POST,PUT,DELETE,OPTIONS
           filters:
-            - RewritePath=/analytics/v3/api-docs, /v3/api-docs
-            - RewritePath=/analytics/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /analytics/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /analytics/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /analytics/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: audit-compliance-tracking-service
           uri: lb://audit-compliance-tracking-service
           predicates:
             - Path=/audit/**
           filters:
-            - RewritePath=/audit/v3/api-docs, /v3/api-docs
-            - RewritePath=/audit/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /audit/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /audit/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /audit/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: compliance-reporting-service
           uri: lb://compliance-reporting-service
           predicates:
             - Path=/compliance/**
           filters:
-            - RewritePath=/compliance/v3/api-docs, /v3/api-docs
-            - RewritePath=/compliance/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /compliance/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /compliance/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /compliance/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: discovery-service
           uri: lb://discovery-service
           predicates:
             - Path=/discovery/**
           filters:
-            - RewritePath=/discovery/v3/api-docs, /v3/api-docs
-            - RewritePath=/discovery/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: RewritePath
+              args:
+                regexp: /discovery/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /discovery/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /discovery/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: notification-service
           uri: lb://notification-service
           predicates:
             - Path=/notifications/**
           filters:
-            - RewritePath=/notifications/v3/api-docs, /v3/api-docs
-            - RewritePath=/notifications/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /notifications/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /notifications/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /notifications/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: role-access-control-service
           uri: lb://role-access-control-service
           predicates:
             - Path=/access/**
           filters:
-            - RewritePath=/access/v3/api-docs, /v3/api-docs
-            - RewritePath=/access/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /access/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /access/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /access/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: sop-content-service
           uri: lb://sop-content-service
           predicates:
             - Path=/content/**
           filters:
-            - RewritePath=/content/v3/api-docs, /v3/api-docs
-            - RewritePath=/content/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /content/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /content/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /content/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: sop-recommendation-service
           uri: lb://sop-recommendation-service
           predicates:
             - Path=/recommendations/**
           filters:
-            - RewritePath=/recommendations/v3/api-docs, /v3/api-docs
-            - RewritePath=/recommendations/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /recommendations/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /recommendations/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /recommendations/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
         - id: version-control-service
           uri: lb://version-control-service
           predicates:
             - Path=/versions/**
           filters:
-            - RewritePath=/versions/v3/api-docs, /v3/api-docs
-            - RewritePath=/versions/swagger-ui/(?<segment>.*), /swagger-ui/${segment}
+            - name: AuthFilter
+            - name: RewritePath
+              args:
+                regexp: /versions/(?<remaining>.*)
+                replacement: /${remaining}
+            - name: RewritePath
+              args:
+                regexp: /versions/v3/api-docs
+                replacement: /v3/api-docs
+            - name: RewritePath
+              args:
+                regexp: /versions/swagger-ui/(?<segment>.*)
+                replacement: /swagger-ui/${segment}
 
       globalcors:
         corsConfigurations:
@@ -181,3 +301,9 @@ logging:
     reactor.netty: INFO
   pattern:
     console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+
+jwt:
+  secret: jxgEQeXHuPq8VdbyYFNkANdudQ53YUn4
+  expiration: 3600000000
+  reset:
+    expiration: 900000

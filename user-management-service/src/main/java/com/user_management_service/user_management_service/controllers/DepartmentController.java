@@ -17,7 +17,7 @@ import java.util.UUID;
 public class DepartmentController {
     private final DepartmentService departmentService;
 
-    @PostMapping
+    @PostMapping("/create")
     public ResponseEntity<DepartmentDTO> createDepartment(@Valid @RequestBody DepartmentCreationDTO creationDTO) {
         DepartmentDTO department = departmentService.createDepartment(creationDTO);
         return ResponseEntity.ok(department);

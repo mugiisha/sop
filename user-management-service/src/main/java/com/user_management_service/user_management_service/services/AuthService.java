@@ -49,7 +49,7 @@ public class AuthService {
         }
 
         handleSuccessfulLogin(user);
-        String token = jwtService.generateToken(user);
+        String token = jwtService.generateToken(user, roleName);
 
         log.info("Successfully logged in user: {}", loginDTO.getEmail());
         return createLoginResponse(user, token, roleName);
