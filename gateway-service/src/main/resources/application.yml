@@ -303,7 +303,7 @@ logging:
     console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
 
 jwt:
-  secret: jxgEQeXHuPq8VdbyYFNkANdudQ53YUn4
+  secret: ${JWT_SECRET}
   expiration: 3600000000
   reset:
     expiration: 900000

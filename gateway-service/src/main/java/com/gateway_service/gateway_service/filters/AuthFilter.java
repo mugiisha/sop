@@ -34,25 +34,21 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
-            logger.debug("Processing request for path: {}", path);
 
             if (validator.isSecured.test(request)) {
                 try {
                     String token = extractToken(request);
                     if (token == null) {
-                        logger.warn("Authorization header missing or invalid for path: {}", path);
                         return onError(exchange, HttpStatus.UNAUTHORIZED, "Login to perform this action");
                     }
 
                     if (!jwtUtils.isTokenValid(token)) {
-                        logger.warn("Invalid token for path: {}", path);
                         return onError(exchange, HttpStatus.UNAUTHORIZED, "Unauthorized to perform this action");
                     }
 
                     // Extract role and check permissions
                     String userRole = jwtUtils.extractRole(token);
                     if (!validator.hasRequiredRole(path, userRole)) {
-                        logger.warn("User with role {} attempted to access restricted path: {}", userRole, path);
                         return onError(exchange, HttpStatus.FORBIDDEN, "You don't have permission to perform this action");
                     }
 
@@ -65,7 +61,6 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
 
                     return chain.filter(exchange.mutate().request(modifiedRequest).build());
                 } catch (Exception e) {
-                    logger.error("Error processing authentication for path: {}", path, e);
                     return onError(exchange, HttpStatus.INTERNAL_SERVER_ERROR, "Authentication processing error");
                 }
             }
