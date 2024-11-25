@@ -11,6 +11,7 @@ service RoleAssignmentService {
   rpc updateUserRole(AssignRoleRequest) returns (AssignRoleResponse) {}
   rpc deleteUserRole(DeleteUserRoleRequest) returns (DeleteUserRoleResponse) {}
   rpc getRoleByName(GetRoleByNameRequest) returns (GetRoleByNameResponse) {}
+  rpc getRoleAssignmentsByDepartmentId(GetRoleAssignmentsByDepartmentIdRequest) returns (GetRoleAssignmentsByDepartmentIdResponse) {}
 }
 
 message AssignRoleRequest {
@@ -68,6 +69,16 @@ message GetRoleAssignmentsByRoleIdAndDepartmentIdRequest {
 }
 
 message GetRoleAssignmentsByRoleIdAndDepartmentIdResponse {
+  bool success = 1;
+  repeated string userIds = 2;
+  string errorMessage = 3;
+}
+
+message GetRoleAssignmentsByDepartmentIdRequest {
+  string departmentId = 1;
+}
+
+message GetRoleAssignmentsByDepartmentIdResponse {
   bool success = 1;
   repeated string userIds = 2;
   string errorMessage = 3;

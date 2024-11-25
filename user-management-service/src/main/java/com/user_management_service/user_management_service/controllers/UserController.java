@@ -25,7 +25,7 @@ import java.util.UUID;
 public class UserController {
     private final UserService userService;
 
-    @PostMapping
+    @PostMapping("/register")
     @Operation(summary = "Create a new user")
     @ApiResponse(responseCode = "200", description = "User created successfully")
     @ApiResponse(responseCode = "400", description = "Invalid input")
@@ -44,6 +44,13 @@ public class UserController {
             @Parameter(description = "ID of the user to retrieve")
             @PathVariable UUID userId) {
         return ResponseEntity.ok(userService.getUserById(userId));
+    }
+
+    @GetMapping
+    @Operation(summary = "Get all users")
+    @ApiResponse(responseCode = "200", description = "Users found")
+    public ResponseEntity<List<UserResponseDTO>> getUsers() {
+        return ResponseEntity.ok(userService.getUsers());
     }
 
     @PutMapping("/{userId}")

@@ -25,7 +25,7 @@ public class RoleService {
 
     public Role createRole(CreateRoleDto createRoleDto) throws AlreadyExistsException {
 
-            String roleName = createRoleDto.getRoleName();
+            String roleName = createRoleDto.getRoleName().toUpperCase();
             Role existingRole = roleRepository.findByRoleName(roleName.toUpperCase());
 
             if(existingRole != null) {
@@ -47,7 +47,7 @@ public class RoleService {
             Role role = roleRepository.findById(roleId)
                     .orElseThrow(() -> new NotFoundException(ROLE_NOT_FOUND));
 
-            role.setRoleName(createRoleDto.getRoleName());
+            role.setRoleName(createRoleDto.getRoleName().toUpperCase());
             return roleRepository.save(role);
 
     }
