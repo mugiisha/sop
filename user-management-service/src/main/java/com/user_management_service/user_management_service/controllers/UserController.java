@@ -46,6 +46,13 @@ public class UserController {
         return ResponseEntity.ok(userService.getUserById(userId));
     }
 
+    @GetMapping
+    @Operation(summary = "Get all users")
+    @ApiResponse(responseCode = "200", description = "Users found")
+    public ResponseEntity<List<UserResponseDTO>> getUsers() {
+        return ResponseEntity.ok(userService.getUsers());
+    }
+
     @PutMapping("/{userId}")
     @Operation(summary = "Update user information")
     @ApiResponse(responseCode = "200", description = "User updated successfully")

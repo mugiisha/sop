@@ -13,4 +13,6 @@ public interface RoleAssignmentRepository extends JpaRepository<RoleAssignment, 
     Optional<RoleAssignment> findByUserId(UUID userId);
 
     List<RoleAssignment> findByRoleIdAndDepartmentId(UUID roleId, UUID departmentId);
+
+    List<RoleAssignment> findByDepartmentId(UUID departmentId);
 }

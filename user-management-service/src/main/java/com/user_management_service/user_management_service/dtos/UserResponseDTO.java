@@ -1,6 +1,5 @@
 package com.user_management_service.user_management_service.dtos;
 
-import com.user_management_service.user_management_service.enums.Role;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;

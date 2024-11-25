@@ -1,10 +1,10 @@
 package com.user_management_service.user_management_service.services;
 
 import com.user_management_service.user_management_service.dtos.*;
-import com.user_management_service.user_management_service.enums.Role;
 import com.user_management_service.user_management_service.exceptions.*;
 import com.user_management_service.user_management_service.models.*;
 import com.user_management_service.user_management_service.repositories.*;
+import com.user_management_service.user_management_service.utils.PasswordGenerator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -47,7 +47,9 @@ public class UserService {
         Department department = departmentRepository.findById(registrationDTO.getDepartmentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
 
-        User user = createNewUser(registrationDTO, department);
+        String generatedPassword = PasswordGenerator.generateRandomPassword();
+
+        User user = createNewUser(registrationDTO, department, generatedPassword);
         User savedUser = userRepository.save(user);
 
         // call role access control service to assign role to user
@@ -62,7 +64,7 @@ public class UserService {
         }
 
         createDefaultNotificationPreferences(savedUser);
-        emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getName());
+        emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getName(), generatedPassword);
         auditService.logUserCreation(savedUser.getId(), savedUser.getEmail());
 
         return mapToUserResponseDTO(savedUser, "");
@@ -146,8 +148,31 @@ public class UserService {
         }
 
         List<User> users = userRepository.findActiveUsersByDepartment(departmentId);
+
         return users.stream()
-                .map(user -> mapToUserResponseDTO(user, ""))
+                .map(user -> {
+                    GetRoleByUserIdResponse userRole = userRoleClientService.getUserRoles(user.getId().toString());
+                    if (!userRole.getSuccess()) {
+                        throw new RoleServerException(userRole.getErrorMessage());
+                    }
+                    return mapToUserResponseDTO(user, userRole.getRoleName());
+                })
+                .toList();
+    }
+
+    @Cacheable(value = "users")
+    public List<UserResponseDTO> getUsers() {
+
+        List<User> users = userRepository.findAll();
+
+        return users.stream()
+                .map(user -> {
+                    GetRoleByUserIdResponse userRole = userRoleClientService.getUserRoles(user.getId().toString());
+                    if (!userRole.getSuccess()) {
+                        throw new RoleServerException(userRole.getErrorMessage());
+                    }
+                    return mapToUserResponseDTO(user, userRole.getRoleName());
+                })
                 .toList();
     }
 
@@ -258,11 +283,11 @@ public class UserService {
     }
 
     // Helper methods
-    private User createNewUser(UserRegistrationDTO registrationDTO, Department department) {
+    private User createNewUser(UserRegistrationDTO registrationDTO, Department department, String password) {
         User user = new User();
         user.setName(registrationDTO.getName());
         user.setEmail(registrationDTO.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(registrationDTO.getPassword()));
+        user.setPasswordHash(passwordEncoder.encode(password));
         user.setDepartment(department);
         user.setActive(true);
         user.setEmailVerified(false);
@@ -304,6 +329,17 @@ public class UserService {
         dto.setUserId(preferences.getUser().getId());
         dto.setEmailEnabled(preferences.isEmailEnabled());
         dto.setInAppEnabled(preferences.isInAppEnabled());
+        return dto;
+    }
+
+    public UserRoleDTO mapToUserRoleDTO(User user, String roleName) {
+        UserRoleDTO dto = new UserRoleDTO();
+        dto.setId(user.getId().toString());
+        dto.setEmail(user.getEmail());
+        dto.setName(user.getName());
+        dto.setRole(roleName);
+        dto.setActive(user.isActive());
+        dto.setDateAdded(user.getCreatedAt().toLocalDate());
         return dto;
     }
 }
