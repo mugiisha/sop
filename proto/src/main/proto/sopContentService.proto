@@ -1,0 +1,67 @@
+syntax = "proto3";
+
+package sopContentService;
+
+import "google/protobuf/timestamp.proto";  // Import timestamp for date fields
+
+// Define the service for SOP content management
+service SopContentService {
+  // Retrieve all SOPs
+  rpc getAllSops (Empty) returns (SopListResponse);
+
+  // Retrieve a specific SOP by its ID
+  rpc getSopById (GetSopByIdRequest) returns (SopResponse);
+
+  // Retrieve the versions of a specific SOP
+  rpc getSopVersions (GetSopVersionsRequest) returns (SopVersionListResponse);
+}
+
+// SOP (Standard Operating Procedure) data
+message Sop {
+  string id = 1; // MongoDB's unique identifier for the SOP
+
+  string title = 2; // Title of the SOP
+  string description = 3; // Detailed description of the SOP
+  string newSection = 4; // New section content (if any)
+  string code = 5; // Code or unique identifier for the SOP
+  string documentUrl = 6; // URL to the document
+  string imageUrl = 7; // URL to an image related to the SOP
+  string status = 8; // Status (e.g., "Draft", "Published")
+  string version = 9; // Version of the SOP (e.g., "1.0", "1.1")
+  string visibility = 10; // Visibility level (e.g., "Public", "Private")
+  repeated string authors = 11; // List of authors who contributed to the SOP
+  repeated string reviewers = 12; // List of reviewers who reviewed the SOP
+  repeated string approvers = 13; // List of approvers who approved the SOP
+  string category = 14; // Category of the SOP (e.g., "HR", "Safety")
+
+  google.protobuf.Timestamp createdAt = 15; // Timestamp when the SOP was created
+  google.protobuf.Timestamp updatedAt = 16; // Timestamp when the SOP was last updated
+}
+
+// Request to get a specific SOP by its ID
+message GetSopByIdRequest {
+  string sopId = 1; // The ID of the SOP to retrieve
+}
+
+// Response containing a single SOP
+message SopResponse {
+  Sop sop = 1; // The SOP object
+}
+
+// Response for a list of SOPs
+message SopListResponse {
+  repeated Sop sops = 1; // List of SOPs
+}
+
+// Request to get versions of a specific SOP
+message GetSopVersionsRequest {
+  string sopId = 1; // The ID of the SOP for which to get versions
+}
+
+// Response containing a list of SOP versions
+message SopVersionListResponse {
+  repeated string versions = 1; // List of version strings (e.g., "1.0", "1.1")
+}
+
+// Empty message for requests that don't require a body
+message Empty {}
