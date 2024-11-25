@@ -70,6 +70,11 @@ public class RoleAssignmentService {
                    return roleAssignmentRepository.findByRoleIdAndDepartmentId(roleId, departmentId);
         }
 
+    public List<RoleAssignment> getRoleAssignmentsByDepartmentId(UUID departmentId) {
+        return roleAssignmentRepository.findByDepartmentId( departmentId);
+    }
+
+
     private Role checkRole(UUID roleId, UUID departmentId) throws NotFoundException, AlreadyExistsException {
         Role role = roleRepository.findById(roleId)
                 .orElseThrow(() -> new NotFoundException("Role not found"));

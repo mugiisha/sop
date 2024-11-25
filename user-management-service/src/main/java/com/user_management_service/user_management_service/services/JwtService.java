@@ -36,11 +36,12 @@ public class JwtService {
         return Keys.hmacShaKeyFor(keyBytes);
     }
 
-    public String generateToken(User user) {
+    public String generateToken(User user, String role) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("email", user.getEmail());
         claims.put("departmentId", user.getDepartment().getId().toString());
         claims.put("tokenType", "ACCESS");
+        claims.put("role", role);
 
         return Jwts.builder()
                 .setClaims(claims)

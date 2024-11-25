@@ -16,7 +16,7 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    public void sendWelcomeEmail(String toEmail, String name) {
+    public void sendWelcomeEmail(String toEmail, String name, String password) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -25,6 +25,7 @@ public class EmailService {
             message.setText("Dear " + name + ",\n\n" +
                     "Welcome to our platform! We're excited to have you on board.\n\n" +
                     "Please verify your email address to get started.\n\n" +
+                    "Use this as your password: " + password + "\n\n" +
                     "Best regards,\nThe Team");
 
             emailSender.send(message);
