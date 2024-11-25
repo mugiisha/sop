@@ -68,12 +68,13 @@ public class SopModel {
     private Date updatedAt; // Automatically updated when the document changes
 
     // Constructor with all parameters
-    public SopModel(String title, String visibility, List<String> authors, List<String> reviewers, List<String> approvers, String category) {
+    public SopModel(String title, String visibility, List<String> authors, List<String> reviewers, List<String> approvers, String category ) {
         this.title = title;
         this.visibility = visibility;
         this.authors = authors;
         this.reviewers = reviewers;
         this.approvers = approvers;
         this.category = category;
+
     }
 }
