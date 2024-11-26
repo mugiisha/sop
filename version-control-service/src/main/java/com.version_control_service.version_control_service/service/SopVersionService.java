@@ -1,36 +1,54 @@
 package com.version_control_service.version_control_service.service;
 
-import com.version_control_service.version_control_service.dto.SopDto;
-import net.devh.boot.grpc.client.inject.GrpcClient;
+import com.version_control_service.version_control_service.dto.ApiResponse;
+import com.version_control_service.version_control_service.exception.SopNotFoundException;
+import com.version_control_service.version_control_service.model.SopVersionModel;
+import com.version_control_service.version_control_service.repository.SopVersionRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import sopContentService.Empty;
-import sopContentService.SopContentServiceGrpc;
-import sopContentService.SopListResponse;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Service
 public class SopVersionService {
 
-    @GrpcClient("sop-content-service")
-    private SopContentServiceGrpc.SopContentServiceBlockingStub sopContentServiceBlockingStub;
+    @Autowired
+    private SopVersionRepository sopVersionRepository;
 
-    public List<SopDto> getAllSops() {
-        // Make gRPC call to fetch all SOPs
-        SopListResponse sopListResponse = sopContentServiceBlockingStub.getAllSops(Empty.newBuilder().build());
+    // Initialize SOP version and save to database
+    public ApiResponse<SopVersionModel> initializeSopVersion(SopVersionModel sopVersionModel) {
+        try {
+            SopVersionModel createdSopVersion = sopVersionRepository.save(sopVersionModel);
+            return new ApiResponse<>(200, "SOP Version Initialized successfully", createdSopVersion);
+        } catch (Exception e) {
+            return new ApiResponse<>(500, "Failed to initialize SOP Version: " + e.getMessage(), null);
+        }
+    }
 
-        // Convert gRPC Sop objects to DTOs
-        return sopListResponse.getSopsList().stream()
-                .map(sop -> new SopDto(
-                        sop.getId(),
-                        sop.getTitle(),
-                        sop.getDescription(),
-                        sop.getStatus(),
-                        sop.getVersion(),
-                        sop.getImageUrl(),
-                        sop.getDocumentUrl()
-                ))
-                .collect(Collectors.toList());
+    // Fetch SOP versions by SOP ID
+    public ApiResponse<List<SopVersionModel>> getVersionsBySopId(String sopId) {
+        List<SopVersionModel> versions = sopVersionRepository.findBySopId(sopId);
+        if (versions.isEmpty()) {
+            throw new SopNotFoundException("No versions found for SOP ID: " + sopId);
+        }
+        return new ApiResponse<>(200, "Fetched SOP versions successfully", versions);
+    }
+
+    // Fetch the latest SOP version by SOP ID
+    public ApiResponse<SopVersionModel> getLatestVersion(String sopId) {
+        SopVersionModel latestVersion = sopVersionRepository.findTopBySopIdOrderByCreatedAtDesc(sopId);
+        if (latestVersion == null) {
+            throw new SopNotFoundException("No versions found for SOP ID: " + sopId);
+        }
+        return new ApiResponse<>(200, "Fetched latest SOP version successfully", latestVersion);
+    }
+
+    // Fetch a specific version of SOP by SOP ID and version number
+    public ApiResponse<SopVersionModel> getSpecificVersion(String sopId, String versionNumber) {
+        SopVersionModel specificVersion = sopVersionRepository.findBySopIdAndVersionNumber(sopId, versionNumber);
+        if (specificVersion == null) {
+            throw new SopNotFoundException("No version found for SOP ID: " + sopId + " and Version: " + versionNumber);
+        }
+        return new ApiResponse<>(200, "Fetched specific SOP version successfully", specificVersion);
     }
 }
