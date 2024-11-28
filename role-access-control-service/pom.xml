@@ -9,8 +9,8 @@
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 
-	<groupId>com.role-access-control-service</groupId>
-	<artifactId>role-access-control-service</artifactId>
+	<groupId>com.role_access_control_service</groupId>
+	<artifactId>role_access_control_service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>role-access-control-service</name>
 	<description>Access control service</description>

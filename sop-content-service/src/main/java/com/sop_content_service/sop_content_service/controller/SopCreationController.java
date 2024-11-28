@@ -14,7 +14,7 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/sops")
+@RequestMapping("/api/v1/sops")
 public class SopCreationController {
 
     @Autowired

@@ -5,6 +5,8 @@ import com.role_access_control_service.role_access_control_service.models.Role;
 import com.role_access_control_service.role_access_control_service.repositories.RoleRepository;
 import com.role_access_control_service.role_access_control_service.utils.exception.AlreadyExistsException;
 import com.role_access_control_service.role_access_control_service.utils.exception.NotFoundException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -13,6 +15,9 @@ import java.util.UUID;
 
 @Service
 public class RoleService {
+
+    private static final Logger log = LoggerFactory.getLogger(RoleService.class);
+
 
     private final RoleRepository roleRepository;
 
@@ -25,27 +30,41 @@ public class RoleService {
 
     public Role createRole(CreateRoleDto createRoleDto) throws AlreadyExistsException {
 
+            log.info("Creating role");
             String roleName = createRoleDto.getRoleName().toUpperCase();
-            Role existingRole = roleRepository.findByRoleName(roleName.toUpperCase());
+            Role existingRole = roleRepository.findByRoleName(roleName);
 
             if(existingRole != null) {
+                log.error("Error creating existing role");
                 throw new AlreadyExistsException("Role already exists");
             }
 
             Role role = new Role();
-            role.setRoleName(createRoleDto.getRoleName());
+            role.setRoleName(roleName);
             return roleRepository.save(role);
 
     }
 
     public Role getRoleById(UUID roleId) throws NotFoundException {
-            return roleRepository.findById(roleId)
-                    .orElseThrow(() -> new NotFoundException(ROLE_NOT_FOUND));
+
+        log.info("Retrieving role with id");
+
+        return roleRepository.findById(roleId)
+                .orElseThrow(() -> {
+                    log.error("Error retrieving role with id");
+                    return new NotFoundException(ROLE_NOT_FOUND);
+                });
     }
 
     public Role updateRole(UUID roleId, CreateRoleDto createRoleDto) throws NotFoundException {
+
+        log.info("Updating role");
+
             Role role = roleRepository.findById(roleId)
-                    .orElseThrow(() -> new NotFoundException(ROLE_NOT_FOUND));
+                    .orElseThrow(() -> {
+                        log.error("Error role to update not found");
+                       return new NotFoundException(ROLE_NOT_FOUND);
+                    });
 
             role.setRoleName(createRoleDto.getRoleName().toUpperCase());
             return roleRepository.save(role);
@@ -53,20 +72,30 @@ public class RoleService {
     }
 
     public void deleteRole(UUID roleId) throws NotFoundException {
+
+        log.info("Deleting role");
+
             roleRepository.findById(roleId).orElseThrow(
-                    () -> new NotFoundException(ROLE_NOT_FOUND));
+                    () -> {
+                        log.error("Error deleting role not found");
+                        return new NotFoundException(ROLE_NOT_FOUND);
+                    });
 
             roleRepository.deleteById(roleId);
     }
 
     public List<Role> getAllRoles() {
+             log.info("Retrieving all roles");
             return roleRepository.findAll();
     }
 
     public Role getRoleByRoleName(String roleName) throws NotFoundException {
+
+            log.info("Retrieving role with name");
             Role role = roleRepository.findByRoleName(roleName);
 
             if(role == null) {
+                log.error("Error retrieving role with name not found");
                 throw new NotFoundException(ROLE_NOT_FOUND);
             }
 

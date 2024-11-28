@@ -26,7 +26,8 @@ public class RouteValidator {
     private final Map<String, String> routeRoles = Map.of(
             "/api/v1/users/register", "ADMIN",
             "/api/v1/departments/create", "ADMIN",
-                "/api/v1/roles", "ADMIN"
+                "/api/v1/roles", "ADMIN",
+            "/api/v1/sops/create","AUTHOR"
             // Add here all routes you are working on that require specific roles
     );
 

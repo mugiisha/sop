@@ -17,7 +17,6 @@ import reactor.core.publisher.Mono;
 @Component
 public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> {
 
-    private static final Logger logger = LoggerFactory.getLogger(AuthFilter.class);
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final RouteValidator validator;
