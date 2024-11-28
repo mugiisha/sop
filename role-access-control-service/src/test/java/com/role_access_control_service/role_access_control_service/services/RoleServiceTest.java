@@ -3,6 +3,8 @@ package com.role_access_control_service.role_access_control_service.services;
 import com.role_access_control_service.role_access_control_service.dtos.CreateRoleDto;
 import com.role_access_control_service.role_access_control_service.models.Role;
 import com.role_access_control_service.role_access_control_service.repositories.RoleRepository;
+import com.role_access_control_service.role_access_control_service.utils.exception.AlreadyExistsException;
+import com.role_access_control_service.role_access_control_service.utils.exception.NotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -30,8 +32,8 @@ class RoleServiceTest {
 
     // Test data constants
     private static final UUID TEST_ROLE_ID = UUID.randomUUID();
-    private static final String TEST_ROLE_NAME = "Test role";
-    private static final String UPDATED_ROLE_NAME = "Updated role";
+    private static final String TEST_ROLE_NAME = "TEST ROLE";
+    private static final String UPDATED_ROLE_NAME = "UPDATED ROLE";
 
     @BeforeEach
     void setUp() {
@@ -41,7 +43,7 @@ class RoleServiceTest {
     @Nested
     class CreateRole {
         @Test
-        void shouldSuccessfullyCreateRole() throws CustomException {
+        void shouldSuccessfullyCreateRole() throws AlreadyExistsException {
             // Given
             CreateRoleDto createRoleDto = new CreateRoleDto(TEST_ROLE_NAME);
 
@@ -55,12 +57,25 @@ class RoleServiceTest {
             Role capturedRole = roleArgumentCaptor.getValue();
             assertThat(capturedRole.getRoleName()).isEqualTo(createRoleDto.getRoleName());
         }
+
+        @Test
+        void shouldThrowExceptionWhenRoleAlreadyExists() {
+            // Given
+            CreateRoleDto createRoleDto = new CreateRoleDto(TEST_ROLE_NAME);
+            Role existingRole = createTestRole();
+            given(roleRepository.findByRoleName(TEST_ROLE_NAME.toUpperCase())).willReturn(existingRole);
+
+            // When/Then
+            assertThatThrownBy(() -> roleService.createRole(createRoleDto))
+                    .isInstanceOf(AlreadyExistsException.class)
+                    .hasMessageContaining("Role already exists");
+        }
     }
 
     @Nested
     class GetRoles {
         @Test
-        void shouldSuccessfullyGetAllRoles() throws CustomException {
+        void shouldSuccessfullyGetAllRoles() {
             // When
             roleService.getAllRoles();
 
@@ -69,7 +84,7 @@ class RoleServiceTest {
         }
 
         @Test
-        void shouldSuccessfullyGetRoleById() throws Exception {
+        void shouldSuccessfullyGetRoleById() throws NotFoundException {
             // Given
             Role mockRole = createTestRole();
             given(roleRepository.findById(TEST_ROLE_ID)).willReturn(Optional.of(mockRole));
@@ -88,14 +103,41 @@ class RoleServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> roleService.getRoleById(TEST_ROLE_ID))
-                    .isInstanceOf(CustomException.class);
+                    .isInstanceOf(NotFoundException.class);
+        }
+    }
+
+    @Nested
+    class GetRoleByRoleName {
+        @Test
+        void shouldSuccessfullyGetRoleByRoleName() throws NotFoundException {
+            // Given
+            Role mockRole = createTestRole();
+            given(roleRepository.findByRoleName(TEST_ROLE_NAME)).willReturn(mockRole);
+
+            // When
+            Role role = roleService.getRoleByRoleName(TEST_ROLE_NAME);
+
+            // Then
+            assertThat(role).isEqualTo(mockRole);
+        }
+
+        @Test
+        void shouldThrowExceptionWhenRoleNotFound() {
+            // Given
+            given(roleRepository.findByRoleName(TEST_ROLE_NAME)).willReturn(null);
+
+            // When/Then
+            assertThatThrownBy(() -> roleService.getRoleByRoleName(TEST_ROLE_NAME))
+                    .isInstanceOf(NotFoundException.class)
+                    .hasMessageContaining("Role not found");
         }
     }
 
     @Nested
     class UpdateRole {
         @Test
-        void shouldSuccessfullyUpdateRole() throws Exception {
+        void shouldSuccessfullyUpdateRole() throws NotFoundException {
             // Given
             CreateRoleDto updateRoleDto = new CreateRoleDto(UPDATED_ROLE_NAME);
             Role existingRole = createTestRole();
@@ -118,14 +160,14 @@ class RoleServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> roleService.updateRole(TEST_ROLE_ID, updateRoleDto))
-                    .isInstanceOf(CustomException.class);
+                    .isInstanceOf(NotFoundException.class);
         }
     }
 
     @Nested
     class DeleteRole {
         @Test
-        void shouldSuccessfullyDeleteRole() throws Exception {
+        void shouldSuccessfullyDeleteRole() throws NotFoundException {
             // Given
             Role existingRole = createTestRole();
             given(roleRepository.findById(TEST_ROLE_ID)).willReturn(Optional.of(existingRole));
@@ -144,7 +186,7 @@ class RoleServiceTest {
 
             // When/Then
             assertThatThrownBy(() -> roleService.deleteRole(TEST_ROLE_ID))
-                    .isInstanceOf(CustomException.class);
+                    .isInstanceOf(NotFoundException.class);
 
             verify(roleRepository, never()).deleteById(any());
         }
