@@ -5,6 +5,7 @@ import com.user_management_service.user_management_service.exceptions.*;
 import com.user_management_service.user_management_service.models.*;
 import com.user_management_service.user_management_service.repositories.*;
 import com.user_management_service.user_management_service.utils.PasswordGenerator;
+import com.user_management_service.user_management_service.validation.PasswordValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -37,8 +38,8 @@ public class UserService {
             @CacheEvict(value = "usersByDepartment", allEntries = true),
             @CacheEvict(value = "unverifiedUsers", allEntries = true)
     })
-    public UserResponseDTO createUser(UserRegistrationDTO registrationDTO) throws RoleServerException {
-        log.info("Creating new user with email: {}", registrationDTO.getEmail());
+    public UserResponseDTO registerUser(UserRegistrationDTO registrationDTO) {
+        log.info("Registering new user with email: {}", registrationDTO.getEmail());
 
         if (userRepository.existsByEmail(registrationDTO.getEmail())) {
             throw new UserAlreadyExistsException("Email already registered");
@@ -47,40 +48,60 @@ public class UserService {
         Department department = departmentRepository.findById(registrationDTO.getDepartmentId())
                 .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
 
-        String generatedPassword = PasswordGenerator.generateRandomPassword();
+        String temporaryPassword = PasswordGenerator.generateRandomPassword();
+        String verificationToken = UUID.randomUUID().toString();
 
-        User user = createNewUser(registrationDTO, department, generatedPassword);
+        User user = new User();
+        user.setName(registrationDTO.getName());
+        user.setEmail(registrationDTO.getEmail());
+        user.setDepartment(department);
+        user.setActive(true);
+        user.setEmailVerified(false);
+        user.setEmailVerificationToken(verificationToken);
+        user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
+        user.setMustChangePassword(true);
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setCreatedAt(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+
         User savedUser = userRepository.save(user);
 
-        // call role access control service to assign role to user
-        AssignRoleResponse response = userRoleClientService.assignRole(savedUser.getId().toString(),
+        AssignRoleResponse response = userRoleClientService.assignRole(
+                savedUser.getId().toString(),
                 registrationDTO.getRoleId().toString(),
-                registrationDTO.getDepartmentId().toString());
+                registrationDTO.getDepartmentId().toString()
+        );
 
-        // Check if role assignment was successful and delete user if it was not
         if (!response.getSuccess()) {
             userRepository.delete(savedUser);
             throw new RoleServerException(response.getErrorMessage());
         }
 
         createDefaultNotificationPreferences(savedUser);
-        emailService.sendWelcomeEmail(savedUser.getEmail(), savedUser.getName(), generatedPassword);
+
+        emailService.sendVerificationEmail(
+                savedUser.getEmail(),
+                savedUser.getName(),
+                verificationToken,
+                temporaryPassword
+        );
+
         auditService.logUserCreation(savedUser.getId(), savedUser.getEmail());
 
         return mapToUserResponseDTO(savedUser, "");
     }
 
     @Cacheable(value = "users", key = "#id")
-    public UserResponseDTO getUserById(UUID id) throws RoleServerException {
+    public UserResponseDTO getUserById(UUID id) {
         log.debug("Fetching user by ID: {}", id);
+
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        // get user role from role access control service
         GetRoleByUserIdResponse userRole = userRoleClientService
                 .getUserRoles(user.getId().toString());
 
-        if(!userRole.getSuccess()){
+        if (!userRole.getSuccess()) {
             throw new RoleServerException(userRole.getErrorMessage());
         }
 
@@ -98,9 +119,9 @@ public class UserService {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
 
-        Department department = null;
-        if (updateDTO.getDepartmentId() != null && !updateDTO.getDepartmentId().equals(user.getDepartment().getId())) {
-            department = departmentRepository.findById(updateDTO.getDepartmentId())
+        if (updateDTO.getDepartmentId() != null &&
+                !updateDTO.getDepartmentId().equals(user.getDepartment().getId())) {
+            Department department = departmentRepository.findById(updateDTO.getDepartmentId())
                     .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
             user.setDepartment(department);
         }
@@ -109,10 +130,58 @@ public class UserService {
             user.setName(updateDTO.getName());
         }
 
+        user.setUpdatedAt(LocalDateTime.now());
         User updatedUser = userRepository.save(user);
         auditService.logUserUpdate(user.getId(), user.getEmail());
 
-        return mapToUserResponseDTO(updatedUser,"");
+        return mapToUserResponseDTO(updatedUser, "");
+    }
+
+    @Transactional
+    public void verifyEmailAndSendCredentials(String token) {
+        User user = userRepository.findByEmailVerificationToken(token)
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid verification token"));
+
+        if (user.getEmailVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
+            throw new TokenExpiredException("Verification token has expired");
+        }
+
+        if (user.isEmailVerified()) {
+            throw new IllegalStateException("Email is already verified");
+        }
+
+        String temporaryPassword = PasswordGenerator.generateRandomPassword();
+
+        user.setEmailVerified(true);
+        user.setEmailVerificationToken(null);
+        user.setEmailVerificationTokenExpiry(null);
+        user.setPasswordHash(passwordEncoder.encode(temporaryPassword));
+        user.setMustChangePassword(true);
+        user.setUpdatedAt(LocalDateTime.now());
+
+        userRepository.save(user);
+        emailService.sendVerificationConfirmationEmail(user.getEmail(), user.getName(), temporaryPassword);
+        auditService.logEmailVerification(user.getId(), user.getEmail());
+    }
+
+    @Transactional
+    public void changePassword(UUID userId, PasswordChangeDTO dto) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (!passwordEncoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
+            throw new InvalidCredentialsException("Current password is incorrect");
+        }
+
+        PasswordValidator.validatePassword(dto.getNewPassword());
+
+        user.setPasswordHash(passwordEncoder.encode(dto.getNewPassword()));
+        user.setMustChangePassword(false);
+        user.setUpdatedAt(LocalDateTime.now());
+
+        userRepository.save(user);
+        emailService.sendPasswordChangeConfirmation(user.getEmail(), user.getName());
+        auditService.logPasswordChange(user.getId(), user.getEmail());
     }
 
     @Transactional
@@ -147,11 +216,10 @@ public class UserService {
             throw new ResourceNotFoundException("Department not found");
         }
 
-        List<User> users = userRepository.findActiveUsersByDepartment(departmentId);
-
-        return users.stream()
+        return userRepository.findActiveUsersByDepartment(departmentId).stream()
                 .map(user -> {
-                    GetRoleByUserIdResponse userRole = userRoleClientService.getUserRoles(user.getId().toString());
+                    GetRoleByUserIdResponse userRole = userRoleClientService
+                            .getUserRoles(user.getId().toString());
                     if (!userRole.getSuccess()) {
                         throw new RoleServerException(userRole.getErrorMessage());
                     }
@@ -162,12 +230,10 @@ public class UserService {
 
     @Cacheable(value = "users")
     public List<UserResponseDTO> getUsers() {
-
-        List<User> users = userRepository.findAll();
-
-        return users.stream()
+        return userRepository.findAll().stream()
                 .map(user -> {
-                    GetRoleByUserIdResponse userRole = userRoleClientService.getUserRoles(user.getId().toString());
+                    GetRoleByUserIdResponse userRole = userRoleClientService
+                            .getUserRoles(user.getId().toString());
                     if (!userRole.getSuccess()) {
                         throw new RoleServerException(userRole.getErrorMessage());
                     }
@@ -179,8 +245,7 @@ public class UserService {
     @Cacheable(value = "unverifiedUsers")
     public List<UserResponseDTO> getUnverifiedUsers() {
         log.debug("Fetching all unverified users");
-        List<User> unverifiedUsers = userRepository.findByEmailVerifiedFalse();
-        return unverifiedUsers.stream()
+        return userRepository.findByEmailVerifiedFalse().stream()
                 .map(user -> mapToUserResponseDTO(user, ""))
                 .toList();
     }
@@ -188,57 +253,15 @@ public class UserService {
     @Cacheable(value = "inactiveUsers")
     public List<UserResponseDTO> getInactiveUsers(int days) {
         log.debug("Fetching users inactive for {} days", days);
+
         if (days <= 0) {
             throw new IllegalArgumentException("Days must be greater than 0");
         }
 
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
-        List<User> inactiveUsers = userRepository.findByLastLoginBeforeOrLastLoginIsNull(cutoffDate);
-        return inactiveUsers.stream()
+        return userRepository.findByLastLoginBeforeOrLastLoginIsNull(cutoffDate).stream()
                 .map(user -> mapToUserResponseDTO(user, ""))
                 .toList();
-    }
-
-    @Transactional
-    @CacheEvict(value = "unverifiedUsers", allEntries = true)
-    public void resendVerificationEmail(UUID userId) {
-        log.info("Resending verification email for user ID: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (user.isEmailVerified()) {
-            throw new IllegalStateException("Email is already verified");
-        }
-
-        String verificationToken = generateVerificationToken();
-        user.setEmailVerificationToken(verificationToken);
-        user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
-        userRepository.save(user);
-
-        emailService.sendVerificationEmail(user.getEmail(), user.getName(), verificationToken);
-        auditService.logVerificationEmailResent(user.getId(), user.getEmail());
-    }
-
-    @Transactional
-    @CacheEvict(value = "unverifiedUsers", allEntries = true)
-    public void forceVerifyUser(UUID userId) {
-        log.info("Force verifying user ID: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        if (user.isEmailVerified()) {
-            throw new IllegalStateException("User is already verified");
-        }
-
-        user.setEmailVerified(true);
-        user.setEmailVerificationToken(null);
-        user.setEmailVerificationTokenExpiry(null);
-        userRepository.save(user);
-
-        emailService.sendVerificationConfirmationEmail(user.getEmail(), user.getName());
-        auditService.logForcedEmailVerification(user.getId(), user.getEmail());
     }
 
     @Cacheable(value = "notificationPreferences", key = "#userId")
@@ -282,31 +305,12 @@ public class UserService {
         return mapToNotificationPreferenceDTO(savedPreferences);
     }
 
-    // Helper methods
-    private User createNewUser(UserRegistrationDTO registrationDTO, Department department, String password) {
-        User user = new User();
-        user.setName(registrationDTO.getName());
-        user.setEmail(registrationDTO.getEmail());
-        user.setPasswordHash(passwordEncoder.encode(password));
-        user.setDepartment(department);
-        user.setActive(true);
-        user.setEmailVerified(false);
-        user.setEmailVerificationToken(generateVerificationToken());
-        user.setEmailVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
-        user.setCreatedAt(LocalDateTime.now());
-        return user;
-    }
-
     private void createDefaultNotificationPreferences(User user) {
         NotificationPreference preferences = new NotificationPreference();
         preferences.setUser(user);
         preferences.setEmailEnabled(true);
         preferences.setInAppEnabled(true);
         notificationPreferenceRepository.save(preferences);
-    }
-
-    private String generateVerificationToken() {
-        return UUID.randomUUID().toString();
     }
 
     private UserResponseDTO mapToUserResponseDTO(User user, String roleName) {
@@ -329,17 +333,6 @@ public class UserService {
         dto.setUserId(preferences.getUser().getId());
         dto.setEmailEnabled(preferences.isEmailEnabled());
         dto.setInAppEnabled(preferences.isInAppEnabled());
-        return dto;
-    }
-
-    public UserRoleDTO mapToUserRoleDTO(User user, String roleName) {
-        UserRoleDTO dto = new UserRoleDTO();
-        dto.setId(user.getId().toString());
-        dto.setEmail(user.getEmail());
-        dto.setName(user.getName());
-        dto.setRole(roleName);
-        dto.setActive(user.isActive());
-        dto.setDateAdded(user.getCreatedAt().toLocalDate());
         return dto;
     }
 }
