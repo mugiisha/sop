@@ -48,6 +48,8 @@ public class SecurityConfig {
                                 "/swagger-resources/**",
                                 "/configuration/ui",
                                 "/configuration/security",
+                                "/api/v1/users/verify-email/**",
+                                "/api/v1/users/verify-email/**",
                                 "/swagger-ui/**",
                                 "/webjars/**",
                                 "/swagger-ui.html"

@@ -31,7 +31,7 @@ public class SuperUserDataLoader {
             @Override
             @Transactional
             public void run(String... args) {
-                String superUserEmail = "ndayambaje.virgile@amalitechtraining.org";
+                String superUserEmail = "ndayambajevg16@gmail.com";
 
                 // Check if superuser already exists
                 Optional<User> existingUser = userRepository.findByEmail(superUserEmail);
