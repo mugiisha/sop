@@ -1,11 +1,10 @@
-package com.sop_content_service.sop_content_service.config;
+package com.version_control_service.version_control_service.config;
 
 import com.cloudinary.Cloudinary;
 import com.cloudinary.utils.ObjectUtils;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.stereotype.Service;
 
 
 @Configuration
