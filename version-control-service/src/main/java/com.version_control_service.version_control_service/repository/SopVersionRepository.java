@@ -9,9 +9,11 @@ public interface SopVersionRepository extends MongoRepository<SopVersionModel, S
     // Find all versions by SOP ID
     List<SopVersionModel> findBySopId(ObjectId sopId);
 
-    // Get the latest version for a SOP
     SopVersionModel findTopBySopIdOrderByCreatedAtDesc(ObjectId sopId);
 
     // Find specific version by SOP ID and version number
     SopVersionModel findBySopIdAndVersionNumber(ObjectId sopId, String versionNumber);
+
+    SopVersionModel findBySopIdAndVersionNumber(String sopId, String versionNumber);
+
 }

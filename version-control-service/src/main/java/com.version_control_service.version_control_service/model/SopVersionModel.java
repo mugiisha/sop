@@ -13,6 +13,7 @@ import lombok.NoArgsConstructor;
 import org.hibernate.validator.constraints.URL;
 import org.springframework.data.mongodb.core.mapping.Field;
 
+
 import java.util.Date;
 
 @Document(collection = "sop_versions") // MongoDB collection name
@@ -22,6 +23,7 @@ public class SopVersionModel {
 
     @Id
     private String id;
+
 
     @NotBlank(message = "SOP ID cannot be blank")
     @Size(max = 50, message = "SOP ID must not exceed 50 characters")
