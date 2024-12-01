@@ -8,6 +8,8 @@ import com.version_control_service.version_control_service.service.SopVersionGrp
 import com.version_control_service.version_control_service.service.SopVersionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,7 +57,6 @@ public class SopVersionController {
     @PostMapping("/create")
     public List<SopDto> displayAllSops() {
         logger.info("Entering displayAllSops() method via POST /create");
-
         List<SopDto> sops = null;
         try {
             logger.debug("Calling sopVersionService.getAllSops() from displayAllSops()");
@@ -64,10 +65,56 @@ public class SopVersionController {
         } catch (Exception e) {
             logger.error("Error occurred while retrieving SOPs", e);
         }
-
-        logger.info("Exiting displayAllSops() method");
-        return sops;
+            logger.info("Exiting displayAllSops() method");
+            return sops;
     }
+
+
+    @PostMapping("/{sopId}/create")
+    public SopVersionModel createNewSopVersion(
+            @PathVariable String sopId,
+            @RequestBody @Valid SopDto newVersionDetails) {
+        logger.info("Entering createNewSopVersion() method for SOP ID: {}", sopId);
+        SopVersionModel createdVersion;
+
+        try {
+            logger.debug("Calling sopVersionService.createNewSopVersion()");
+            createdVersion = sopVersionService.createNewSopVersion(newVersionDetails, sopId);
+            logger.info("Successfully created SOP version: {}", createdVersion);
+        } catch (Exception e) {
+            logger.error("Error occurred while creating SOP version", e);
+            throw e; // Optionally, handle the exception and return a meaningful response
+        }
+
+        logger.info("Exiting createNewSopVersion() method");
+        return createdVersion;
+    }
+    @GetMapping("/{versionId}")
+    public ResponseEntity<SopVersionModel> getSopVersionById(@PathVariable String versionId) {
+        logger.info("Entering getSopVersionById() method with versionId: {}", versionId);
+        try {
+            SopVersionModel sopVersion = sopVersionService.getSopVersionById(versionId);
+            logger.info("Successfully retrieved SOP version: {}", sopVersion);
+            return ResponseEntity.ok(sopVersion);
+        } catch (Exception e) {
+            logger.error("Error occurred while retrieving SOP version by versionId: {}", versionId, e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+    }
+
+    @GetMapping("/by-sop/{sopId}")
+    public ResponseEntity<List<SopVersionModel>> getAllVersionsBySopId(@PathVariable String sopId) {
+        logger.info("Entering getAllVersionsBySopId() method with sopId: {}", sopId);
+        try {
+            List<SopVersionModel> sopVersions = sopVersionService.getAllVersionsBySopId(sopId);
+            logger.info("Successfully retrieved SOP versions for sopId: {}", sopId);
+            return ResponseEntity.ok(sopVersions);
+        } catch (Exception e) {
+            logger.error("Error occurred while retrieving SOP versions by sopId: {}", sopId, e);
+            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
+        }
+    }
+
 
 
 }
