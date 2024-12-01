@@ -32,10 +32,10 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
     @Override
     public void getRoleAssignmentsByUserId(GetRoleByUserIdRequest request, StreamObserver<GetRoleByUserIdResponse> responseObserver) {
         try{
-
+            log.info("Fetching user roles by user id");
             UUID userId = UUID.fromString(request.getUserId());
 
-            RoleAssignment  roleAssignment = roleAssignmentService.getRoleAssignmentByUserId(userId);
+            RoleAssignment  roleAssignment = roleAssignmentService.getUserRoles(userId);
 
 
             GetRoleByUserIdResponse response = GetRoleByUserIdResponse.newBuilder()
@@ -47,7 +47,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         }catch (Exception e){
-            log.error("Error getting role assignment by user id: ", e);
+            log.error("Error fetching user roles by user id: ", e);
             GetRoleByUserIdResponse response = GetRoleByUserIdResponse.newBuilder()
                     .setSuccess(false)
                     .setErrorMessage("Failed to get role assignments by user id: " + e.getMessage())
@@ -60,6 +60,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
     @Override
     public void assignRole(AssignRoleRequest request, StreamObserver<AssignRoleResponse> responseObserver) {
         try {
+            log.info("Assigning role to user");
             AssignRoleDto assignRoleDto = new AssignRoleDto();
             assignRoleDto.setUserId(request.getUserId());
             assignRoleDto.setRoleId(request.getRoleId());
@@ -89,6 +90,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
     @Override
     public void getRoleAssignmentsByRoleIdAndDepartmentId(GetRoleAssignmentsByRoleIdAndDepartmentIdRequest request, StreamObserver<GetRoleAssignmentsByRoleIdAndDepartmentIdResponse> responseObserver) {
         try {
+            log.info("Fetching user roles by role id and department id");
             UUID roleId = UUID.fromString(request.getRoleId());
             UUID departmentId = UUID.fromString(request.getDepartmentId());
 
@@ -106,7 +108,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            log.error("Error getting role assignments by role id and department id: ", e);
+            log.error("Error fetching user roles by role id and department id: ", e);
             GetRoleAssignmentsByRoleIdAndDepartmentIdResponse response = GetRoleAssignmentsByRoleIdAndDepartmentIdResponse.newBuilder()
                     .setSuccess(false)
                     .setErrorMessage("Failed to get role assignments by role id and department id: " + e.getMessage())
@@ -120,6 +122,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
     @Override
     public void updateUserRole(AssignRoleRequest request, StreamObserver<AssignRoleResponse> responseObserver) {
         try {
+            log.info("Updating user role");
             AssignRoleDto assignRoleDto = new AssignRoleDto();
             assignRoleDto.setUserId(request.getUserId());
             assignRoleDto.setRoleId(request.getRoleId());
@@ -148,6 +151,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
     @Override
     public void deleteUserRole(DeleteUserRoleRequest request, StreamObserver<DeleteUserRoleResponse> responseObserver) {
         try {
+            log.info("Deleting user role");
             UUID userId = UUID.fromString(request.getUserId());
 
             roleAssignmentService.deleteRoleAssignment(userId);
@@ -171,7 +175,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
     @Override
     public void getRoleByName(GetRoleByNameRequest request, StreamObserver<GetRoleByNameResponse> responseObserver) {
         try {
-
+            log.info("Fetching role by name");
           Role role =  roleService.getRoleByRoleName(request.getRoleName());
 
             GetRoleByNameResponse response = GetRoleByNameResponse.newBuilder()
@@ -182,7 +186,7 @@ public class UserRoleService extends RoleAssignmentServiceGrpc.RoleAssignmentSer
             responseObserver.onNext(response);
             responseObserver.onCompleted();
         } catch (Exception e) {
-            log.error("Error deleting user role: ", e);
+            log.error("Error fetching role by name: ", e);
             GetRoleByNameResponse response = GetRoleByNameResponse.newBuilder()
                     .setSuccess(false)
                     .setErrorMessage("Failed to get role: " + e.getMessage())

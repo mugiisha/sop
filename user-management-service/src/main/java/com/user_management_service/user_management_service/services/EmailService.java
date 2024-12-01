@@ -16,6 +16,9 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
+    @Value("${app.base-url}")
+    private String baseUrl;
+
     public void sendWelcomeEmail(String toEmail, String name, String password) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
@@ -35,16 +38,43 @@ public class EmailService {
         }
     }
 
-    public void sendVerificationEmail(String toEmail, String name, String verificationToken) {
+
+    public void sendTemporaryPasswordEmail(String toEmail, String name, String temporaryPassword) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
-            message.setSubject("Verify Your Email");
+            message.setSubject("Your Temporary Login Credentials");
             message.setText("Dear " + name + ",\n\n" +
-                    "Please verify your email by clicking on the following link:\n" +
-                    "http://yourplatform.com/verify-email/" + verificationToken + "\n\n" +
-                    "This link will expire in 24 hours.\n\n" +
+                    "Your email has been verified successfully!\n\n" +
+                    "Here are your temporary login credentials:\n" +
+                    "Email: " + toEmail + "\n" +
+                    "Temporary Password: " + temporaryPassword + "\n\n" +
+                    "For security reasons, you will be required to change this password on your first login.\n\n" +
+                    "Best regards,\nThe Team");
+
+            emailSender.send(message);
+            log.info("Temporary password email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send temporary password email to: {}", toEmail, e);
+        }}
+
+
+    public void sendVerificationEmail(String toEmail, String name, String verificationToken, String temporaryPassword) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject("Welcome to Our Platform - Verify Your Email");
+            message.setText("Dear " + name + ",\n\n" +
+                    "Welcome to our platform! To complete your registration, please:\n\n" +
+                    "1. Verify your email by clicking on the following link:\n" +
+                    baseUrl + "/api/v1/users/verify-email/" + verificationToken + "\n\n" +
+                    "2. Use these temporary credentials to log in:\n" +
+                    "   Email: " + toEmail + "\n" +
+                    "   Temporary Password: " + temporaryPassword + "\n\n" +
+                    "For security reasons, you will be required to change your password upon first login.\n\n" +
+                    "This verification link and temporary password will expire in 24 hours.\n\n" +
                     "Best regards,\nThe Team");
 
             emailSender.send(message);
@@ -53,15 +83,16 @@ public class EmailService {
             log.error("Failed to send verification email to: {}", toEmail, e);
         }
     }
-
-    public void sendVerificationConfirmationEmail(String toEmail, String name) {
+    public void sendVerificationConfirmationEmail(String toEmail, String name, String temporaryPassword) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
             message.setTo(toEmail);
             message.setSubject("Email Verification Successful");
             message.setText("Dear " + name + ",\n\n" +
-                    "Your email has been successfully verified! You can now access all features of our platform.\n\n" +
+                    "Your email has been successfully verified!\n\n" +
+                    "You can now log in using your email and temporary password.\n" +
+                    "Remember to change your password upon first login.\n\n" +
                     "Best regards,\nThe Team");
 
             emailSender.send(message);
@@ -70,6 +101,36 @@ public class EmailService {
             log.error("Failed to send verification confirmation email to: {}", toEmail, e);
         }
     }
+
+
+
+    public void sendPasswordChangeConfirmation(String toEmail, String name) {
+        try {
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom(fromEmail);
+            message.setTo(toEmail);
+            message.setSubject("Password Changed Successfully");
+            message.setText("Dear " + name + ",\n\n" +
+                    "Your password has been successfully changed.\n\n" +
+                    "If you did not make this change, please contact our support team immediately.\n\n" +
+                    "Best regards,\nThe Team");
+
+            emailSender.send(message);
+            log.info("Password change confirmation email sent successfully to: {}", toEmail);
+        } catch (Exception e) {
+            log.error("Failed to send password change confirmation email to: {}", toEmail, e);
+        }
+    }
+
+
+
+
+
+
+
+
+
+
 
     public void sendPasswordResetRequestEmail(String toEmail, String name, String otp) {
         try {
@@ -145,6 +206,9 @@ public class EmailService {
             log.error("Failed to send account deactivation email to: {}", toEmail, e);
         }
     }
+
+
+
 
     public void sendOtpEmail(String toEmail, String name, String otp) {
         try {

@@ -1,12 +1,13 @@
 package com.user_management_service.user_management_service.models;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
+@Getter
+@Setter
 @Data
 @Entity
 @Table(name = "users")
@@ -31,6 +32,9 @@ public class User {
 
     @Column(nullable = false)
     private boolean emailVerified = false;
+
+    @Column(nullable = false)
+    private boolean mustChangePassword = false;
 
     @Column
     private String emailVerificationToken;

@@ -68,6 +68,8 @@ public class DepartmentService {
         dto.setId(department.getId());
         dto.setName(department.getName());
         dto.setDescription(department.getDescription());
+        dto.setCreatedAt(department.getCreatedAt());
+        dto.setUpdatedAt(department.getUpdatedAt());
         return dto;
     }
 }

@@ -4,6 +4,7 @@ import com.role_access_control_service.role_access_control_service.dtos.CreateRo
 import com.role_access_control_service.role_access_control_service.models.Role;
 import com.role_access_control_service.role_access_control_service.services.RoleService;
 import com.role_access_control_service.role_access_control_service.utils.Response;
+import jakarta.validation.Valid;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -20,7 +21,7 @@ public class RoleController {
     }
 
     @PostMapping
-    public Response<Role> createRole(@RequestBody CreateRoleDto createRoleDto) {
+    public Response<Role> createRole(@RequestBody @Valid CreateRoleDto createRoleDto) {
         Role role =  roleService.createRole(createRoleDto);
         return new Response<>(true, "Role created successfully", role);
     }

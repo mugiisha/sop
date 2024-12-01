@@ -8,7 +8,6 @@ import java.util.List;
 public interface SopVersionRepository extends MongoRepository<SopVersionModel, String> {
     // Find all versions by SOP ID
     List<SopVersionModel> findBySopId(ObjectId sopId);
-//    List<SopVersionModel> findBySopIds(String sopId); // Reference to SOP ID
 
     // Get the latest version for a SOP
     SopVersionModel findTopBySopIdOrderByCreatedAtDesc(ObjectId sopId);

@@ -43,6 +43,8 @@ public interface UserRepository extends JpaRepository<User, UUID> {
     // Analytics queries
     @Query("SELECT u FROM User u WHERE u.emailVerified = false AND u.createdAt < :date")
     List<User> findUnverifiedUsersBefore(@Param("date") LocalDateTime date);
+    // In UserRepository.java
+    Optional<User> findByEmailVerificationToken(String token);
 
     @Query("SELECT COUNT(u) FROM User u WHERE u.emailVerified = true")
     long countVerifiedUsers();

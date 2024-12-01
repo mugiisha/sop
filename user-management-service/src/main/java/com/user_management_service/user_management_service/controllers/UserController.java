@@ -18,22 +18,50 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
+@CrossOrigin(origins = "*")
 @RequestMapping("/api/v1/users")
 @RequiredArgsConstructor
-@Tag(name = "User Management", description = "Operations for managing users including CRUD operations and user preferences")
+@Tag(name = "User Management", description = "Operations for managing users including registration, verification, and user management")
 @SecurityRequirement(name = "bearerAuth")
 public class UserController {
     private final UserService userService;
 
     @PostMapping("/register")
-    @Operation(summary = "Create a new user")
-    @ApiResponse(responseCode = "200", description = "User created successfully")
+    @Operation(summary = "Register a new user")
+    @ApiResponse(responseCode = "200", description = "User registered successfully")
     @ApiResponse(responseCode = "400", description = "Invalid input")
     @ApiResponse(responseCode = "409", description = "User already exists")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserResponseDTO> createUser(
+    public ResponseEntity<UserResponseDTO> registerUser(
             @Valid @RequestBody UserRegistrationDTO registrationDTO) {
-        return ResponseEntity.ok(userService.createUser(registrationDTO));
+        return ResponseEntity.ok(userService.registerUser(registrationDTO));
+    }
+
+    // In UserController.java
+    @GetMapping("/verify-email/{token}")
+    @Operation(summary = "Verify email and send temporary password")
+    @ApiResponse(responseCode = "200", description = "Email verified, temporary password sent")
+    @ApiResponse(responseCode = "400", description = "Invalid or expired token")
+    public ResponseEntity<Map<String, String>> verifyEmail(
+            @Parameter(description = "Email verification token")
+            @PathVariable String token) {
+        // Change this line:
+        userService.verifyEmailAndSendCredentials(token);
+        return ResponseEntity.ok(Map.of(
+                "message", "Email verified successfully. Please check your email for login credentials."
+        ));
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "Change password")
+    @ApiResponse(responseCode = "200", description = "Password changed successfully")
+    @ApiResponse(responseCode = "400", description = "Invalid password")
+    @ApiResponse(responseCode = "401", description = "Current password incorrect")
+    public ResponseEntity<Map<String, String>> changePassword(
+            @Valid @RequestBody PasswordChangeDTO passwordChangeDTO,
+            @Parameter(hidden = true) @RequestAttribute("userId") UUID userId) {
+        userService.changePassword(userId, passwordChangeDTO);
+        return ResponseEntity.ok(Map.of("message", "Password changed successfully"));
     }
 
     @GetMapping("/{userId}")
@@ -48,7 +76,8 @@ public class UserController {
 
     @GetMapping
     @Operation(summary = "Get all users")
-    @ApiResponse(responseCode = "200", description = "Users found")
+    @ApiResponse(responseCode = "200", description = "Users retrieved successfully")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserResponseDTO>> getUsers() {
         return ResponseEntity.ok(userService.getUsers());
     }
@@ -68,7 +97,8 @@ public class UserController {
     @ApiResponse(responseCode = "200", description = "User deactivated successfully")
     @ApiResponse(responseCode = "404", description = "User not found")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> deactivateUser(@PathVariable UUID userId) {
+    public ResponseEntity<Map<String, String>> deactivateUser(
+            @PathVariable UUID userId) {
         userService.deactivateUser(userId);
         return ResponseEntity.ok(Map.of("message", "User deactivated successfully"));
     }
@@ -103,7 +133,7 @@ public class UserController {
     @GetMapping("/{userId}/notification-preferences")
     @Operation(summary = "Get user notification preferences")
     @ApiResponse(responseCode = "200", description = "Preferences retrieved successfully")
-    @ApiResponse(responseCode = "404", description = "User not found")
+    @ApiResponse(responseCode = "404", description = "User or preferences not found")
     public ResponseEntity<NotificationPreferenceDTO> getNotificationPreferences(
             @PathVariable UUID userId) {
         return ResponseEntity.ok(userService.getNotificationPreferences(userId));
@@ -117,31 +147,6 @@ public class UserController {
             @PathVariable UUID userId,
             @Valid @RequestBody NotificationPreferenceDTO preferencesDTO) {
         return ResponseEntity.ok(userService.updateNotificationPreferences(userId, preferencesDTO));
-    }
-
-    @PostMapping("/{userId}/resend-verification")
-    @Operation(summary = "Resend verification email")
-    @ApiResponse(responseCode = "200", description = "Verification email sent successfully")
-    @ApiResponse(responseCode = "404", description = "User not found")
-    public ResponseEntity<Map<String, String>> resendVerificationEmail(
-            @PathVariable UUID userId) {
-        userService.resendVerificationEmail(userId);
-        return ResponseEntity.ok(Map.of(
-                "message", "Verification email has been resent"
-        ));
-    }
-
-    @PostMapping("/{userId}/force-verify")
-    @Operation(summary = "Force verify user email")
-    @ApiResponse(responseCode = "200", description = "User verified successfully")
-    @ApiResponse(responseCode = "404", description = "User not found")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Map<String, String>> forceVerifyUser(
-            @PathVariable UUID userId) {
-        userService.forceVerifyUser(userId);
-        return ResponseEntity.ok(Map.of(
-                "message", "User has been verified successfully"
-        ));
     }
 
     @GetMapping("/me")
