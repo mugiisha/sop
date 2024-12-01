@@ -30,7 +30,13 @@ public class SopVersionGrpcService {
                         sop.getStatus(),
                         sop.getVersion(),
                         sop.getImageUrl(),
-                        sop.getDocumentUrl()
+                        sop.getDocumentUrl(),
+                        sop.getCode(),
+                        sop.getVisibility(),
+                        sop.getCategory(),
+                        sop.getReviewersList(),
+                        sop.getAuthorsList(),
+                        sop.getApproversList()
                 ))
                 .collect(Collectors.toList());
     }

@@ -68,51 +68,40 @@ public class SopVersionController {
             logger.info("Exiting displayAllSops() method");
             return sops;
     }
-
-
     @PostMapping("/{sopId}/create")
-    public SopVersionModel createNewSopVersion(
+    public ResponseEntity<ApiResponse<SopVersionModel>> createNewSopVersion(
             @PathVariable String sopId,
-            @RequestBody @Valid SopDto newVersionDetails) {
+            @RequestBody @Valid SopVersionModel newVersionDetails) {
         logger.info("Entering createNewSopVersion() method for SOP ID: {}", sopId);
-        SopVersionModel createdVersion;
 
-        try {
-            logger.debug("Calling sopVersionService.createNewSopVersion()");
-            createdVersion = sopVersionService.createNewSopVersion(newVersionDetails, sopId);
-            logger.info("Successfully created SOP version: {}", createdVersion);
-        } catch (Exception e) {
-            logger.error("Error occurred while creating SOP version", e);
-            throw e; // Optionally, handle the exception and return a meaningful response
-        }
+        ApiResponse<SopVersionModel> response = sopVersionService.createNewSopVersion(newVersionDetails, sopId);
 
         logger.info("Exiting createNewSopVersion() method");
-        return createdVersion;
-    }
-    @GetMapping("/{versionId}")
-    public ResponseEntity<SopVersionModel> getSopVersionById(@PathVariable String versionId) {
-        logger.info("Entering getSopVersionById() method with versionId: {}", versionId);
-        try {
-            SopVersionModel sopVersion = sopVersionService.getSopVersionById(versionId);
-            logger.info("Successfully retrieved SOP version: {}", sopVersion);
-            return ResponseEntity.ok(sopVersion);
-        } catch (Exception e) {
-            logger.error("Error occurred while retrieving SOP version by versionId: {}", versionId, e);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
+        return ResponseEntity.status(response.getStatus()).body(response);
     }
 
+
+    @GetMapping("/{versionId}")
+    public ResponseEntity<ApiResponse<SopVersionModel>> getSopVersionById(@PathVariable String versionId) {
+        ApiResponse<SopVersionModel> response = sopVersionService.getSopVersionById(versionId);
+        // Return the response from the service layer
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatus()));
+    }
+
+
     @GetMapping("/by-sop/{sopId}")
-    public ResponseEntity<List<SopVersionModel>> getAllVersionsBySopId(@PathVariable String sopId) {
-        logger.info("Entering getAllVersionsBySopId() method with sopId: {}", sopId);
-        try {
-            List<SopVersionModel> sopVersions = sopVersionService.getAllVersionsBySopId(sopId);
-            logger.info("Successfully retrieved SOP versions for sopId: {}", sopId);
-            return ResponseEntity.ok(sopVersions);
-        } catch (Exception e) {
-            logger.error("Error occurred while retrieving SOP versions by sopId: {}", sopId, e);
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body(null);
-        }
+    public ResponseEntity<ApiResponse<List<SopVersionModel>>> getAllVersionsBySopId(@PathVariable String sopId) {
+        ApiResponse<List<SopVersionModel>> response = sopVersionService.getAllVersionsBySopId(sopId);
+        // Return the response from the service layer
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatus()));
+    }
+
+
+    @GetMapping("/by-sop/{sopId}/{versionNumber}")
+    public ResponseEntity<ApiResponse<SopVersionModel>> getVersionBySopIdAndVersion(
+            @PathVariable String sopId,
+            @PathVariable String versionNumber) {
+        return sopVersionService.getVersionBySopIdAndVersion(sopId, versionNumber);
     }
 
 
