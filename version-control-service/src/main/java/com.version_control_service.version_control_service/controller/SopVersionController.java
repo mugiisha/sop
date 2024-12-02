@@ -1,5 +1,6 @@
 package com.version_control_service.version_control_service.controller;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.version_control_service.version_control_service.dto.ApiResponse;
 import com.version_control_service.version_control_service.dto.SopDto;
 import com.version_control_service.version_control_service.model.SopVersionModel;
@@ -7,15 +8,18 @@ import com.version_control_service.version_control_service.service.SopVersionGrp
 import com.version_control_service.version_control_service.service.SopVersionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.util.List;
 
 
 @RestController
-@RequestMapping("/api/sop-versions")
+@RequestMapping("/api/v1/sop-versions")
 public class SopVersionController {
 
     private static final Logger logger = LoggerFactory.getLogger(SopVersionController.class);
@@ -25,6 +29,13 @@ public class SopVersionController {
 
     @Autowired
     private SopVersionService sopVersionService;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    public SopVersionController(SopVersionService sopVersionService) {
+        this.sopVersionService = sopVersionService;
+    }
 
     @GetMapping
     public List<SopDto> getAllSops() {
@@ -43,28 +54,64 @@ public class SopVersionController {
         return sops;
     }
 
-    // Endpoint to initialize a new SOP version
     @PostMapping("/create")
-    public ApiResponse<SopVersionModel> initializeSopVersion(@Valid @RequestBody SopVersionModel sopVersionModel) {
-        return sopVersionService.initializeSopVersion(sopVersionModel);
+    public List<SopDto> displayAllSops() {
+        logger.info("Entering displayAllSops() method via POST /create");
+        List<SopDto> sops = null;
+        try {
+            logger.debug("Calling sopVersionService.getAllSops() from displayAllSops()");
+            sops = SopVersionGrpcService.getAllSops();
+            logger.info("Successfully retrieved SOPs: {}", sops);
+        } catch (Exception e) {
+            logger.error("Error occurred while retrieving SOPs", e);
+        }
+            logger.info("Exiting displayAllSops() method");
+            return sops;
     }
 
-    // Endpoint to fetch all versions for a specific SOP ID
-    @GetMapping("/by-sop-id/{sopId}")
-    public ApiResponse<List<SopVersionModel>> getVersionsBySopId(@PathVariable String sopId) {
-        return sopVersionService.getVersionsBySopId(sopId);
+    @PostMapping("/{sopId}/create")
+    public SopVersionModel createNewSopVersion(
+            @PathVariable String sopId,
+            @RequestBody @Valid SopDto newVersionDetails) {
+        logger.info("Entering createNewSopVersion() method for SOP ID: {}", sopId);
+        logger.info("all sops",SopVersionGrpcService.getAllSops().size());
+        SopVersionModel createdVersion;
+
+        try {
+            logger.debug("Calling sopVersionService.createNewSopVersion()");
+            createdVersion = sopVersionService.createNewSopVersion(newVersionDetails, sopId);
+            logger.info("Successfully created SOP version: {}", createdVersion);
+        } catch (Exception e) {
+            logger.error("Error occurred while creating SOP version", e);
+            throw e; // Optionally, handle the exception and return a meaningful response
+        }
+
+        logger.info("Exiting createNewSopVersion() method");
+        return createdVersion;
     }
 
-    // Endpoint to fetch the latest version of a specific SOP
-    @GetMapping("/latest/{sopId}")
-    public ApiResponse<SopVersionModel> getLatestVersion(@PathVariable String sopId) {
-        return sopVersionService.getLatestVersion(sopId);
+
+    @GetMapping("/{versionId}")
+    public ResponseEntity<ApiResponse<SopVersionModel>> getSopVersionById(@PathVariable String versionId) {
+        ApiResponse<SopVersionModel> response = sopVersionService.getSopVersionById(versionId);
+        // Return the response from the service layer
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatus()));
     }
 
-    // Endpoint to fetch a specific version of an SOP
-    @GetMapping("/{sopId}/{versionNumber}")
-    public ApiResponse<SopVersionModel> getSpecificVersion(@PathVariable String sopId, @PathVariable String versionNumber) {
-        return sopVersionService.getSpecificVersion(sopId, versionNumber);
+
+    @GetMapping("/by-sop/{sopId}")
+    public ResponseEntity<ApiResponse<List<SopVersionModel>>> getAllVersionsBySopId(@PathVariable String sopId) {
+        ApiResponse<List<SopVersionModel>> response = sopVersionService.getAllVersionsBySopId(sopId);
+        // Return the response from the service layer
+        return new ResponseEntity<>(response, HttpStatus.valueOf(response.getStatus()));
+    }
+
+
+    @GetMapping("/by-sop/{sopId}/{versionNumber}")
+    public ResponseEntity<ApiResponse<SopVersionModel>> getVersionBySopIdAndVersion(
+            @PathVariable String sopId,
+            @PathVariable String versionNumber) {
+        return sopVersionService.getVersionBySopIdAndVersion(sopId, versionNumber);
     }
 
 
