@@ -42,6 +42,9 @@ public class SopGrpcService extends SopContentServiceGrpc.SopContentServiceImplB
                                 .setVersion(sopModel.getVersion() != null ? sopModel.getVersion() : "")
                                 .setImageUrl(sopModel.getImageUrl() != null ? sopModel.getImageUrl() : "")
                                 .setDocumentUrl(sopModel.getDocumentUrl() != null ? sopModel.getDocumentUrl() : "")
+                                .addAllApprovers(sopModel.getApprovers() != null ? sopModel.getApprovers() : List.of())
+                                .addAllReviewers(sopModel.getReviewers() != null ? sopModel.getReviewers() : List.of())
+                                .addAllAuthors(sopModel.getAuthors() != null ? sopModel.getAuthors() : List.of())
                                 .build();
                     })
                     .collect(Collectors.toList());

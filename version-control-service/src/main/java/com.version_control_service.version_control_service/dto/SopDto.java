@@ -1,6 +1,8 @@
 package com.version_control_service.version_control_service.dto;
 
 
+import java.util.List;
+
 public class SopDto {
     private String id;
     private String title;
@@ -87,6 +89,31 @@ public class SopDto {
         this.id = id;
     }
 
+    public List<String> getReviewers() {
+        return reviewers;
+    }
+
+    public void setReviewers(List<String> reviewers) {
+        this.reviewers = reviewers;
+    }
+
+    public List<String> getAuthors() {
+        return authors;
+    }
+
+    public void setAuthors(List<String> authors) {
+        this.authors = authors;
+    }
+
+    public List<String> getApprovers() {
+        return approvers;
+    }
+
+    public void setApprovers(List<String> approvers) {
+        this.approvers = approvers;
+    }
+
+
     private String status;
     private String version;
     private String imageUrl;
@@ -94,8 +121,11 @@ public class SopDto {
     private String code;
     private String visibility;
     private String category;
+    private List<String> reviewers;
+    private List<String> authors;
+    private List<String> approvers;
 
-    public SopDto(String id, String title, String description, String status, String version, String imageUrl, String documentUrl, String code, String visibility , String category) {
+    public SopDto(String id, String title, String description, String status, String version, String imageUrl, String documentUrl, String code, String visibility , String category , List<String> reviewers, List<String> authors, List<String> approvers) {
         this.id = id;
         this.title = title;
         this.description = description;
@@ -106,6 +136,9 @@ public class SopDto {
         this.code = code;
         this.visibility = visibility;
         this.category = category;
+        this.reviewers = reviewers;
+        this.authors = authors;
+        this.approvers = approvers;
     }
 
 }

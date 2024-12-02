@@ -7,6 +7,7 @@ import com.version_control_service.version_control_service.dto.ApiResponse;
 import com.version_control_service.version_control_service.dto.SopDto;
 import com.version_control_service.version_control_service.exception.SopNotFoundException;
 import com.version_control_service.version_control_service.model.SopVersionModel;
+import com.version_control_service.version_control_service.utils.SopVersionUtils;
 import com.version_control_service.version_control_service.repository.SopVersionRepository;
 import com.version_control_service.version_control_service.utils.ValidateSopVersion;
 import org.slf4j.Logger;
@@ -16,16 +17,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.NoSuchElementException;
 import java.util.Optional;
-
 import org.bson.types.ObjectId;
 import org.springframework.web.server.ResponseStatusException;
-
 import static com.version_control_service.version_control_service.utils.ValidateSopVersion.validateSopVersion;
 
 @Service
@@ -40,27 +38,51 @@ public class SopVersionService {
     @Autowired
     private Cloudinary cloudinary;
 
+    private SopVersionUtils sopVersionUtils;
+
     private static final Logger logger = LoggerFactory.getLogger(SopVersionService.class);
 
-    public SopVersionModel createNewSopVersion(SopDto newVersionDetails, String sopId) {
-        ObjectId objectId = new ObjectId(sopId);
-        if (sopVersionRepository.findBySopId(objectId) == null ||
-                sopVersionRepository.findBySopId(objectId).isEmpty()) {
-            throw new IllegalArgumentException("Invalid SOP ID: " + sopId);
+    public ApiResponse<SopVersionModel> createNewSopVersion(SopVersionModel newVersionDetails, String sopId) {
+        try {
+            // Validate SOP ID format
+            if (sopId == null || !ObjectId.isValid(sopId)) {
+                throw new IllegalArgumentException("Invalid SOP ID format: " + sopId);
+            }
+
+            // Convert sopId to ObjectId and validate
+            ObjectId objectId = new ObjectId(sopId);
+            List<SopVersionModel> existingSopVersions = sopVersionRepository.findBySopId(objectId);
+
+            if (existingSopVersions == null || existingSopVersions.isEmpty()) {
+                throw new IllegalArgumentException("Invalid SOP ID: " + sopId);
+            }
+
+            // Validate required fields and populate default values using the utility methods
+            SopVersionUtils.validateRequiredFields(newVersionDetails);
+            SopVersionUtils.populateDefaultValues(newVersionDetails);
+
+            // Save new version to the repository
+            SopVersionModel savedVersion = sopVersionRepository.save(newVersionDetails);
+
+            // Log success message
+            String message = String.format("Successfully created SOP version with ID: %s", savedVersion.getId());
+            logger.info(message);
+
+            // Return the response
+            return new ApiResponse<>(HttpStatus.CREATED.value(), message, savedVersion);
+
+        } catch (IllegalArgumentException e) {
+            // Handle validation errors
+            String errorMessage = "Validation error: " + e.getMessage();
+            logger.warn(errorMessage);
+            return new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), errorMessage, null);
+
+        } catch (Exception e) {
+            // Handle unexpected errors
+            String errorMessage = "An unexpected error occurred: " + e.getMessage();
+            logger.error(errorMessage, e);
+            return new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorMessage, null);
         }
-        SopVersionModel newVersion = new SopVersionModel();
-        newVersion.setSopId(objectId); // Convert sopId to ObjectId
-        newVersion.setTitle(newVersionDetails.getTitle());
-        newVersion.setDescription(newVersionDetails.getDescription());
-        newVersion.setVersionNumber(newVersionDetails.getVersion());
-        newVersion.setCreatedBy("HOD");
-        // Assign default or calculated values where applicable
-        newVersion.setCode(newVersionDetails.getCode() != null ? newVersionDetails.getCode() : "ABC123");
-        newVersion.setVisibility(newVersionDetails.getVisibility() != null ? newVersionDetails.getVisibility() : "Public");
-        newVersion.setCategory(newVersionDetails.getCategory() != null ? newVersionDetails.getCategory() : "General");
-        newVersion.setImageFile(newVersionDetails.getImageUrl());
-        newVersion.setDocumentFile(newVersionDetails.getDocumentUrl());
-        return sopVersionRepository.save(newVersion);
     }
 
 

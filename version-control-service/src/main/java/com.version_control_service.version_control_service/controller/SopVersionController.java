@@ -68,26 +68,16 @@ public class SopVersionController {
             logger.info("Exiting displayAllSops() method");
             return sops;
     }
-
     @PostMapping("/{sopId}/create")
-    public SopVersionModel createNewSopVersion(
+    public ResponseEntity<ApiResponse<SopVersionModel>> createNewSopVersion(
             @PathVariable String sopId,
-            @RequestBody @Valid SopDto newVersionDetails) {
+            @RequestBody @Valid SopVersionModel newVersionDetails) {
         logger.info("Entering createNewSopVersion() method for SOP ID: {}", sopId);
-        logger.info("all sops",SopVersionGrpcService.getAllSops().size());
-        SopVersionModel createdVersion;
 
-        try {
-            logger.debug("Calling sopVersionService.createNewSopVersion()");
-            createdVersion = sopVersionService.createNewSopVersion(newVersionDetails, sopId);
-            logger.info("Successfully created SOP version: {}", createdVersion);
-        } catch (Exception e) {
-            logger.error("Error occurred while creating SOP version", e);
-            throw e; // Optionally, handle the exception and return a meaningful response
-        }
+        ApiResponse<SopVersionModel> response = sopVersionService.createNewSopVersion(newVersionDetails, sopId);
 
         logger.info("Exiting createNewSopVersion() method");
-        return createdVersion;
+        return ResponseEntity.status(response.getStatus()).body(response);
     }
 
 
