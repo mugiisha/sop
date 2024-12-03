@@ -96,6 +96,14 @@ public class JwtService {
         return extractClaim(token, claims -> claims.get("email", String.class));
     }
 
+    public String extractRole(String token) {
+        return extractClaim(token, claims -> claims.get("role", String.class));
+    }
+
+    public String extractDepartmentId(String token) {
+        return extractClaim(token, claims -> claims.get("departmentId", String.class));
+    }
+
     public String extractTokenType(String token) {
         return extractClaim(token, claims -> claims.get("tokenType", String.class));
     }

@@ -246,12 +246,12 @@ spring:
         - AddResponseHeader=Access-Control-Allow-Origin, *
 
 server:
-  port: 8084
+  port: 8085
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: http://eureka:password@localhost:8761/eureka/
+      defaultZone: https://gtp-sop-management-system-prj-backend.onrender.com/eureka/
   instance:
     preferIpAddress: true
     hostname: localhost

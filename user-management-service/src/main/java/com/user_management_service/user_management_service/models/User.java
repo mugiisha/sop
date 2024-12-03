@@ -2,13 +2,10 @@ package com.user_management_service.user_management_service.models;
 
 import jakarta.persistence.*;
 import lombok.*;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
-@Getter
-@Setter
-@Data
+@Getter @Setter @Data
 @Entity
 @Table(name = "users")
 @NoArgsConstructor
@@ -27,14 +24,20 @@ public class User {
     @Column(nullable = false)
     private String name;
 
+    @Column
+    private String phoneNumber;
+
+    @Column
+    private String profilePictureUrl;
+
+    @Column(nullable = false)
+    private boolean mustChangePassword = false;
+
     @Column(nullable = false)
     private boolean active = true;
 
     @Column(nullable = false)
     private boolean emailVerified = false;
-
-    @Column(nullable = false)
-    private boolean mustChangePassword = false;
 
     @Column
     private String emailVerificationToken;

@@ -3,6 +3,11 @@ package com.user_management_service.user_management_service.dtos;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
+
+@Setter
+@Getter
 
 @Data
 public class PasswordResetDTO {
@@ -16,4 +21,7 @@ public class PasswordResetDTO {
 
     @NotBlank(message = "Password confirmation is required")
     private String confirmPassword;
+
+    public PasswordResetDTO(String newPass123, String newPass1231) {
+    }
 }

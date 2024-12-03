@@ -13,6 +13,9 @@ public class UserRegistrationDTO {
     @Email(message = "Invalid email format")
     private String email;
 
+    @Pattern(regexp = "^\\+?[1-9]\\d{1,14}$", message = "Phone number must be in international format (E.164)")
+    private String phoneNumber;
+
     @NotNull(message = "Department ID is required")
     private UUID departmentId;
 

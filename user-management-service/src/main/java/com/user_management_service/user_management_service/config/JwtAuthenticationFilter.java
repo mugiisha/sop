@@ -7,29 +7,30 @@ import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.context.annotation.Lazy;
+
 import java.io.IOException;
 import java.util.UUID;
 import java.util.Arrays;
 import java.util.List;
 
 @Component
+@Slf4j
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserService userService;
 
-    // List of paths that don't require authentication
     private final List<String> publicPaths = Arrays.asList(
             "/api/v1/auth/login",
             "/api/v1/auth/register",
             "/api/v1/auth/password-reset/request",
-            "/api/v1/users/verify-email/**",
             "/api/v1/auth/password-reset/verify",
             "/api/v1/auth/password-reset/confirm",
             "/api/v1/auth/verify-email",
@@ -48,7 +49,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
 
-        // Skip JWT filter for public endpoints
         return publicPaths.stream().anyMatch(path::startsWith) ||
                 path.startsWith("/v3/api-docs") ||
                 path.startsWith("/swagger-ui") ||
@@ -71,12 +71,22 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         try {
             final String jwt = authHeader.substring(7);
-            final String userId = jwtService.extractUserId(jwt);
+            final String userIdStr = jwtService.extractUserId(jwt);
+            final UUID userId = UUID.fromString(userIdStr);
+            final String email = jwtService.extractEmail(jwt);
+            final String role = jwtService.extractRole(jwt);
+            final UUID departmentId = UUID.fromString(jwtService.extractDepartmentId(jwt));
 
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserResponseDTO user = userService.getUserById(UUID.fromString(userId));
+                UserResponseDTO user = userService.getUserById(userId);
 
                 if (jwtService.isTokenValid(jwt)) {
+                    // Add all necessary attributes to the request
+                    request.setAttribute("userId", userId);
+                    request.setAttribute("userEmail", email);
+                    request.setAttribute("userRole", role);
+                    request.setAttribute("departmentId", departmentId);
+
                     UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
                             user,
                             null,
@@ -85,11 +95,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                     SecurityContextHolder.getContext().setAuthentication(authToken);
+
+                    log.debug("Successfully authenticated user. UserId: {}, Email: {}, Role: {}",
+                            userId, email, role);
                 }
             }
         } catch (Exception e) {
-            // Log the error but don't throw it to avoid blocking the request
-            logger.error("JWT Authentication failed: ", e);
+            log.error("JWT Authentication failed: {}", e.getMessage());
         }
 
         filterChain.doFilter(request, response);
