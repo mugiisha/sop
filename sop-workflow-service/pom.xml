@@ -11,6 +11,8 @@
 		<relativePath/>
 	</parent>
 
+
+
 	<groupId>com.sop</groupId>
 	<artifactId>sop-workflow-service</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
@@ -45,7 +47,7 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- Spring Boot Actuator -->
+		<!-- Spring Boot Actuator integration-->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
@@ -117,10 +119,10 @@
 
 
 	<!-- PostgreSQL Driver -->
-	<!--		<dependency>-->
-	<!--			<groupId>org.postgresql</groupId>-->
-	<!--			<artifactId>postgresql</artifactId>-->
-	<!--		</dependency>-->
+			<dependency>
+				<groupId>org.postgresql</groupId>
+				<artifactId>postgresql</artifactId>
+			</dependency>
 
 
 
