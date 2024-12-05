@@ -1,4 +1,4 @@
-# Pull Request Checklist
+**# Pull Request Checklist
 
 ## Code Quality
 
@@ -27,4 +27,4 @@
 
 ## Additional Information
 
-Provide any additional context or information that would be helpful for the reviewer.
+Provide any additional context or information that would be helpful for the reviewer.**

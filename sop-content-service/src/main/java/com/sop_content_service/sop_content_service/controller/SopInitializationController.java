@@ -9,7 +9,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/sop")
+@RequestMapping("/api/v1/sop")
 public class SopInitializationController {
 
     @Autowired
