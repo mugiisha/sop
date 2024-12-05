@@ -1,4 +1,5 @@
 package com.user_management_service.user_management_service.controllers;
+
 import com.user_management_service.user_management_service.dtos.DepartmentCreationDTO;
 import com.user_management_service.user_management_service.dtos.DepartmentDTO;
 import com.user_management_service.user_management_service.dtos.DepartmentUpdateDTO;
@@ -12,7 +13,6 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@CrossOrigin(origins = "*")
 @RequestMapping("/api/v1/departments")
 @RequiredArgsConstructor
 public class DepartmentController {
@@ -42,5 +42,11 @@ public class DepartmentController {
             @Valid @RequestBody DepartmentUpdateDTO updateDTO) {
         DepartmentDTO department = departmentService.updateDepartment(id, updateDTO);
         return ResponseEntity.ok(department);
+    }
+
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteDepartment(@PathVariable UUID id) {
+        departmentService.deleteDepartment(id);
+        return ResponseEntity.noContent().build();
     }
 }

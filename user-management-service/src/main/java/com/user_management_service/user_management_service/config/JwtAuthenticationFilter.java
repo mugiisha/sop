@@ -14,11 +14,13 @@ import org.springframework.security.web.authentication.WebAuthenticationDetailsS
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
+import com.github.benmanes.caffeine.cache.Caffeine;
 
 import java.io.IOException;
 import java.util.UUID;
-import java.util.Arrays;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 @Component
 @Slf4j
@@ -26,34 +28,30 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
     private final UserService userService;
-
-    private final List<String> publicPaths = Arrays.asList(
-            "/api/v1/auth/login",
-            "/api/v1/auth/register",
-            "/api/v1/auth/password-reset/request",
-            "/api/v1/auth/password-reset/verify",
-            "/api/v1/auth/password-reset/confirm",
-            "/api/v1/auth/verify-email",
-            "/api/v1/auth/password-reset",
-            "/api/v1/auth/password-reset/set-password"
-    );
+    private final SecurityProperties securityProperties;
+    private final Cache tokenBlacklistCache;
+    private final Cache userAuthCache;
 
     public JwtAuthenticationFilter(
             JwtService jwtService,
-            @Lazy UserService userService) {
+            @Lazy UserService userService,
+            SecurityProperties securityProperties,
+            CacheManager cacheManager) {
         this.jwtService = jwtService;
         this.userService = userService;
+        this.securityProperties = securityProperties;
+
+        // Initialize local caches
+        this.tokenBlacklistCache = cacheManager.getCache("tokenBlacklist");
+        this.userAuthCache = cacheManager.getCache("userAuth");
     }
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getServletPath();
 
-        return publicPaths.stream().anyMatch(path::startsWith) ||
-                path.startsWith("/v3/api-docs") ||
-                path.startsWith("/swagger-ui") ||
-                path.startsWith("/swagger-resources") ||
-                path.startsWith("/webjars/");
+        return securityProperties.getPublicPaths().stream().anyMatch(path::startsWith) ||
+                securityProperties.getSwaggerPaths().stream().anyMatch(path::startsWith);
     }
 
     @Override
@@ -62,15 +60,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain
     ) throws ServletException, IOException {
-        final String authHeader = request.getHeader("Authorization");
-
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            filterChain.doFilter(request, response);
-            return;
-        }
-
         try {
+            final String authHeader = request.getHeader("Authorization");
+
+            if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+                filterChain.doFilter(request, response);
+                return;
+            }
+
             final String jwt = authHeader.substring(7);
+
+            // Check token blacklist from cache
+            if (isTokenBlacklisted(jwt)) {
+                log.warn("Attempted to use blacklisted token");
+                filterChain.doFilter(request, response);
+                return;
+            }
+
+            // Extract token claims
             final String userIdStr = jwtService.extractUserId(jwt);
             final UUID userId = UUID.fromString(userIdStr);
             final String email = jwtService.extractEmail(jwt);
@@ -78,26 +85,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             final UUID departmentId = UUID.fromString(jwtService.extractDepartmentId(jwt));
 
             if (userId != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                UserResponseDTO user = userService.getUserById(userId);
+                // Try to get user authentication from cache
+                UsernamePasswordAuthenticationToken cachedAuth = getUserAuthFromCache(userId);
 
-                if (jwtService.isTokenValid(jwt)) {
-                    // Add all necessary attributes to the request
-                    request.setAttribute("userId", userId);
-                    request.setAttribute("userEmail", email);
-                    request.setAttribute("userRole", role);
-                    request.setAttribute("departmentId", departmentId);
-
-                    UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
-                            user,
-                            null,
-                            user.getAuthorities()
-                    );
-
-                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                    SecurityContextHolder.getContext().setAuthentication(authToken);
-
-                    log.debug("Successfully authenticated user. UserId: {}, Email: {}, Role: {}",
-                            userId, email, role);
+                if (cachedAuth != null && jwtService.isTokenValid(jwt)) {
+                    SecurityContextHolder.getContext().setAuthentication(cachedAuth);
+                    setRequestAttributes(request, userId, email, role, departmentId);
+                    log.debug("Using cached authentication for user: {}", email);
+                } else {
+                    authenticateUser(request, userId, email, role, departmentId, jwt);
                 }
             }
         } catch (Exception e) {
@@ -105,5 +101,70 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         filterChain.doFilter(request, response);
+    }
+
+    private boolean isTokenBlacklisted(String token) {
+        return tokenBlacklistCache.get(token) != null;
+    }
+
+    private UsernamePasswordAuthenticationToken getUserAuthFromCache(UUID userId) {
+        return userAuthCache.get(userId, UsernamePasswordAuthenticationToken.class);
+    }
+
+    private void authenticateUser(
+            HttpServletRequest request,
+            UUID userId,
+            String email,
+            String role,
+            UUID departmentId,
+            String jwt
+    ) {
+        UserResponseDTO user = userService.getUserById(userId);
+
+        if (jwtService.isTokenValid(jwt)) {
+            UsernamePasswordAuthenticationToken authToken = createAuthenticationToken(user, request);
+            setRequestAttributes(request, userId, email, role, departmentId);
+
+            // Cache the authentication token
+            userAuthCache.put(userId, authToken);
+
+            SecurityContextHolder.getContext().setAuthentication(authToken);
+            log.debug("Successfully authenticated user. UserId: {}, Email: {}, Role: {}",
+                    userId, email, role);
+        }
+    }
+
+    private UsernamePasswordAuthenticationToken createAuthenticationToken(
+            UserResponseDTO user,
+            HttpServletRequest request
+    ) {
+        UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(
+                user,
+                null,
+                user.getAuthorities()
+        );
+        authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+        return authToken;
+    }
+
+    private void setRequestAttributes(
+            HttpServletRequest request,
+            UUID userId,
+            String email,
+            String role,
+            UUID departmentId
+    ) {
+        request.setAttribute("userId", userId);
+        request.setAttribute("userEmail", email);
+        request.setAttribute("userRole", role);
+        request.setAttribute("departmentId", departmentId);
+    }
+
+    public void blacklistToken(String token) {
+        tokenBlacklistCache.put(token, Boolean.TRUE);
+    }
+
+    public void clearUserAuthCache(UUID userId) {
+        userAuthCache.evict(userId);
     }
 }
