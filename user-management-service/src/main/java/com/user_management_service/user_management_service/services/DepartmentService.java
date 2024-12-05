@@ -63,13 +63,18 @@ public class DepartmentService {
         return convertToDTO(updatedDepartment);
     }
 
+    @Transactional
+    public void deleteDepartment(UUID id) {
+        Department department = departmentRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+        departmentRepository.delete(department);
+    }
+
     private DepartmentDTO convertToDTO(Department department) {
         DepartmentDTO dto = new DepartmentDTO();
         dto.setId(department.getId());
         dto.setName(department.getName());
         dto.setDescription(department.getDescription());
-        dto.setCreatedAt(department.getCreatedAt());
-        dto.setUpdatedAt(department.getUpdatedAt());
         return dto;
     }
 }

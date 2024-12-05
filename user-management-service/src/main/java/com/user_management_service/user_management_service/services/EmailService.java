@@ -207,6 +207,10 @@ public class EmailService {
         }
     }
 
+    public void sendPasswordChangeNotification(String email) {
+        sendPasswordChangeConfirmation(email, "User"); // Reuse existing method
+    }
+
 
 
 

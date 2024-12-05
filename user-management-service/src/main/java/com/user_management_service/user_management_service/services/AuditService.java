@@ -86,4 +86,8 @@ public class AuditService {
         log.info("Forced email verification - UserID: {}, Email: {}, Timestamp: {}",
                 userId, email, LocalDateTime.now());
     }
+    public void logProfilePictureUpdate(UUID userId, String email) {
+        log.info("Profile picture updated - UserID: {}, Email: {}, Timestamp: {}",
+                userId, email, LocalDateTime.now());
+    }
 }
