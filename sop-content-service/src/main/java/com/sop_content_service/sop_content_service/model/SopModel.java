@@ -21,60 +21,59 @@ public class SopModel {
     @Id
     private String id; // MongoDB's unique identifier
 
-    @NotBlank(message = "Title cannot be blank")
-    @Size(max = 100, message = "Title must not exceed 100 characters")
-    private String title; // Title of the SOP
+    @NotEmpty(message = "At least one document URL is required")
+    private List<@URL(message = "Each document URL must be valid") String> documentUrls; // List of document URLs
 
-    @Size(max = 500, message = "Description must not exceed 500 characters")
+    @URL(message = "Cover URL must be a valid URL")
+    private String coverUrl;
+
+    @NotEmpty(message = "Title is required")
+    private String title;
+
+    @NotEmpty(message = "Description is required")
     private String description;
 
-    @Size(max = 200, message = "New section content must not exceed 200 characters")
-    private String newSection;
+    @NotEmpty(message = "Body is required")
+    private String body;
 
-    @Pattern(regexp = "^[A-Za-z0-9_-]+$", message = "Code must only contain letters, numbers, underscores, or hyphens")
-    @Size(max = 50, message = "Code must not exceed 50 characters")
-    private String code;
+    @NotEmpty(message = "Category is required")
+    private String category;
 
-    @URL(message = "Document URL must be a valid URL")
-    private String documentUrl; // URL of the document
+    @NotEmpty(message = "Visibility is required")
+    private String visibility;
 
-    @URL(message = "Image URL must be a valid URL")
-    private String imageUrl; // URL of the image
+    @NotEmpty(message = "Authors list is required")
+    private List<String> authors;
 
-    private String status = "Draft"; // Default status
+    @NotEmpty(message = "Reviewers list is required")
+    private List<String> reviewers;
 
-    @Pattern(regexp = "^[0-9]+(\\.[0-9]+)?$", message = "Version must be a valid number")
-    private String version = "1.0"; // Default version
-
-    @NotBlank(message = "Visibility cannot be blank")
-    @Pattern(regexp = "^(Public|Private)$", message = "Visibility must be either 'Public' or 'Private'")
-    private String visibility; // Visibility (e.g., "Public" or "Private")
-
-    @NotEmpty(message = "At least one author is required")
-    private List<@NotBlank(message = "Author name cannot be blank") String> authors; // List of authors
-
-    private List<@NotBlank(message = "Reviewer name cannot be blank") String> reviewers; // List of reviewers
-
-    private List<@NotBlank(message = "Approver name cannot be blank") String> approvers; // List of approvers
-
-    @NotBlank(message = "Category cannot be blank")
-    @Size(max = 50, message = "Category must not exceed 50 characters")
-    private String category; // New field: category
+    @NotEmpty(message = "Approvers list is required")
+    private List<String> approvers;
 
     @CreatedDate
-    private Date createdAt;  // Automatically populated with the creation timestamp
+    private Date createdAt;
 
     @LastModifiedDate
-    private Date updatedAt; // Automatically updated when the document changes
+    private Date updatedAt;
 
-    // Constructor with all parameters
-    public SopModel(String title, String visibility, List<String> authors, List<String> reviewers, List<String> approvers, String category ) {
+    // Constructor for the required fields
+    public SopModel(List<String> documentUrls, String coverUrl, String title, String description, String body, String category, String visibility, List<String> authors, List<String> reviewers, List<String> approvers) {
+        this.documentUrls = documentUrls;
+        this.coverUrl = coverUrl;
         this.title = title;
+        this.description = description;
+        this.body = body;
+        this.category = category;
         this.visibility = visibility;
         this.authors = authors;
         this.reviewers = reviewers;
         this.approvers = approvers;
-        this.category = category;
+    }
 
+    // Optional constructor for when only document URLs and cover URL are needed
+    public SopModel(List<String> documentUrls, String coverUrl) {
+        this.documentUrls = documentUrls;
+        this.coverUrl = coverUrl;
     }
 }

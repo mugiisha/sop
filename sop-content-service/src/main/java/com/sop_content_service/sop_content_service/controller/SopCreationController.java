@@ -2,11 +2,12 @@ package com.sop_content_service.sop_content_service.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sop_content_service.sop_content_service.dto.ApiResponse;
+import com.sop_content_service.sop_content_service.dto.SopRequest;
 import com.sop_content_service.sop_content_service.model.SopModel;
 import com.sop_content_service.sop_content_service.service.SopService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -14,40 +15,42 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/v1/sops")
+@RequestMapping("/api/sops")
 public class SopCreationController {
 
-    @Autowired
-    private SopService sopService;
+    private static final Logger log = LoggerFactory.getLogger(SopCreationController.class);
 
-    @Autowired
-    private ObjectMapper objectMapper;
+    private final SopService sopService;
+    private final ObjectMapper objectMapper;
 
-    // Endpoint to create a new SOP
-    @PatchMapping("/create/{sopId}")
-    public ResponseEntity<ApiResponse<SopModel>> createSOP(
+    public SopCreationController(SopService sopService, ObjectMapper objectMapper) {
+        this.sopService = sopService;
+        this.objectMapper = objectMapper;
+    }
+
+    @PostMapping(value = "/upload", consumes = { "multipart/form-data" })
+    public ResponseEntity<SopModel> uploadSop(
             @Valid
-            @PathVariable String sopId,
             @RequestPart("sop") String sopJson,
-            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
-            @RequestPart(value = "documentFile", required = false) MultipartFile documentFile) throws JsonProcessingException {
+            @RequestPart(value = "coverImage", required = false) MultipartFile coverImage,
+            @RequestPart(value = "documents", required = false) List<MultipartFile> documentFiles
+    ) {
+        try {
+            // Deserialize JSON to SopRequest
+            SopRequest sopRequest = objectMapper.readValue(sopJson, SopRequest.class);
 
-        // Deserialize JSON to SopModel
-        SopModel sopModel = objectMapper.readValue(sopJson, SopModel.class);
-
-        // Delegate to service and return the response
-        return sopService.createSOP(sopId,sopModel, imageFile, documentFile);
-    }
-
-    @GetMapping("/get-All")
-    public ResponseEntity<ApiResponse<List<SopModel>>> getAllSOPs() {
-        // Delegate to the service and return the response
-        return sopService.getAllSOPs();
-    }
-
-    // Endpoint to get all SOPs by status
-    @GetMapping("/status/{status}")
-    public ResponseEntity<ApiResponse<List<SopModel>>> getSOPsByStatus(@PathVariable String status) {
-        return sopService.getSOPsByStatus(status);
+            // Call the service to handle the uploaded SOP
+            SopModel sopModel = sopService.uploadSop(documentFiles, coverImage, sopRequest);
+            return ResponseEntity.ok(sopModel);
+        } catch (JsonProcessingException e) {
+            log.error("Failed to parse SOP JSON: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        } catch (IllegalArgumentException e) {
+            log.error("Error while uploading SOP: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(null);
+        } catch (Exception e) {
+            log.error("Unexpected error while uploading SOP", e);
+            return ResponseEntity.status(500).body(null);
+        }
     }
 }
