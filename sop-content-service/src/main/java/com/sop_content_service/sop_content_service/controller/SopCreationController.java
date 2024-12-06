@@ -24,20 +24,20 @@ public class SopCreationController {
     private ObjectMapper objectMapper;
 
     // Endpoint to create a new SOP
-    @PatchMapping("/create/{sopId}")
-    public ResponseEntity<ApiResponse<SopModel>> createSOP(
-            @Valid
-            @PathVariable String sopId,
-            @RequestPart("sop") String sopJson,
-            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
-            @RequestPart(value = "documentFile", required = false) MultipartFile documentFile) throws JsonProcessingException {
-
-        // Deserialize JSON to SopModel
-        SopModel sopModel = objectMapper.readValue(sopJson, SopModel.class);
-
-        // Delegate to service and return the response
-        return sopService.createSOP(sopId,sopModel, imageFile, documentFile);
-    }
+//    @PatchMapping("/create/{sopId}")
+//    public ResponseEntity<ApiResponse<SopModel>> createSOP(
+//            @Valid
+//            @PathVariable String sopId,
+//            @RequestPart("sop") String sopJson,
+//            @RequestPart(value = "imageFile", required = false) MultipartFile imageFile,
+//            @RequestPart(value = "documentFile", required = false) MultipartFile documentFile) throws JsonProcessingException {
+//
+//        // Deserialize JSON to SopModel
+//        SopModel sopModel = objectMapper.readValue(sopJson, SopModel.class);
+//
+//        // Delegate to service and return the response
+//        return sopService.createSOP(sopId,sopModel, imageFile, documentFile);
+//    }
 
     @GetMapping("/get-All")
     public ResponseEntity<ApiResponse<List<SopModel>>> getAllSOPs() {

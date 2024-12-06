@@ -23,67 +23,67 @@ public class SopService {
     @Autowired
     private SopRepository sopRepository;
 
-    @Autowired
-    private CloudinaryService cloudinaryService;
-
-    @Autowired
-    private Cloudinary cloudinary;
+//    @Autowired
+//    private CloudinaryService cloudinaryService;
+//
+//    @Autowired
+//    private Cloudinary cloudinary;
 
     @Autowired
     private EmailService emailService;
 
-    public ResponseEntity<ApiResponse<SopModel>> createSOP(
-            String sopId, SopModel sopModel, MultipartFile imageFile, MultipartFile documentFile) {
-        try {
-            SopModel existingSop = sopRepository.findById(sopId)
-                    .orElseThrow(() -> new SopException.SopNotFoundException("SOP with ID " + sopId + " does not exist."));
-
-            // Use utility class to update fields
-            SopModelUtils.updateTitle(existingSop, sopModel);
-            SopModelUtils.updateDescription(existingSop, sopModel);
-            SopModelUtils.updateNewSection(existingSop, sopModel);
-            SopModelUtils.updateCode(existingSop, sopModel);
-            SopModelUtils.updateVisibility(existingSop, sopModel);
-            SopModelUtils.updateAuthors(existingSop, sopModel);
-            SopModelUtils.updateReviewers(existingSop, sopModel);
-            SopModelUtils.updateApprovers(existingSop, sopModel);
-
-            // Upload image and document if provided
-            if (imageFile != null && !imageFile.isEmpty()) {
-                String imageUrl = uploadImageToCloudinary(imageFile);
-                existingSop.setImageUrl(imageUrl);
-            }
-
-            if (documentFile != null && !documentFile.isEmpty()) {
-                String documentUrl = uploadDocumentToCloudinary(documentFile);
-                existingSop.setDocumentUrl(documentUrl);
-            }
-
-            // Save and return updated SOP
-            SopModel updatedSop = sopRepository.save(existingSop);
-
-            System.out.println("updated sop"+updatedSop);
-
-            // Notify reviewers about the newly created SOP
-            notifyReviewers(updatedSop);
-
-            ApiResponse<SopModel> response = new ApiResponse<>("SOP Draft updated successfully", updatedSop);
-            return new ResponseEntity<>(response, HttpStatus.OK);
-
-        } catch (IOException e) {
-            throw new RuntimeException("An error occurred while processing files.", e);
-        }
-    }
-
-    private String uploadImageToCloudinary(MultipartFile file) throws IOException {
-        Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
-        return uploadResult.get("url").toString();
-    }
-
-    private String uploadDocumentToCloudinary(MultipartFile file) throws IOException {
-        Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
-        return uploadResult.get("url").toString();
-    }
+//    public ResponseEntity<ApiResponse<SopModel>> createSOP(
+//            String sopId, SopModel sopModel, MultipartFile imageFile, MultipartFile documentFile) {
+//        try {
+//            SopModel existingSop = sopRepository.findById(sopId)
+//                    .orElseThrow(() -> new SopException.SopNotFoundException("SOP with ID " + sopId + " does not exist."));
+//
+//            // Use utility class to update fields
+//            SopModelUtils.updateTitle(existingSop, sopModel);
+//            SopModelUtils.updateDescription(existingSop, sopModel);
+//            SopModelUtils.updateNewSection(existingSop, sopModel);
+//            SopModelUtils.updateCode(existingSop, sopModel);
+//            SopModelUtils.updateVisibility(existingSop, sopModel);
+//            SopModelUtils.updateAuthors(existingSop, sopModel);
+//            SopModelUtils.updateReviewers(existingSop, sopModel);
+//            SopModelUtils.updateApprovers(existingSop, sopModel);
+//
+//            // Upload image and document if provided
+//            if (imageFile != null && !imageFile.isEmpty()) {
+//                String imageUrl = uploadImageToCloudinary(imageFile);
+//                existingSop.setImageUrl(imageUrl);
+//            }
+//
+//            if (documentFile != null && !documentFile.isEmpty()) {
+//                String documentUrl = uploadDocumentToCloudinary(documentFile);
+//                existingSop.setDocumentUrl(documentUrl);
+//            }
+//
+//            // Save and return updated SOP
+//            SopModel updatedSop = sopRepository.save(existingSop);
+//
+//            System.out.println("updated sop"+updatedSop);
+//
+//            // Notify reviewers about the newly created SOP
+//            notifyReviewers(updatedSop);
+//
+//            ApiResponse<SopModel> response = new ApiResponse<>("SOP Draft updated successfully", updatedSop);
+//            return new ResponseEntity<>(response, HttpStatus.OK);
+//
+//        } catch (IOException e) {
+//            throw new RuntimeException("An error occurred while processing files.", e);
+//        }
+//    }
+//
+//    private String uploadImageToCloudinary(MultipartFile file) throws IOException {
+//        Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+//        return uploadResult.get("url").toString();
+//    }
+//
+//    private String uploadDocumentToCloudinary(MultipartFile file) throws IOException {
+//        Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
+//        return uploadResult.get("url").toString();
+//    }
 
     public ResponseEntity<ApiResponse<List<SopModel>>> getAllSOPs() {
         // Fetch all SOPs ordered by createdAt descending
