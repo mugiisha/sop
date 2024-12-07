@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package userService;
+
+option java_multiple_files = true;
+
+service userService {
+  rpc getUserInfo(getUserInfoRequest) returns (getUserInfoResponse) {}
+}
+
+message getUserInfoRequest {
+  string userId = 1;
+}
+
+message getUserInfoResponse {
+  bool success = 1;
+  string name = 2;
+  string profilePictureUrl = 3;
+  string errorMessage = 4;
+}

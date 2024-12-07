@@ -1,6 +1,6 @@
 package com.user_management_service.user_management_service.services;
 
-import net.devh.boot.grpc.client.inject.GrpcClient;
+import  net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
 import sopService.*;
 

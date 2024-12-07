@@ -16,6 +16,7 @@ public class UserResponseDTO {
     private String email;
     private UUID departmentId;
     private String departmentName;
+    private String profilePictureUrl;
     private boolean active;
     private boolean emailVerified;
     private String roleName;
