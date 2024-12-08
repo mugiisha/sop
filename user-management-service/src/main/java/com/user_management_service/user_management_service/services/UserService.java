@@ -320,6 +320,7 @@ public class UserService {
         dto.setEmail(user.getEmail());
         dto.setDepartmentId(user.getDepartment().getId());
         dto.setDepartmentName(user.getDepartment().getName());
+        dto.setProfilePictureUrl(user.getProfilePictureUrl());
         dto.setActive(user.isActive());
         dto.setEmailVerified(user.isEmailVerified());
         dto.setRoleName(roleName);

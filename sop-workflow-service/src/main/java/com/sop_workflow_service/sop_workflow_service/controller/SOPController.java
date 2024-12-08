@@ -1,45 +1,73 @@
-//package com.sop_workflow_service.sop_workflow_service.controller;
-//import com.sop_workflow_service.sop_workflow_service.model.SOP;
-//import com.sop_workflow_service.sop_workflow_service.service.SOPService;
-//import org.springframework.beans.factory.annotation.Autowired;
-//import org.springframework.web.bind.annotation.*;
-//
-//import java.util.List;
-//
-//@RestController
-//@RequestMapping("/api/sops")
-//public class SOPController {
-//    @Autowired
-//    private SOPService sopService;
-//
-//    // Create SOP
-//    @PostMapping
-//    public SOP createSOP(@RequestBody SOP sop) {
-//        return sopService.createSOP(sop);
-//    }
-//
-//    // Get SOP by ID
-//    @GetMapping("/{id}")
-//    public SOP getSOP(@PathVariable String id) {
-//        return sopService.getSOP(id);
-//    }
-//
-//    // Get All SOPs
-//    @GetMapping
-//    public List<SOP> getAllSOPs() {
-//        return sopService.getAllSOPs();
-//    }
-//
-//    // Update SOP
-//    @PutMapping("/{id}")
-//    public SOP updateSOP(@PathVariable String id, @RequestBody SOP sop) {
-//        sop.setSopId(id);
-//        return sopService.updateSOP(sop);
-//    }
-//
-//    // Delete SOP
-//    @DeleteMapping("/{id}")
-//    public void deleteSOP(@PathVariable String id) {
-//        sopService.deleteSOP(id);
-//    }
-//}
+package com.sop_workflow_service.sop_workflow_service.controller;
+import com.sop_workflow_service.sop_workflow_service.dto.CreateSOPDto;
+import com.sop_workflow_service.sop_workflow_service.dto.ReviewSOPDto;
+import com.sop_workflow_service.sop_workflow_service.dto.SOPResponseDto;
+import com.sop_workflow_service.sop_workflow_service.model.SOP;
+import com.sop_workflow_service.sop_workflow_service.service.SOPService;
+import com.sop_workflow_service.sop_workflow_service.utils.Response;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
+
+@RestController
+@RequiredArgsConstructor
+@Slf4j
+@RequestMapping("/api/v1/sops")
+public class SOPController {
+
+    private final SOPService sopService;
+
+    // Create SOP
+    @PostMapping
+    public Response<SOP> createSOP(HttpServletRequest request,@Valid @RequestBody CreateSOPDto createSOPDto) {
+        String departmentId = request.getHeader("X-Department-Id");
+        SOP sop = sopService.createSOP(createSOPDto, UUID.fromString(departmentId));
+
+        return new Response<>(true,"SOP created successfully", sop);
+    }
+
+    // Get SOP by ID
+    @GetMapping("/{id}")
+    public Response<SOPResponseDto> getSOP(@PathVariable String id) {
+        SOPResponseDto sop = sopService.getSOP(id);
+        return new Response<>(true, "SOP retrieved successfully", sop);
+    }
+
+    // Get All SOPs
+    @GetMapping("/department/{departmentId}")
+    public Response<List<SOP>> getDepartmentSOPs(@PathVariable String departmentId) {
+        List<SOP> sops = sopService.getDepartmentSops(UUID.fromString(departmentId));
+
+        return new Response<>(true, "SOPs retrieved successfully", sops);
+    }
+
+    // review SOP
+    @PutMapping("/{id}/review")
+    public Response<SOP> reviewSOP(HttpServletRequest request, @PathVariable String id, @Valid @RequestBody ReviewSOPDto reviewSOPDto) {
+        String userId = request.getHeader("X-User-Id");
+        SOP sop = sopService.reviewSOP(id, UUID.fromString(userId), reviewSOPDto.getComment(), reviewSOPDto.getApprovalStatus());
+
+        return new Response<>(true, "SOP review submitted successfully", sop);
+    }
+
+    // approve SOP
+    @PutMapping("/{id}/approve")
+    public Response<SOP> approveSOP(HttpServletRequest request, @PathVariable String id, @Valid @RequestBody ReviewSOPDto reviewSOPDto) {
+        String userId = request.getHeader("X-User-Id");
+        SOP sop = sopService.approveSOP(id, UUID.fromString(userId),reviewSOPDto.getComment(), reviewSOPDto.getApprovalStatus());
+
+        return new Response<>(true, "SOP approved successfully", sop);
+    }
+
+    @DeleteMapping("/{id}")
+    public Response<String> deleteSOP(@PathVariable String id) {
+        sopService.deleteSOP(id);
+        return new Response<>(true, "SOP deleted successfully", null);
+    }
+}
