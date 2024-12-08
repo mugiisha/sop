@@ -42,6 +42,7 @@ public class SOPService {
 
         SOP sop = new SOP();
         sop.setTitle(createSOPDto.getTitle());
+        sop.setCategory(createSOPDto.getCategory());
         sop.setVisibility(Visibility.valueOf(createSOPDto.getVisibility().toUpperCase()));
         sop.setStatus(SOPStatus.INITIALIZED);
         sop.setDepartmentId(departmentId);
@@ -249,4 +250,11 @@ public class SOPService {
 
         return response;
     }
+
+    // Get All SOPs
+    public List<SOP> getAllSops() {
+        log.info("Retrieving all SOPs across all departments");
+        return sopRepository.findAll();
+    }
+
 }

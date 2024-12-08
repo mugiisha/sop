@@ -17,4 +17,5 @@ public class SOPResponseDto {
         private List<StageDto> reviewers;
         private StageDto approver;
         private StageDto author;
+        private String category;
 }

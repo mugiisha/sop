@@ -1,67 +1,70 @@
 syntax = "proto3";
 
-package sopContentService;
+package sopVersionTrackingService;
 
-import "google/protobuf/timestamp.proto"; // Import for timestamp fields
+import "google/protobuf/timestamp.proto";
 
-option java_multiple_files = true; // Generate multiple Java files for the definitions
+option java_multiple_files = true;
 
-// Service for managing SOP (Standard Operating Procedure) content
-service SopContentService {
-  // Retrieve all SOPs
+// Service for managing SOP version tracking
+service SopVersionTrackingService {
+  // Retrieve all SOPs with version details
   rpc getAllSops (Empty) returns (SopListResponse);
 
-  // Retrieve a specific SOP by its ID
+  // Retrieve a specific SOP with its version history
   rpc getSopById (GetSopByIdRequest) returns (SopResponse);
 
-  // Add additional functionality as needed
-  // Example: Retrieve SOP versions
-  rpc getSopVersions (GetSopVersionsRequest) returns (SopVersionListResponse);
+  // Retrieve only version history for an SOP
+  rpc getSopVersionHistory (GetSopByIdRequest) returns (SopVersionListResponse);
 }
 
 // SOP (Standard Operating Procedure) data structure
 message Sop {
-  string id = 1; // MongoDB's unique identifier for the SOP
+  string id = 1; // Unique SOP ID
   string title = 2; // Title of the SOP
-  string description = 3; // Description of the SOP
-  string code = 4; // Unique code for the SOP
-  string documentUrl = 5; // URL to the SOP document
-  string imageUrl = 6; // Image URL associated with the SOP
-  string status = 7; // SOP status (e.g., "Draft", "Published")
-  string version = 8; // SOP version
-  string visibility = 9; // Visibility level (e.g., "Public", "Private")
-  repeated string authors = 10; // List of authors
-  repeated string reviewers = 11; // List of reviewers
-  repeated string approvers = 12; // List of approvers
-  string category = 13; // Category (e.g., "HR", "Safety")
-  google.protobuf.Timestamp createdAt = 14; // SOP creation timestamp
-  google.protobuf.Timestamp updatedAt = 15; // SOP last updated timestamp
+  string content = 3; // SOP content
+  string documentUrl = 4; // Document URL
+  string imageUrl = 5; // Associated image URL
+  string status = 6; // Status (e.g., "Draft", "Published")
+  string version = 7; // Current version
+  string visibility = 8; // Visibility level
+  repeated WorkflowStage workflowStages = 9; // Workflow stages
+  string departmentId = 10; // Department ID
+  google.protobuf.Timestamp createdAt = 11; // SOP creation timestamp
+  google.protobuf.Timestamp updatedAt = 12; // Last update timestamp
+}
+
+// Workflow Stage structure
+message WorkflowStage {
+  string id = 1; // Unique stage ID
+  string sopId = 2; // Associated SOP ID
+  string roleRequired = 3; // Role required (e.g., "Author", "Reviewer")
+  string userId = 4; // User ID assigned to this stage
+  string approvalStatus = 5; // Approval status (e.g., "Pending", "Approved")
+  string comments = 6; // Comments, if any
+  google.protobuf.Timestamp createdAt = 7; // Stage creation timestamp
+  google.protobuf.Timestamp updatedAt = 8; // Last update timestamp
 }
 
 // Request to retrieve an SOP by ID
 message GetSopByIdRequest {
-  string sopId = 1; // ID of the SOP to retrieve
+  string sopId = 1; // ID of the SOP
 }
 
 // Response containing a single SOP
 message SopResponse {
-  Sop sop = 1; // The retrieved SOP
+  Sop sop = 1; // SOP details
 }
 
-// Response for a list of SOPs
+// Response containing a list of SOPs
 message SopListResponse {
   repeated Sop sops = 1; // List of SOPs
 }
 
-// Request to retrieve versions of an SOP
-message GetSopVersionsRequest {
-  string sopId = 1; // ID of the SOP to get versions for
-}
-
-// Response containing a list of SOP versions
+// Response containing version history for an SOP
 message SopVersionListResponse {
-  repeated string versions = 1; // SOP versions (e.g., "1.0", "1.1")
+  repeated string versions = 1; // List of version strings
 }
 
-// Empty message for requests without a body
+// Empty message for simple requests
 message Empty {}

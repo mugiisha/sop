@@ -1,6 +1,8 @@
 package com.sop_workflow_service.sop_workflow_service.dto;
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
+import jdk.jfr.Category;
 import lombok.Data;
 
 import java.util.List;
@@ -23,4 +25,7 @@ public class CreateSOPDto {
 
     @NotNull(message = "Approver is required")
     private UUID approverId;
+
+    @NotBlank(message = "Category is required")
+    private String category;
 }
