@@ -29,11 +29,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 
-    @ExceptionHandler(UnauthorizedAccessException.class)
-    public ResponseEntity<ApiResponse<String>> handleUnauthorizedAccessException(UnauthorizedAccessException ex) {
-        ApiResponse<String> errorResponse = new ApiResponse<>(ex.getMessage(), null);
-        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(errorResponse);
-    }
 
     @ExceptionHandler(FileUploadException.class)
     public ResponseEntity<ApiResponse<String>> handleFileUploadException(FileUploadException ex) {
@@ -50,16 +45,10 @@ public class GlobalExceptionHandler {
         return response;
     }
 
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Map<String, String>> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        List<String> errorMessages = ex.getBindingResult()
-                .getAllErrors()
-                .stream()
-                .map(objectError -> objectError.getDefaultMessage())
-                .collect(Collectors.toList());
 
-        Map<String, String> response = new HashMap<>();
-        response.put("errorMessage", errorMessages.get(0));
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Object>> handleIllegalArgumentException(IllegalArgumentException ex) {
+        ApiResponse<Object> response = new ApiResponse<>(ex.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
 }

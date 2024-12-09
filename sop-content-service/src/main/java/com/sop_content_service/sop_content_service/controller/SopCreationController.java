@@ -1,6 +1,6 @@
 package com.sop_content_service.sop_content_service.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import static com.sop_content_service.sop_content_service.util.validateSopRequest.validate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sop_content_service.sop_content_service.dto.ApiResponse;
 import com.sop_content_service.sop_content_service.dto.SopRequest;
@@ -16,6 +16,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+
+
 
 @RestController
 @RequestMapping("/api/v1/sop")
@@ -43,6 +45,8 @@ public class SopCreationController {
             @RequestPart("sop") String sopJson) throws IOException {
 
         SopRequest sopRequest = objectMapper.readValue(sopJson, SopRequest.class);
+
+        validate(sopRequest);
 
         SopModel updatedSop = sopService.createSop(sopId, documents, coverImage, sopRequest);
         ApiResponse<SopModel> response = new ApiResponse<>("SOP Created successfully", updatedSop);
