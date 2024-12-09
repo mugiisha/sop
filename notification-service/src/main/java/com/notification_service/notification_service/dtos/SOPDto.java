@@ -1,14 +1,19 @@
-package com.sop_workflow_service.sop_workflow_service.dto;
+package com.notification_service.notification_service.dtos;
+
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
-import lombok.Data;
+import lombok.*;
 
 import java.util.List;
 import java.util.UUID;
 
-
 @Data
-public class CreateSOPDto {
+@NoArgsConstructor
+@AllArgsConstructor
+@Getter
+@Setter
+public class SOPDto {
+    private String id;
     @NotEmpty(message = "Title is required")
     private String title;
 
@@ -17,6 +22,9 @@ public class CreateSOPDto {
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;
+
+    @NotEmpty(message = "Category name is required")
+    private String categoryId;
 
     @NotEmpty(message = "At least one reviewer is required")
     private List<UUID> reviewers;

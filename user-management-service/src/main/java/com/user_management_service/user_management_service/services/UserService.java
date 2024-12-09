@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.cache.annotation.Caching;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,9 +30,9 @@ public class UserService {
     private final DepartmentRepository departmentRepository;
     private final NotificationPreferenceRepository notificationPreferenceRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
     private final AuditService auditService;
     private final UserRoleClientService userRoleClientService;
+    private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
 
     @Transactional
     @Caching(evict = {
@@ -77,14 +78,16 @@ public class UserService {
             throw new RoleServerException(response.getErrorMessage());
         }
 
-        createDefaultNotificationPreferences(savedUser);
-
-        emailService.sendVerificationEmail(
-                savedUser.getEmail(),
-                savedUser.getName(),
-                verificationToken,
-                temporaryPassword
+        // prepare object to send via kafka
+        CustomUserDto createdUserDto = new CustomUserDto(
+                user.getId(),
+                user.getEmail(),
+                user.getName(),
+                null,
+                user.getEmailVerificationToken()
         );
+
+        kafkaTemplate.send("user-created", createdUserDto);
 
         auditService.logUserCreation(savedUser.getId(), savedUser.getEmail());
 
@@ -160,7 +163,15 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
 
         userRepository.save(user);
-        emailService.sendVerificationConfirmationEmail(user.getEmail(), user.getName(), temporaryPassword);
+        // prepare object to send via kafka
+        CustomUserDto createdUserDto = new CustomUserDto();
+        createdUserDto.setId(user.getId());
+        createdUserDto.setEmail(user.getEmail());
+        createdUserDto.setName(user.getName());
+        createdUserDto.setPassword(temporaryPassword);
+
+        kafkaTemplate.send("email-verified", createdUserDto);
+
         auditService.logEmailVerification(user.getId(), user.getEmail());
     }
 
@@ -180,7 +191,13 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
 
         userRepository.save(user);
-        emailService.sendPasswordChangeConfirmation(user.getEmail(), user.getName());
+        // prepare object to send via kafka
+        CustomUserDto createdUserDto = new CustomUserDto();
+        createdUserDto.setId(user.getId());
+        createdUserDto.setEmail(user.getEmail());
+        createdUserDto.setName(user.getName());
+
+        kafkaTemplate.send("password-updated", createdUserDto);
         auditService.logPasswordChange(user.getId(), user.getEmail());
     }
 
@@ -204,7 +221,13 @@ public class UserService {
         user.setDeactivatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        emailService.sendAccountDeactivationEmail(user.getEmail(), user.getName());
+        // prepare object to send via kafka
+        CustomUserDto customUserDto = new CustomUserDto();
+        customUserDto.setId(user.getId());
+        customUserDto.setEmail(user.getEmail());
+        customUserDto.setName(user.getName());
+
+        kafkaTemplate.send("user-deactivated", customUserDto);
         auditService.logUserDeactivation(user.getId(), user.getEmail());
     }
 

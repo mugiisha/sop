@@ -1,19 +1,23 @@
 package com.sop_workflow_service.sop_workflow_service.service;
-import com.sop_workflow_service.sop_workflow_service.dto.CreateSOPDto;
+import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPResponseDto;
 import com.sop_workflow_service.sop_workflow_service.dto.StageDto;
 import com.sop_workflow_service.sop_workflow_service.enums.ApprovalStatus;
 import com.sop_workflow_service.sop_workflow_service.enums.Roles;
 import com.sop_workflow_service.sop_workflow_service.enums.SOPStatus;
 import com.sop_workflow_service.sop_workflow_service.enums.Visibility;
+import com.sop_workflow_service.sop_workflow_service.model.Category;
 import com.sop_workflow_service.sop_workflow_service.model.Comment;
 import com.sop_workflow_service.sop_workflow_service.model.SOP;
 import com.sop_workflow_service.sop_workflow_service.model.WorkflowStage;
+import com.sop_workflow_service.sop_workflow_service.repository.CategoryRepository;
+import com.sop_workflow_service.sop_workflow_service.repository.CommentRepository;
 import com.sop_workflow_service.sop_workflow_service.repository.SOPRepository;
 import com.sop_workflow_service.sop_workflow_service.repository.WorkflowStageRepository;
 import com.sop_workflow_service.sop_workflow_service.utils.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import userService.*;
@@ -32,19 +36,25 @@ public class SOPService {
 
     private final SOPRepository sopRepository;
     private final WorkflowStageRepository workflowStageRepository;
+    private final CategoryService categoryService;
     private final UserInfoClientService userInfoClientService;
+    private final KafkaTemplate<String, SOPDto> kafkaTemplate;
+    private final CommentRepository commentRepository;
 
 
     @Transactional
-    public SOP createSOP(CreateSOPDto createSOPDto, UUID departmentId) {
+    public SOP createSOP(SOPDto createSOPDto, UUID departmentId) {
 
         log.info("Creating SOP: {}", createSOPDto);
+        //get provided Category
+        Category category = categoryService.getCategoryById(createSOPDto.getCategoryId());
 
         SOP sop = new SOP();
         sop.setTitle(createSOPDto.getTitle());
         sop.setVisibility(Visibility.valueOf(createSOPDto.getVisibility().toUpperCase()));
         sop.setStatus(SOPStatus.INITIALIZED);
         sop.setDepartmentId(departmentId);
+        sop.setCategory(category);
         sop.setCreatedAt(LocalDateTime.now());
         sop.setUpdatedAt(LocalDateTime.now());
 
@@ -66,7 +76,13 @@ public class SOPService {
         // Set workflow stages to SOP
         createdSop.setWorkflowStages(stages);
 
-        return sopRepository.save(createdSop);
+        SOP createdSOP= sopRepository.save(createdSop);
+        createSOPDto.setId(createdSOP.getId());
+
+        //send SOPDto to notify services accordingly
+        kafkaTemplate.send("sop-created", createSOPDto);
+
+        return createdSOP;
     }
 
     // Get SOP by ID with updated Workflow Stages
@@ -81,12 +97,32 @@ public class SOPService {
     }
 
     // Get All SOPs
-    public List<SOP> getDepartmentSops(UUID departmentId) {
-        log.info("Querying SOPs for department: {}", departmentId);
-        return sopRepository.findByDepartmentId(departmentId);
+    public List<SOPResponseDto> getSops() {
+        log.info("Fetching all SOPs");
+        List<SOP> sops =  sopRepository.findAll();
+
+        List<SOPResponseDto> formattedSops = new ArrayList<>();
+
+        for(SOP sop: sops){
+            formattedSops.add(mapSOPToSOPResponseDto(sop));
+        }
+
+        return formattedSops;
     }
 
+    // Get All SOPs per department
+    public List<SOPResponseDto> getDepartmentSops(UUID departmentId) {
+        log.info("Querying SOPs for department: {}", departmentId);
+        List<SOP> sops =  sopRepository.findByDepartmentId(departmentId);
 
+        List<SOPResponseDto> formattedSops = new ArrayList<>();
+
+        for(SOP sop: sops){
+            formattedSops.add(mapSOPToSOPResponseDto(sop));
+        }
+
+        return formattedSops;
+    }
 
     // Delete SOP
     public void deleteSOP(String id) {
@@ -123,7 +159,12 @@ public class SOPService {
             newComment.setContent(comment);
             newComment.setCreatedAt(LocalDateTime.now());
             newComment.setUpdatedAt(LocalDateTime.now());
-            stage.getComments().add(newComment);
+            Comment savedComment = commentRepository.save(newComment);
+            // Ensure comments list is initialized if no comment is present
+            if (stage.getComments() == null) {
+                stage.setComments(new ArrayList<>());
+            }
+            stage.getComments().add(savedComment);
         }
 
         workflowStageRepository.save(stage);
@@ -137,6 +178,8 @@ public class SOPService {
 
         if(allReviewersReviewed){
             //notify approver
+            SOPDto sopDto = mapSOPToSOPDto(sop);
+            kafkaTemplate.send("sop-reviewed", sopDto);
         }
 
         return sop;
@@ -180,10 +223,19 @@ public class SOPService {
             newComment.setContent(comment);
             newComment.setCreatedAt(LocalDateTime.now());
             newComment.setUpdatedAt(LocalDateTime.now());
-            stage.getComments().add(newComment);
+            Comment savedComment = commentRepository.save(newComment);
+            // Ensure comments list is initialized if no comment is present
+            if (stage.getComments() == null) {
+                stage.setComments(new ArrayList<>());
+            }
+
+            stage.getComments().add(savedComment);
         }
 
         workflowStageRepository.save(stage);
+
+        SOPDto sopDto = mapSOPToSOPDto(sop);
+        kafkaTemplate.send("sop-approved", sopDto);
 
         return sop;
     }
@@ -214,6 +266,7 @@ public class SOPService {
         stageDto.setUserId(stage.getUserId());
         stageDto.setName(userInfo.getName());
         stageDto.setProfilePictureUrl(userInfo.getProfilePictureUrl());
+        stageDto.setRoleRequired(stage.getRoleRequired());
         stageDto.setStatus(stage.getApprovalStatus().name());
 
         if(stage.getComments() != null){
@@ -223,6 +276,7 @@ public class SOPService {
     }
 
 
+    // map sop to an object including assigned users profiles
     public SOPResponseDto mapSOPToSOPResponseDto(SOP sop) {
         List<WorkflowStage> stages = workflowStageRepository.findBySopId(sop.getId());
 
@@ -230,6 +284,9 @@ public class SOPService {
         response.setId(sop.getId());
         response.setTitle(sop.getTitle());
         response.setStatus(sop.getStatus());
+        response.setCategory(sop.getCategory().getName());
+        response.setCreatedAt(sop.getCreatedAt());
+        response.setUpdatedAt(sop.getUpdatedAt());
 
         List<StageDto> reviewers = new ArrayList<>();
 
@@ -248,5 +305,28 @@ public class SOPService {
         response.setReviewers(reviewers);
 
         return response;
+    }
+
+
+    public SOPDto mapSOPToSOPDto(SOP sop) {
+        SOPDto sopDto = new SOPDto();
+        sopDto.setId(sop.getId());
+        sopDto.setTitle(sop.getTitle());
+        sopDto.setCategoryId(sop.getCategory().getName());
+        sopDto.setAuthorId(sop.getWorkflowStages().stream()
+                .filter(stage -> stage.getRoleRequired() == Roles.AUTHOR)
+                .map(WorkflowStage::getUserId)
+                .findFirst().get()
+        );
+        sopDto.setReviewers(sop.getWorkflowStages().stream()
+                .filter(stage -> stage.getRoleRequired() == Roles.REVIEWER)
+                .map(WorkflowStage::getUserId)
+                .collect(Collectors.toList()));
+        sopDto.setApproverId(sop.getWorkflowStages().stream()
+                .filter(stage -> stage.getRoleRequired() == Roles.APPROVER)
+                .map(WorkflowStage::getUserId)
+                .findFirst().get()
+        );
+        return sopDto;
     }
 }

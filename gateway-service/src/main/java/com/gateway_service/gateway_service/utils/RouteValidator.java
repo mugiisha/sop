@@ -39,6 +39,7 @@ public class RouteValidator {
             "/api/v1/sops/review", "REVIEWER",
             "/api/v1/sops/approve", "APPROVER",
             "/api/v1/users", "ADMIN",
+            "/api/v1/users/department", "HOD",
             "/api/v1/departments", "ADMIN"
     );
 

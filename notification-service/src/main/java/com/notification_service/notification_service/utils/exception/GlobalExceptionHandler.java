@@ -1,12 +1,13 @@
-package com.sop_workflow_service.sop_workflow_service.utils.exception;
+package com.notification_service.notification_service.utils.exception;
 
-import com.sop_workflow_service.sop_workflow_service.utils.Response;
+import com.notification_service.notification_service.utils.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.ResponseStatus;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -36,11 +37,5 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Response<Object>> handleNotFoundException(NotFoundException ex) {
         Response<Object> response = new Response<>(false, ex.getMessage(), null);
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
-    }
-
-    @ExceptionHandler(AlreadyExistsException.class)
-    public ResponseEntity<Response<Object>> handleAlreadyExistsException(Exception ex) {
-        Response<Object> response = new Response<>(false, ex.getMessage(), null);
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 }

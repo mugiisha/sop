@@ -1,4 +1,4 @@
-package com.user_management_service.user_management_service.services;
+package com.notification_service.notification_service.services;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -60,7 +60,7 @@ public class EmailService {
         }}
 
 
-    public void sendVerificationEmail(String toEmail, String name, String verificationToken, String temporaryPassword) {
+    public void sendVerificationEmail(String toEmail, String name, String verificationToken) {
         try {
             SimpleMailMessage message = new SimpleMailMessage();
             message.setFrom(fromEmail);
@@ -68,12 +68,8 @@ public class EmailService {
             message.setSubject("Welcome to Our Platform - Verify Your Email");
             message.setText("Dear " + name + ",\n\n" +
                     "Welcome to our platform! To complete your registration, please:\n\n" +
-                    "1. Verify your email by clicking on the following link:\n" +
+                    "Verify your email by clicking on the following link:\n" +
                     baseUrl + "/api/v1/users/verify-email/" + verificationToken + "\n\n" +
-                    "2. Use these temporary credentials to log in:\n" +
-                    "   Email: " + toEmail + "\n" +
-                    "   Temporary Password: " + temporaryPassword + "\n\n" +
-                    "For security reasons, you will be required to change your password upon first login.\n\n" +
                     "This verification link and temporary password will expire in 24 hours.\n\n" +
                     "Best regards,\nThe Team");
 
@@ -91,6 +87,10 @@ public class EmailService {
             message.setSubject("Email Verification Successful");
             message.setText("Dear " + name + ",\n\n" +
                     "Your email has been successfully verified!\n\n" +
+                    "Use these temporary credentials to log in:\n" +
+                    "   Email: " + toEmail + "\n" +
+                    "   Temporary Password: " + temporaryPassword + "\n\n" +
+                    "For security reasons, you will be required to change your password upon first login.\n\n" +
                     "You can now log in using your email and temporary password.\n" +
                     "Remember to change your password upon first login.\n\n" +
                     "Best regards,\nThe Team");

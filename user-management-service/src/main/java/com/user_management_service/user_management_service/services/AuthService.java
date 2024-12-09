@@ -7,6 +7,7 @@ import com.user_management_service.user_management_service.repositories.AuthRepo
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.cache.annotation.CacheConfig;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
@@ -25,11 +26,11 @@ import java.time.LocalDateTime;
 public class AuthService {
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
     private final JwtService jwtService;
     private final OtpService otpService;
     private final AuditService auditService;
     private final UserRoleClientService userRoleClientService;
+    private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
 
     private static final int MAX_LOGIN_ATTEMPTS = 10;
 
@@ -168,10 +169,36 @@ public class AuthService {
         }
     }
 
+    private void handleSuccessfulLogin(User user) {
+        user.setFailedLoginAttempts(0);
+        user.setLastFailedLogin(null);
+        user.setLastLogin(LocalDateTime.now());
+        authRepository.save(user);
+        auditService.logUserLogin(user.getId(), user.getEmail());
+    }
+
+    private void handleFailedLogin(User user) {
+        user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+        user.setLastFailedLogin(LocalDateTime.now());
+
+        if (user.getFailedLoginAttempts() >= MAX_LOGIN_ATTEMPTS) {
+            lockUserAccount(user);
+        }
+
+        authRepository.save(user);
+    }
+
     private void lockUserAccount(User user) {
         user.setActive(false);
         user.setDeactivatedAt(LocalDateTime.now());
-        emailService.sendAccountLockedEmail(user.getEmail(), user.getName());
+
+        // prepare object to be sent via kafka
+        CustomUserDto customUserDto = new CustomUserDto();
+        customUserDto.setId(user.getId());
+        customUserDto.setEmail(user.getEmail());
+        customUserDto.setName(user.getName());
+
+        kafkaTemplate.send("user-locked", customUserDto);
         auditService.logAccountLocked(user.getId(), user.getEmail());
         log.warn("Account locked due to multiple failed attempts: {}", user.getEmail());
     }
@@ -198,7 +225,13 @@ public class AuthService {
         }
         authRepository.save(user);
 
-        emailService.sendPasswordResetConfirmation(user.getEmail());
+        // prepare object to send via kafka
+        CustomUserDto createdUserDto = new CustomUserDto();
+        createdUserDto.setId(user.getId());
+        createdUserDto.setEmail(user.getEmail());
+        createdUserDto.setName(user.getName());
+
+        kafkaTemplate.send("password-updated", createdUserDto);
         auditService.logPasswordReset(user.getId(), user.getEmail());
     }
 
@@ -225,4 +258,6 @@ public class AuthService {
                 userDTO
         );
     }
+
+  
 }
