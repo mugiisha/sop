@@ -1,11 +1,13 @@
 package com.user_management_service.user_management_service.services;
 
+import com.user_management_service.user_management_service.dtos.CustomUserDto;
 import com.user_management_service.user_management_service.models.Otp;
 import com.user_management_service.user_management_service.repositories.OtpRepository;
 import com.user_management_service.user_management_service.exceptions.OtpLimitExceededException;
 import com.user_management_service.user_management_service.exceptions.InvalidOtpException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import java.time.LocalDateTime;
 import java.util.Optional;
@@ -15,8 +17,8 @@ import java.security.SecureRandom;
 @RequiredArgsConstructor
 public class OtpService {
     private final OtpRepository otpRepository;
-    private final EmailService emailService;
     private final SecureRandom secureRandom = new SecureRandom();
+    private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
 
     @Value("${otp.expiry.minutes}")
     private int otpExpiryMinutes;
@@ -33,7 +35,12 @@ public class OtpService {
 
         String otp = generateSecureOtp();
         saveOtp(email, otp);
-        emailService.sendOtpEmail(email, name, otp);
+
+        CustomUserDto customUserDto = new CustomUserDto();
+        customUserDto.setEmail(email);
+        customUserDto.setName(name);
+        customUserDto.setPassword(otp);
+        kafkaTemplate.send("otp-request", customUserDto);
     }
 
     public boolean verifyOtp(String email, String otp) {

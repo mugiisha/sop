@@ -1,5 +1,5 @@
 package com.sop_workflow_service.sop_workflow_service.controller;
-import com.sop_workflow_service.sop_workflow_service.dto.CreateSOPDto;
+import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
 import com.sop_workflow_service.sop_workflow_service.dto.ReviewSOPDto;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPResponseDto;
 import com.sop_workflow_service.sop_workflow_service.model.SOP;
@@ -9,7 +9,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,7 +24,7 @@ public class SOPController {
 
     // Create SOP
     @PostMapping
-    public Response<SOP> createSOP(HttpServletRequest request,@Valid @RequestBody CreateSOPDto createSOPDto) {
+    public Response<SOP> createSOP(HttpServletRequest request,@Valid @RequestBody SOPDto createSOPDto) {
         String departmentId = request.getHeader("X-Department-Id");
         SOP sop = sopService.createSOP(createSOPDto, UUID.fromString(departmentId));
 
@@ -40,9 +39,17 @@ public class SOPController {
     }
 
     // Get All SOPs
+    @GetMapping
+    public Response<List<SOPResponseDto>> getSOPs() {
+        List<SOPResponseDto> sops = sopService.getSops();
+
+        return new Response<>(true, "SOPs retrieved successfully", sops);
+    }
+
+    // Get All department SOPs
     @GetMapping("/department/{departmentId}")
-    public Response<List<SOP>> getDepartmentSOPs(@PathVariable String departmentId) {
-        List<SOP> sops = sopService.getDepartmentSops(UUID.fromString(departmentId));
+    public Response<List<SOPResponseDto>> getDepartmentSOPs(@PathVariable String departmentId) {
+        List<SOPResponseDto> sops = sopService.getDepartmentSops(UUID.fromString(departmentId));
 
         return new Response<>(true, "SOPs retrieved successfully", sops);
     }

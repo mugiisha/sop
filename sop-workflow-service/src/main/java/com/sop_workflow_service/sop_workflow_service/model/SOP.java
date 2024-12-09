@@ -26,6 +26,8 @@ public class SOP {
     private Visibility visibility;
     private String category;
     @DBRef
+    private Category category;
+    @DBRef
     private List<WorkflowStage> workflowStages;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
