@@ -1,0 +1,86 @@
+syntax = "proto3";
+
+package sopworkflowservice;
+
+import "google/protobuf/timestamp.proto";
+
+// Service definition for gRPC communication
+service SopWorkflowService {
+    rpc GetSOPById(SOPRequest) returns (SOPResponse);
+    rpc GetAllSOPs(Empty) returns (SOPListResponse);
+}
+
+// Messages for requests and responses
+message SOPRequest {
+    string id = 1; // SOP ID
+}
+
+message SOPResponse {
+    SOP sop = 1;
+}
+
+message SOPListResponse {
+    repeated SOP sops = 1;
+}
+
+message Empty {}
+
+// SOP entity with related information
+message SOP {
+    string id = 1;
+    string title = 2;
+    SOPStatus status = 3;
+    string department_id = 4; // UUID as string
+    Visibility visibility = 5;
+    string category = 6;
+    repeated WorkflowStage workflow_stages = 7;
+    google.protobuf.Timestamp created_at = 8;
+    google.protobuf.Timestamp updated_at = 9;
+}
+
+// Workflow stage details
+message WorkflowStage {
+    string id = 1;
+    string sop_id = 2;
+    Roles role_required = 3;
+    string user_id = 4; // UUID as string
+    ApprovalStatus approval_status = 5;
+    repeated Comment comments = 6;
+    google.protobuf.Timestamp created_at = 7;
+    google.protobuf.Timestamp updated_at = 8;
+}
+
+// Comments related to workflow stages
+message Comment {
+    string id = 1;
+    string stage_id = 2;
+    string user_id = 3; // UUID as string
+    string content = 4;
+    google.protobuf.Timestamp created_at = 5;
+    google.protobuf.Timestamp updated_at = 6;
+}
+
+// Enums for statuses and roles
+enum SOPStatus {
+    INITIALIZED = 0;
+    DRAFT = 1;
+    REVIEWAL = 2;
+    PUBLISHED = 3;
+}
+
+enum Visibility {
+    PRIVATE = 0;
+    PUBLIC = 1;
+}
+
+enum Roles {
+    AUTHOR = 0;
+    REVIEWER = 1;
+    APPROVER = 2;
+}
+
+enum ApprovalStatus {
+    PENDING = 0;
+    REVISION = 1;
+    APPROVED = 2;
+}

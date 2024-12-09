@@ -1,6 +1,7 @@
 package com.sop_content_service.sop_content_service.controller;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+//import com.sop_content_service.sop_content_service.service.SopWorkflowServiceClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sop_content_service.sop_content_service.dto.SopRequest;
 import com.sop_content_service.sop_content_service.model.SopModel;
@@ -8,6 +9,7 @@ import com.sop_content_service.sop_content_service.service.SopService;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
@@ -22,10 +24,14 @@ public class SopCreationController {
 
     private final SopService sopService;
     private final ObjectMapper objectMapper;
+//    private final SopWorkflowServiceClient sopWorkflowServiceClient;
+
 
     public SopCreationController(SopService sopService, ObjectMapper objectMapper) {
         this.sopService = sopService;
         this.objectMapper = objectMapper;
+//        this.sopWorkflowServiceClient = sopWorkflowServiceClient;
+
     }
 
     @PostMapping(value = "/upload", consumes = { "multipart/form-data" })
@@ -53,4 +59,11 @@ public class SopCreationController {
             return ResponseEntity.status(500).body(null);
         }
     }
+
+    @GetMapping("/all")
+    public void fetchAndPrintSOPs() {
+//        sopWorkflowServiceClient.printAllSOPs();
+    }
+
 }
+
