@@ -7,7 +7,6 @@ import com.notification_service.notification_service.utils.Response;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.server.ServerHttpRequest;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -39,7 +38,7 @@ public class NotificationController {
     public Notification createNotification(@RequestBody CreateNotificationDto notification) {
         log.info("Creating notification");
 
-        return notificationService.createNotification(notification);
+        return notificationService.createAndSendNotification(notification);
     }
 
     @GetMapping("/{id}")

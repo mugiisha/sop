@@ -31,8 +31,6 @@ public class NotificationPreferencesService {
         NotificationPreferences notificationPreference = new NotificationPreferences();
         notificationPreference.setUserId(userId);
         notificationPreference.setEmail(email);
-        notificationPreference.setEmailEnabled(true);
-        notificationPreference.setInAppEnabled(true);
 
         notificationPreferenceRepository.save(notificationPreference);
     }
@@ -48,8 +46,10 @@ public class NotificationPreferencesService {
             throw new NotFoundException("Notification Preference not found for user id: " + userId);
         }
 
-        notificationPreference.setEmailEnabled(updateNotificationPreference.isEmailEnabled());
-        notificationPreference.setInAppEnabled(updateNotificationPreference.isInAppEnabled());
+        notificationPreference.setAllSOPAlertsEnabled(updateNotificationPreference.isAllSOPAlertsEnabled());
+        notificationPreference.setAuthorAlertsEnabled(updateNotificationPreference.isAuthorAlertsEnabled());
+        notificationPreference.setReviewerAlertsEnabled(updateNotificationPreference.isReviewerAlertsEnabled());
+        notificationPreference.setApproverAlertsEnabled(updateNotificationPreference.isApproverAlertsEnabled());
 
         return notificationPreferenceRepository.save(notificationPreference);
     }
@@ -81,5 +81,61 @@ public class NotificationPreferencesService {
         }
 
         notificationPreferenceRepository.delete(notificationPreference);
+    }
+
+    public boolean isAuthorAlertsEnabled(UUID authorId) {
+
+            log.info("Checking if author alerts are enabled");
+
+            NotificationPreferences notificationPreference = notificationPreferenceRepository.findByUserId(authorId);
+
+            if(notificationPreference == null) {
+                log.error("Notification Preference not found for user id: "+authorId);
+                return true;
+            }
+
+            return notificationPreference.isAuthorAlertsEnabled();
+    }
+
+    public boolean isReviewerAlertsEnabled(UUID reviewerId) {
+
+            log.info("Checking if reviewer alerts are enabled");
+
+            NotificationPreferences notificationPreference = notificationPreferenceRepository.findByUserId(reviewerId);
+
+            if(notificationPreference == null) {
+                log.error("Notification Preference not found for user id: {}",reviewerId);
+                return true;
+            }
+
+            return notificationPreference.isReviewerAlertsEnabled();
+    }
+
+    public boolean isApproverAlertsEnabled(UUID approverId) {
+
+            log.info("Checking if approver alerts are enabled");
+
+            NotificationPreferences notificationPreference = notificationPreferenceRepository.findByUserId(approverId);
+
+            if(notificationPreference == null) {
+                log.error("Notification Preference not found for user id: {}",approverId);
+                return true;
+            }
+
+            return notificationPreference.isApproverAlertsEnabled();
+    }
+
+    public boolean isAllSOPAlertsEnabled(UUID userId) {
+
+            log.info("Checking if all SOP alerts are enabled");
+
+            NotificationPreferences notificationPreference = notificationPreferenceRepository.findByUserId(userId);
+
+            if(notificationPreference == null) {
+                log.error("Notification Preference not found for user id: {}", userId);
+                return true;
+            }
+
+            return notificationPreference.isAllSOPAlertsEnabled();
     }
 }

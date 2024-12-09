@@ -198,7 +198,6 @@ public class UserService {
         createdUserDto.setName(user.getName());
 
         kafkaTemplate.send("password-updated", createdUserDto);
-//        emailService.sendPasswordChangeConfirmation(user.getEmail(), user.getName());
         auditService.logPasswordChange(user.getId(), user.getEmail());
     }
 
@@ -229,8 +228,6 @@ public class UserService {
         customUserDto.setName(user.getName());
 
         kafkaTemplate.send("user-deactivated", customUserDto);
-
-//        emailService.sendAccountDeactivationEmail(user.getEmail(), user.getName());
         auditService.logUserDeactivation(user.getId(), user.getEmail());
     }
 

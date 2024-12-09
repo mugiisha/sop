@@ -9,6 +9,8 @@ import lombok.*;
 @Setter
 public class UpdateNotificationPreferencesDto {
     // True is the default value
-    private boolean emailEnabled= true;
-    private boolean inAppEnabled = true;
+    private boolean allSOPAlertsEnabled = true;
+    private boolean authorAlertsEnabled = true;
+    private boolean reviewerAlertsEnabled = true;
+    private boolean approverAlertsEnabled = true;
 }

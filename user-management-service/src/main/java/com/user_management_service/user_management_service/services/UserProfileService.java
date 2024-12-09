@@ -8,6 +8,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +23,7 @@ import java.util.UUID;
 public class UserProfileService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
     private final AuditService auditService;
     private final S3Service s3Service;
 
@@ -112,7 +113,13 @@ public class UserProfileService {
         user.setMustChangePassword(false);
         userRepository.save(user);
 
-        emailService.sendPasswordChangeConfirmation(user.getEmail(), user.getName());
+        // prepare object to send via kafka
+        CustomUserDto customUserDto = new CustomUserDto();
+        customUserDto.setId(user.getId());
+        customUserDto.setEmail(user.getEmail());
+        customUserDto.setName(user.getName());
+
+        kafkaTemplate.send("user-password-change", customUserDto);
         auditService.logPasswordChange(user.getId(), user.getEmail());
     }
 

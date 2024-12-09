@@ -24,6 +24,8 @@ public class SOP {
     private UUID departmentId;
     private Visibility visibility;
     @DBRef
+    private Category category;
+    @DBRef
     private List<WorkflowStage> workflowStages;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;

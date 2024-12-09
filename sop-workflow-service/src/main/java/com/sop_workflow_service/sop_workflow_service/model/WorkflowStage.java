@@ -20,6 +20,7 @@ public class WorkflowStage {
     @Id
     private String id;
     private String sopId;
+    // roleRequired value set to enum of role required in the approval stage
     private Roles roleRequired;
     private UUID userId;
     private ApprovalStatus approvalStatus;

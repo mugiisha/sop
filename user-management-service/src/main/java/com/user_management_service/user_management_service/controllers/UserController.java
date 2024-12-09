@@ -7,6 +7,7 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -103,13 +104,13 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "User deactivated successfully"));
     }
 
-    @GetMapping("/department/{departmentId}")
+    @GetMapping("/department")
     @Operation(summary = "Get users by department")
     @ApiResponse(responseCode = "200", description = "Users found")
     @ApiResponse(responseCode = "404", description = "Department not found")
-    public ResponseEntity<List<UserResponseDTO>> getUsersByDepartment(
-            @PathVariable UUID departmentId) {
-        return ResponseEntity.ok(userService.getUsersByDepartment(departmentId));
+    public ResponseEntity<List<UserResponseDTO>> getUsersByDepartment(HttpServletRequest request) {
+        String departmentId = request.getHeader("X-Department-Id");
+        return ResponseEntity.ok(userService.getUsersByDepartment(UUID.fromString(departmentId)));
     }
 
     @GetMapping("/unverified")

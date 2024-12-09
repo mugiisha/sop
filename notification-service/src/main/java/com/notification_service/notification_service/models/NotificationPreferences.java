@@ -16,6 +16,8 @@ public class NotificationPreferences {
     private String email;
     @Indexed(unique = true)
     private UUID userId;
-    private boolean emailEnabled;
-    private boolean inAppEnabled;
+    private boolean allSOPAlertsEnabled = true;
+    private boolean authorAlertsEnabled = true;
+    private boolean reviewerAlertsEnabled = true;
+    private boolean approverAlertsEnabled = true;
 }

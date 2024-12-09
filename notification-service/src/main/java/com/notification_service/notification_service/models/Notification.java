@@ -15,7 +15,7 @@ public class Notification {
     private String id;
     private UUID userId;
     private String message;
-    private boolean isRead;
+    private boolean isRead = false;
     private NotificationType type;
     private String sopId;
     private String sopTitle;

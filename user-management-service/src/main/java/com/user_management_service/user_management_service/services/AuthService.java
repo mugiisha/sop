@@ -26,11 +26,11 @@ import java.time.LocalDateTime;
 public class AuthService {
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
     private final JwtService jwtService;
     private final OtpService otpService;
     private final AuditService auditService;
     private final UserRoleClientService userRoleClientService;
+    private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
 
     private static final int MAX_LOGIN_ATTEMPTS = 10;
 
@@ -232,7 +232,6 @@ public class AuthService {
         createdUserDto.setName(user.getName());
 
         kafkaTemplate.send("password-updated", createdUserDto);
-
         auditService.logPasswordReset(user.getId(), user.getEmail());
     }
 

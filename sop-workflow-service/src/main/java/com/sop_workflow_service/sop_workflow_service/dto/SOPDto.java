@@ -8,12 +8,16 @@ import java.util.UUID;
 
 
 @Data
-public class CreateSOPDto {
+public class SOPDto {
+    private String id;
     @NotEmpty(message = "Title is required")
     private String title;
 
     @NotEmpty(message = "Visibility is required")
     private String visibility;
+
+    @NotEmpty(message = "Category id is required")
+    private String categoryId;
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;
