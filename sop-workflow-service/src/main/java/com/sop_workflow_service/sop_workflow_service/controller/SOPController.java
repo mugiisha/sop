@@ -78,11 +78,5 @@ public class SOPController {
         return new Response<>(true, "SOP deleted successfully", null);
     }
 
-    // Get All SOPs Across All Departments
-    @GetMapping("/all")
-    public Response<List<SOP>> getAllSopsInAllDepartments() {
-        List<SOP> sops = sopService.getAllSops();
-        return new Response<>(true, "All SOPs retrieved successfully", sops);
-    }
 
 }

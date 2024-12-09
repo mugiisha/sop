@@ -24,7 +24,6 @@ public class SOP {
     private SOPStatus status;
     private UUID departmentId;
     private Visibility visibility;
-    private String category;
     @DBRef
     private Category category;
     @DBRef
