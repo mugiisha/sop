@@ -15,7 +15,7 @@
      -Dversion=1.0-SNAPSHOT \
      -Dpackaging=jar \
      -DskipTests \
-     && mvn clean package -DskipTests
+     && mvn clean package -DskipTests -q
 
  # Runtime stage
  FROM eclipse-temurin:21-jre

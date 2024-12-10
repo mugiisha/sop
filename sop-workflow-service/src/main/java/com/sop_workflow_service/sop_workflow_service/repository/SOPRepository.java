@@ -8,5 +8,4 @@ import java.util.UUID;
 
 public interface SOPRepository extends MongoRepository<SOP, String> {
     List<SOP> findByDepartmentId(UUID departmentId);
-    List<SOP> findAll();
 }
