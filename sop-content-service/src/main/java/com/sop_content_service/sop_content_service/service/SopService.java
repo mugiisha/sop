@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class SopService {
@@ -143,6 +144,26 @@ public class SopService {
         sopRepository.save(sopModel);
         log.info("Saved SOP model: {}", sopModel);
     }
+
+//      @return List of SOPs
+
+    public List<SOPDto> getAllSops() {
+        log.info("Fetching all SOPs.");
+        List<SopModel> sopModels = sopRepository.findAll();
+        return sopModels.stream()
+                .map(DtoConverter::sopDtoFromEntity)
+                .collect(Collectors.toList());
+    }
+
+//    @throws SopNotFoundException if the SOP is not found
+    public SOPDto getSopById(String sopId) {
+        log.info("Fetching SOP with ID: {}", sopId);
+        return sopRepository.findById(sopId)
+                .map(DtoConverter::sopDtoFromEntity)
+                .orElseThrow(() -> new SopNotFoundException("SOP with id " + sopId + " not found."));
+    }
+
+
 
 
 

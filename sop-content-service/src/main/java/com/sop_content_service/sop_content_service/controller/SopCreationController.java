@@ -3,6 +3,7 @@ package com.sop_content_service.sop_content_service.controller;
 import static com.sop_content_service.sop_content_service.util.validateSopRequest.validate;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sop_content_service.sop_content_service.dto.ApiResponse;
+import com.sop_content_service.sop_content_service.dto.SOPDto;
 import com.sop_content_service.sop_content_service.dto.SopRequest;
 import com.sop_content_service.sop_content_service.model.SopModel;
 import com.sop_content_service.sop_content_service.service.SopService;
@@ -52,6 +53,29 @@ public class SopCreationController {
         ApiResponse<SopModel> response = new ApiResponse<>("SOP Created successfully", updatedSop);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
+
+
+//      * @return ApiResponse containing a list of SOPDto objects
+    @GetMapping
+    public ResponseEntity<ApiResponse<List<SOPDto>>> getAllSops() {
+        List<SOPDto> sops = sopService.getAllSops();
+        ApiResponse<List<SOPDto>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+
+    }
+
+
+    /**
+     * Retrieve an SOP by its ID.
+     */
+
+    @GetMapping("/{sopId}")
+    public ResponseEntity<ApiResponse<SOPDto>> getSopById(@PathVariable String sopId) {
+        SOPDto sop = sopService.getSopById(sopId);
+        ApiResponse<SOPDto> response = new ApiResponse<>("Fetched SOP successfully.", sop);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
+
 
 
 
