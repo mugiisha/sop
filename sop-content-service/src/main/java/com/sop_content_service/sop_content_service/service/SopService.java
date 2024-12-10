@@ -1,143 +1,171 @@
 package com.sop_content_service.sop_content_service.service;
 
-import com.cloudinary.Cloudinary;
-import com.cloudinary.utils.ObjectUtils;
-import com.sop_content_service.sop_content_service.dto.ApiResponse;
-import com.sop_content_service.sop_content_service.exception.SopException;
+import com.amazonaws.services.s3.AmazonS3;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.sop_content_service.sop_content_service.dto.SOPDto;
+import com.sop_content_service.sop_content_service.dto.SopRequest;
+import com.sop_content_service.sop_content_service.exception.SopNotFoundException;
 import com.sop_content_service.sop_content_service.model.SopModel;
 import com.sop_content_service.sop_content_service.repository.SopRepository;
-import com.sop_content_service.sop_content_service.util.SopModelUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
+import com.sop_content_service.sop_content_service.util.DtoConverter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.BufferedInputStream;
 import java.io.IOException;
+import java.io.InputStream;
+import java.util.Date;
 import java.util.List;
-import java.util.Map;
+import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class SopService {
 
-    @Autowired
-    private SopRepository sopRepository;
+    private static final Logger log = LoggerFactory.getLogger(SopService.class);
 
-    @Autowired
-    private CloudinaryService cloudinaryService;
+    private final AmazonS3 s3Client;
+    private final SopRepository sopRepository;
 
-    @Autowired
-    private Cloudinary cloudinary;
+    @Value("${aws.s3.bucket}")
+    private String bucketName;
 
-    @Autowired
-    private EmailService emailService;
+    public SopService(AmazonS3 s3Client, SopRepository sopRepository) {
+        this.s3Client = s3Client;
+        this.sopRepository = sopRepository;
 
-    public ResponseEntity<ApiResponse<SopModel>> createSOP(
-            String sopId, SopModel sopModel, MultipartFile imageFile, MultipartFile documentFile) {
-        try {
-            SopModel existingSop = sopRepository.findById(sopId)
-                    .orElseThrow(() -> new SopException.SopNotFoundException("SOP with ID " + sopId + " does not exist."));
+    }
 
-            // Use utility class to update fields
-            SopModelUtils.updateTitle(existingSop, sopModel);
-            SopModelUtils.updateDescription(existingSop, sopModel);
-            SopModelUtils.updateNewSection(existingSop, sopModel);
-            SopModelUtils.updateCode(existingSop, sopModel);
-            SopModelUtils.updateVisibility(existingSop, sopModel);
-            SopModelUtils.updateAuthors(existingSop, sopModel);
-            SopModelUtils.updateReviewers(existingSop, sopModel);
-            SopModelUtils.updateApprovers(existingSop, sopModel);
+    public SopModel createSop(String sopId, List<MultipartFile> documents, MultipartFile coverImage, SopRequest sopRequest) throws IOException {
 
-            // Upload image and document if provided
-            if (imageFile != null && !imageFile.isEmpty()) {
-                String imageUrl = uploadImageToCloudinary(imageFile);
-                existingSop.setImageUrl(imageUrl);
-            }
+        Optional<SopModel> optionalSop = sopRepository.findById(sopId);
+        if (optionalSop.isEmpty()) {
+            throw new SopNotFoundException("SOP with id " + sopId + " not found.");
+        }
 
-            if (documentFile != null && !documentFile.isEmpty()) {
-                String documentUrl = uploadDocumentToCloudinary(documentFile);
-                existingSop.setDocumentUrl(documentUrl);
-            }
 
-            // Save and return updated SOP
-            SopModel updatedSop = sopRepository.save(existingSop);
+        SopModel existingSop = optionalSop.get();
 
-            System.out.println("updated sop"+updatedSop);
+        // Handle document upload first
+        if (documents != null && !documents.isEmpty()) {
+            log.info("Uploading {} documents.", documents.size());
+            // Upload documents to S3 and retrieve their URLs
+            List<String> documentUrls = documents.stream()
+                    .map(this::uploadFileToS3)
+                    .toList();
+            existingSop.setDocumentUrls(documentUrls);
+            log.info("Uploaded document URLs: {}", documentUrls);
+        }
 
-            // Notify reviewers about the newly created SOP
-            notifyReviewers(updatedSop);
+        // Handle cover image upload
+        if (coverImage != null && !coverImage.isEmpty()) {
+            log.info("Uploading cover image.");
+            // Upload cover image to S3 and retrieve its URL
+            String coverUrl = uploadFileToS3(coverImage);
+            existingSop.setCoverUrl(coverUrl);
+            log.info("Uploaded cover image URL: {}", coverUrl);
+        }
 
-            ApiResponse<SopModel> response = new ApiResponse<>("SOP Draft updated successfully", updatedSop);
-            return new ResponseEntity<>(response, HttpStatus.OK);
+        // Now update the SOP fields based on SopRequest, but only if they are not null and the current field is null
+        if (sopRequest.getTitle() != null && existingSop.getTitle() == null) {
+            existingSop.setTitle(sopRequest.getTitle());
+        }
+        if (sopRequest.getDescription() != null && existingSop.getDescription() == null) {
+            existingSop.setDescription(sopRequest.getDescription());
+        }
+        if (sopRequest.getBody() != null && existingSop.getBody() == null) {
+            existingSop.setBody(sopRequest.getBody());
+        }
+        if (sopRequest.getCategory() != null && existingSop.getCategoryId() == null) {
+            existingSop.setCategoryId(sopRequest.getCategory());
+        }
+        if (sopRequest.getVisibility() != null && existingSop.getVisibility() == null) {
+            existingSop.setVisibility(sopRequest.getVisibility());
+        }
+        if (sopRequest.getAuthors() != null && existingSop.getAuthors() == null) {
+            existingSop.setAuthors(sopRequest.getAuthors());
+        }
+        if (sopRequest.getReviewers() != null && existingSop.getReviewers() == null) {
+            existingSop.setReviewers(sopRequest.getReviewers());
+        }
+        if (sopRequest.getApprovers() != null && existingSop.getApprovers() == null) {
+            existingSop.setApprovers(sopRequest.getApprovers());
+        }
+        // Update the timestamp
+        existingSop.setUpdatedAt(new Date());
+        // Save the updated SOP
+        return sopRepository.save(existingSop);
+    }
 
+    private String uploadFileToS3(MultipartFile file) {
+        String fileName = "uploads/" + System.currentTimeMillis() + "_" + file.getOriginalFilename();
+        try (InputStream inputStream = new BufferedInputStream(file.getInputStream())) {
+            log.info("Uploading file to S3: {}", fileName);
+
+            PutObjectRequest putObjectRequest = new PutObjectRequest(bucketName, fileName, inputStream, null);
+            putObjectRequest.getRequestClientOptions().setReadLimit(10 * 1024 * 1024); // 10 MB
+
+            s3Client.putObject(putObjectRequest);
+            String fileUrl = s3Client.getUrl(bucketName, fileName).toString();
+
+            log.info("File successfully uploaded to S3. URL: {}", fileUrl);
+            return fileUrl;
         } catch (IOException e) {
-            throw new RuntimeException("An error occurred while processing files.", e);
+            log.error("Failed to upload file to S3: {}", fileName, e);
+            throw new RuntimeException("Failed to upload file to S3: " + fileName, e);
         }
     }
 
-    private String uploadImageToCloudinary(MultipartFile file) throws IOException {
-        Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
-        return uploadResult.get("url").toString();
+    @KafkaListener(
+            topics = "sop-created",
+            groupId = "sop-content-service"
+    )
+    public void sopCreatedListener(String data) throws JsonProcessingException {
+        log.info("Received sop created event: {}", data);
+
+        // Convert JSON string to DTO
+        SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+        // Map DTO to entity
+        SopModel sopModel = new SopModel();
+        sopModel.setId(sopDto.getId());
+        sopModel.setTitle(sopDto.getTitle());
+        sopModel.setVisibility(sopDto.getVisibility());
+        sopModel.setCategoryId(sopDto.getCategoryId());
+        sopModel.setAuthors(List.of(String.valueOf(sopDto.getAuthorId()))); // Assuming a single author maps to authors list
+        sopModel.setReviewers(List.of(String.valueOf(sopDto.getReviewers())));
+        sopModel.setApprovers(List.of(String.valueOf(sopDto.getApproverId()))); // Assuming a single approver maps to approvers list
+
+        // Save to repository
+        sopRepository.save(sopModel);
+        log.info("Saved SOP model: {}", sopModel);
     }
 
-    private String uploadDocumentToCloudinary(MultipartFile file) throws IOException {
-        Map<?, ?> uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.emptyMap());
-        return uploadResult.get("url").toString();
+//      @return List of SOPs
+
+    public List<SOPDto> getAllSops() {
+        log.info("Fetching all SOPs.");
+        List<SopModel> sopModels = sopRepository.findAll();
+        return sopModels.stream()
+                .map(DtoConverter::sopDtoFromEntity)
+                .collect(Collectors.toList());
     }
 
-    public ResponseEntity<ApiResponse<List<SopModel>>> getAllSOPs() {
-        // Fetch all SOPs ordered by createdAt descending
-        List<SopModel> sopList = sopRepository.findAllByOrderByCreatedAtDesc();
-
-        // Wrap the result in an ApiResponse
-        ApiResponse<List<SopModel>> response = new ApiResponse<>("Fetched all SOPs successfully", sopList);
-
-        return new ResponseEntity<>(response, HttpStatus.OK);
+//    @throws SopNotFoundException if the SOP is not found
+    public SOPDto getSopById(String sopId) {
+        log.info("Fetching SOP with ID: {}", sopId);
+        return sopRepository.findById(sopId)
+                .map(DtoConverter::sopDtoFromEntity)
+                .orElseThrow(() -> new SopNotFoundException("SOP with id " + sopId + " not found."));
     }
 
-    public ResponseEntity<ApiResponse<List<SopModel>>> getSOPsByStatus(String status) {
-        // Fetch SOPs with the specified status, ordered by creation date descending
-        List<SopModel> sopList = sopRepository.findByStatusOrderByCreatedAtDesc(status);
 
-        // Check if any SOPs were found
-        if (sopList.isEmpty()) {
-            return new ResponseEntity<>(
-                    new ApiResponse<>("No SOPs found with status: " + status, null),
-                    HttpStatus.NOT_FOUND
-            );
-        }
 
-        // Wrap the result in an ApiResponse
-        ApiResponse<List<SopModel>> response = new ApiResponse<>("Fetched SOPs with status: " + status, sopList);
 
-        return new ResponseEntity<>(response, HttpStatus.OK);
-    }
 
-    // Notify reviewers via email
-    private void notifyReviewers(SopModel sop) {
-        String subject = "SOP Created: Review Required for " + sop.getTitle();
-        String message = generateReviewerEmailContent(sop);
-
-        // Loop through reviewers and send emails
-        for (String reviewerEmail : sop.getReviewers()) {
-            emailService.sendEmail(reviewerEmail, subject, message);
-        }
-    }
-
-    // Generate email content for reviewers
-    private String generateReviewerEmailContent(SopModel sop) {
-        return new StringBuilder()
-                .append("Dear Reviewer,\n\n")
-                .append("A new Standard Operating Procedure (SOP) has been created and requires your review.\n\n")
-                .append("Here are the details:\n")
-                .append("Title: ").append(sop.getTitle()).append("\n")
-                .append("Category: ").append(sop.getCategory()).append("\n")
-                .append("Visibility: ").append(sop.getVisibility()).append("\n")
-                .append("Version: ").append(sop.getVersion()).append("\n")
-                .append("Status: ").append(sop.getStatus()).append("\n\n")
-                .append("Please review the SOP and leave your comments at your earliest convenience.\n\n")
-                .append("Best regards,\n")
-                .append("Staff")
-                .toString();
-    }
 }
+

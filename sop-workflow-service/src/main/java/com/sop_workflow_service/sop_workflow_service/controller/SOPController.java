@@ -77,4 +77,6 @@ public class SOPController {
         sopService.deleteSOP(id);
         return new Response<>(true, "SOP deleted successfully", null);
     }
+
+
 }
