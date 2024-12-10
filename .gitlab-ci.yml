@@ -28,39 +28,46 @@ detect-changes:
     - git fetch origin $BASE_BRANCH --prune
     - |
       echo "Identifying changes..."
-      # Try to get the last merge commit first
-      lastMergeCommit=$(git log --merges --pretty=format:'%H' -n 1 origin/$BASE_BRANCH || true)
       
-      if [ -z "$lastMergeCommit" ]; then
-        echo "No merge commits found, using the last commit instead..."
-        lastMergeCommit=$(git log --pretty=format:'%H' -n 1 origin/$BASE_BRANCH)
-      fi
-      
-      if [ -z "$lastMergeCommit" ]; then
-        echo "Failed to identify any commits on branch '$BASE_BRANCH'."
-        exit 1
-      fi
-      
-      echo "Reference commit SHA: $lastMergeCommit"
-      
-      echo "Detecting changed files since the reference commit..."
-      detectedChanges=$(git diff --name-only $lastMergeCommit...HEAD | sort -u)
-      if [ -z "$detectedChanges" ]; then
-        echo "No changes detected in the repository."
-        echo "export CHANGED_SERVICES=\"\"" > changes
-        exit 0
-      fi
-      
-      echo "Identifying services from changed files..."
-      servicesInChanges=()
-      for change in $detectedChanges; do
-        service=$(echo $change | cut -d '/' -f 1)
-        if [[ " $AVAILABLE_SERVICES " == *" $service "* ]]; then
-          servicesInChanges+=($service)
+      # For develop branch, get all services
+      if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+        echo "On develop branch - including all services"
+        export CHANGED_SERVICES="$AVAILABLE_SERVICES"
+      else
+        # Try to get the last merge commit first
+        lastMergeCommit=$(git log --merges --pretty=format:'%H' -n 1 origin/$BASE_BRANCH || true)
+        
+        if [ -z "$lastMergeCommit" ]; then
+          echo "No merge commits found, using the last commit instead..."
+          lastMergeCommit=$(git log --pretty=format:'%H' -n 1 origin/$BASE_BRANCH)
         fi
-      done
-      export CHANGED_SERVICES=$(echo "${servicesInChanges[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ')
-    - echo "Changed services:" $CHANGED_SERVICES
+        
+        if [ -z "$lastMergeCommit" ]; then
+          echo "Failed to identify any commits on branch '$BASE_BRANCH'."
+          exit 1
+        fi
+        
+        echo "Reference commit SHA: $lastMergeCommit"
+        
+        echo "Detecting changed files since the reference commit..."
+        detectedChanges=$(git diff --name-only $lastMergeCommit...HEAD | sort -u)
+        if [ -z "$detectedChanges" ]; then
+          echo "No changes detected in the repository."
+          echo "export CHANGED_SERVICES=\"\"" > changes
+          exit 0
+        fi
+        
+        echo "Identifying services from changed files..."
+        servicesInChanges=()
+        for change in $detectedChanges; do
+          service=$(echo $change | cut -d '/' -f 1)
+          if [[ " $AVAILABLE_SERVICES " == *" $service "* ]]; then
+            servicesInChanges+=($service)
+          fi
+        done
+        export CHANGED_SERVICES=$(echo "${servicesInChanges[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ')
+      fi
+    - echo "Services to process:" $CHANGED_SERVICES
     - echo "export CHANGED_SERVICES=\"$CHANGED_SERVICES\"" > changes
     - chmod +x changes
   artifacts:
@@ -119,22 +126,22 @@ build:
       for SERVICE in $CHANGED_SERVICES; do
         if [[ "${SERVICE}" != "proto" ]]; then
           echo "=== Starting build for ${SERVICE} ==="
-      
+          
           # Set version tag based on pipeline source
           if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
             VERSION="pr-${CI_MERGE_REQUEST_IID}"
           else
             VERSION="${CI_COMMIT_SHA}"
           fi
-      
+          
           if [ ! -d "${SERVICE}" ]; then
             echo "Error: Directory ${SERVICE} does not exist!"
-            exit 1
+            continue
           fi
       
           if [ ! -f "${SERVICE}/Dockerfile" ]; then
             echo "Error: Dockerfile missing for ${SERVICE}"
-            exit 1
+            continue
           fi
       
           mkdir -p "${SERVICE}/libs/"
@@ -143,21 +150,23 @@ build:
           CURRENT_DIR=$(pwd)
           cd "${SERVICE}" || exit 1
       
+          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
           if ! docker build -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" .; then
             echo "Error: Docker build failed for ${SERVICE}"
             cd "${CURRENT_DIR}" || exit 1
-            exit 1
+            continue
           fi
-      
+          
           # Only push and tag as latest if on develop branch
           if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
+            echo "Pushing image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
             if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"; then
               echo "Error: Docker push failed for ${SERVICE}"
               cd "${CURRENT_DIR}" || exit 1
-              exit 1
+              continue
             fi
-      
-            # Tag and push latest
+            
+            echo "Tagging and pushing latest"
             docker tag "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
             docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
           fi
