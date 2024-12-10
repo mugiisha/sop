@@ -20,6 +20,20 @@ variables:
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
   AVAILABLE_SERVICES: "role-access-control-service user-management-service discovery-service gateway-service analytics-insights-service audit-compliance-tracking-service compliance-reporting-service notification-service sop-content-service sop-recommendation-service sop-workflow-service version-control-service"
+  DOCKER_CLEANUP_ENABLED: "true"
+  DEPLOYMENT_TIMEOUT: "300"
+
+cache:
+  paths:
+    - .m2/repository/
+  key: ${CI_COMMIT_REF_SLUG}
+
+.cleanup_script: &cleanup_script |
+  if [ "$DOCKER_CLEANUP_ENABLED" = "true" ]; then
+    echo "Cleaning up Docker resources..."
+    docker system prune -f
+    docker volume prune -f
+  fi
 
 detect-changes:
   stage: detect-changes
@@ -29,35 +43,31 @@ detect-changes:
     - |
       echo "Identifying changes..."
       
-      # For develop branch, get all services
       if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
         echo "On develop branch - including all services"
         export CHANGED_SERVICES="$AVAILABLE_SERVICES"
       else
-        # Try to get the last merge commit first
         lastMergeCommit=$(git log --merges --pretty=format:'%H' -n 1 origin/$BASE_BRANCH || true)
-        
+      
         if [ -z "$lastMergeCommit" ]; then
           echo "No merge commits found, using the last commit instead..."
           lastMergeCommit=$(git log --pretty=format:'%H' -n 1 origin/$BASE_BRANCH)
         fi
-        
+      
         if [ -z "$lastMergeCommit" ]; then
           echo "Failed to identify any commits on branch '$BASE_BRANCH'."
           exit 1
         fi
-        
+      
         echo "Reference commit SHA: $lastMergeCommit"
         
-        echo "Detecting changed files since the reference commit..."
         detectedChanges=$(git diff --name-only $lastMergeCommit...HEAD | sort -u)
         if [ -z "$detectedChanges" ]; then
           echo "No changes detected in the repository."
           echo "export CHANGED_SERVICES=\"\"" > changes
           exit 0
         fi
-        
-        echo "Identifying services from changed files..."
+      
         servicesInChanges=()
         for change in $detectedChanges; do
           service=$(echo $change | cut -d '/' -f 1)
@@ -79,12 +89,11 @@ detect-changes:
 build-proto:
   stage: build-proto
   script:
-    - echo "Building proto service..."
     - cd proto || exit 1
     - mvn clean package -DskipTests
     - mkdir -p ../libs
     - cp target/*.jar ../libs/
-    - cd .. || exit 1
+    - cd ..
   artifacts:
     paths:
       - libs
@@ -96,7 +105,7 @@ build:
   image: docker:latest
   services:
     - name: docker:dind
-      command: [ "--tls=false" ]
+      command: ["--tls=false"]
   needs:
     - job: build-proto
       artifacts: true
@@ -105,15 +114,14 @@ build:
   before_script:
     - apk add --no-cache bash
     - |
-      # Check if changes file exists and has content
       if [ ! -f "changes" ]; then
-        echo "No changes file found, creating empty changes file"
+        echo "No changes file found"
         echo "export CHANGED_SERVICES=\"\"" > changes
       fi
     - chmod +x changes
-    - echo "Logging into Docker registry..."
     - echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
   script:
+    - *cleanup_script
     - source changes || echo "Failed to source changes file"
     - |
       if [ -z "$CHANGED_SERVICES" ]; then
@@ -121,19 +129,17 @@ build:
         exit 0
       fi
       
-      echo "Building the following services: $CHANGED_SERVICES"
-      
       for SERVICE in $CHANGED_SERVICES; do
         if [[ "${SERVICE}" != "proto" ]]; then
           echo "=== Starting build for ${SERVICE} ==="
-          
-          if [ ! -d "${SERVICE}" ]; then
-            echo "Error: Directory ${SERVICE} does not exist!"
-            continue
+      
+          VERSION="${CI_COMMIT_SHA}"
+          if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
+            VERSION="pr-${CI_MERGE_REQUEST_IID}"
           fi
       
-          if [ ! -f "${SERVICE}/Dockerfile" ]; then
-            echo "Error: Dockerfile missing for ${SERVICE}"
+          if [ ! -d "${SERVICE}" ] || [ ! -f "${SERVICE}/Dockerfile" ]; then
+            echo "Error: Invalid service directory or missing Dockerfile for ${SERVICE}"
             continue
           fi
       
@@ -143,30 +149,34 @@ build:
           CURRENT_DIR=$(pwd)
           cd "${SERVICE}" || exit 1
       
-          # Build directly with latest tag
-          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
-          if ! docker build -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest" .; then
+          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
+          if ! docker build --no-cache -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" .; then
             echo "Error: Docker build failed for ${SERVICE}"
-            cd "${CURRENT_DIR}" || exit 1
+            cd "${CURRENT_DIR}"
             continue
           fi
-          
-          # Only push if on develop branch
+      
           if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
-            echo "Pushing latest image for ${SERVICE}"
+            echo "Tagging and pushing images for ${SERVICE}"
+            docker tag "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" \
+                      "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
+            
+            if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"; then
+              echo "Error: Failed to push version-tagged image for ${SERVICE}"
+            fi
+            
             if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"; then
-              echo "Error: Docker push failed for ${SERVICE}"
-              cd "${CURRENT_DIR}" || exit 1
-              continue
+              echo "Error: Failed to push latest image for ${SERVICE}"
             fi
           fi
       
-          cd "${CURRENT_DIR}" || exit 1
-          echo "=== ${SERVICE} build and push complete ==="
+          cd "${CURRENT_DIR}"
+          echo "=== ${SERVICE} build complete ==="
         fi
       done
   after_script:
     - docker logout
+    - *cleanup_script
   artifacts:
     paths:
       - changes
@@ -182,14 +192,14 @@ deploy:
     - job: detect-changes
       artifacts: true
   before_script:
-    - apk add --no-cache openssh bash
+    - apk add --no-cache openssh bash curl
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
     - ssh-keyscan -H $DEPLOY_SERVER >> ~/.ssh/known_hosts 2>/dev/null
     - |
       if [ ! -f "changes" ]; then
-        echo "No changes file found, creating empty changes file"
+        echo "No changes file found"
         echo "export CHANGED_SERVICES=\"\"" > changes
       fi
     - chmod +x changes
@@ -203,40 +213,56 @@ deploy:
       
       echo "Deploying services: $CHANGED_SERVICES"
       ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "
-        set -e
-        echo 'Starting deployment process...'
         cd /home/projects/sop-rw || exit 1
-      
-        echo 'Logging into Docker registry...'
+        
+        echo 'Starting deployment process...'
         echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin
-      
+
         echo 'Cleaning up unused Docker resources...'
-        docker system prune -f
-      
+        docker system prune -af --volumes
+
         for SERVICE in $CHANGED_SERVICES; do
           if [[ \"\${SERVICE}\" != \"proto\" ]]; then
             echo \"=== Deploying \${SERVICE} ===\"
-      
+            
+            echo \"Removing old image...\"
+            docker rmi ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest || true
+            
             echo \"Pulling latest image...\"
             if ! docker pull ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest; then
               echo \"Error: Failed to pull image for \${SERVICE}\"
               continue
             fi
-      
+
+            echo \"Stopping and removing old container...\"
+            docker compose stop \${SERVICE} || true
+            docker compose rm -f \${SERVICE} || true
+            
             echo \"Starting service...\"
             if ! docker compose up -d \${SERVICE}; then
               echo \"Error: Failed to start \${SERVICE}\"
               continue
             fi
-      
+            
             echo \"=== \${SERVICE} deployment complete ===\"
           fi
         done
+
+        echo 'Checking service status...'
+        docker compose ps
+        
+        echo 'Deployment process completed'
+        docker logout"
+
+      echo "Verifying deployment..."
+      sleep 30
       
-        echo 'Logging out of Docker registry...'
-        docker logout
-      
-        echo 'Deployment process completed successfully'"
+      for SERVICE in $CHANGED_SERVICES; do
+        if [[ "${SERVICE}" != "proto" ]]; then
+          echo "Checking ${SERVICE}..."
+          ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "docker ps | grep ${SERVICE}"
+        fi
+      done
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
   retry:
@@ -244,6 +270,7 @@ deploy:
     when:
       - runner_system_failure
       - stuck_or_timeout_failure
+  timeout: 1 hour
 
 workflow:
   rules:
@@ -252,5 +279,3 @@ workflow:
     - if: $CI_COMMIT_BRANCH == "develop"
       when: always
     - when: never
-
-  
