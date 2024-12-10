@@ -18,14 +18,11 @@ public class SimpleSearchStrategy implements SearchStrategy {
 
     @Override
     public Page<SopModel> search(SopSearchRequest request, Pageable pageable) {
-//        if (StringUtils.hasText(request.getDepartment())) {
-//            return repository.findByDepartment(request.getDepartment(), pageable);
-//        }
         if (StringUtils.hasText(request.getStatus())) {
-            return repository.findByStatus(request.getStatus(), pageable);
+            return repository.findByVisibility(request.getStatus(), pageable);  // Changed from findByStatus to findByVisibility
         }
         if (StringUtils.hasText(request.getCategory())) {
-            return repository.findByCategory(request.getCategory(), pageable);
+            return repository.findByCategoryId(request.getCategory(), pageable);
         }
         return Page.empty(pageable);
     }

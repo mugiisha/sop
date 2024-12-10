@@ -23,9 +23,6 @@ public class AwsConfig {
     @Bean
     public AmazonS3 s3Client() {
         // Print the credentials and region to the console (masking sensitive info)
-        System.out.println("AWS Config - Access Key: " + accessKey);
-        System.out.println("AWS Config - Secret Key: " + secretKey);
-        System.out.println("AWS Config - Region: " + region);
 
         BasicAWSCredentials credentials = new BasicAWSCredentials(accessKey, secretKey);
         return AmazonS3ClientBuilder.standard()
