@@ -60,7 +60,7 @@ detect-changes:
         fi
       
         echo "Reference commit SHA: $lastMergeCommit"
-        
+      
         detectedChanges=$(git diff --name-only $lastMergeCommit...HEAD | sort -u)
         if [ -z "$detectedChanges" ]; then
           echo "No changes detected in the repository."
@@ -105,7 +105,7 @@ build:
   image: docker:latest
   services:
     - name: docker:dind
-      command: ["--tls=false"]
+      command: [ "--tls=false" ]
   needs:
     - job: build-proto
       artifacts: true
@@ -160,11 +160,11 @@ build:
             echo "Tagging and pushing images for ${SERVICE}"
             docker tag "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" \
                       "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
-            
+      
             if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"; then
               echo "Error: Failed to push version-tagged image for ${SERVICE}"
             fi
-            
+      
             if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"; then
               echo "Error: Failed to push latest image for ${SERVICE}"
             fi
@@ -214,46 +214,46 @@ deploy:
       echo "Deploying services: $CHANGED_SERVICES"
       ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "
         cd /home/projects/sop-rw || exit 1
-        
+      
         echo 'Starting deployment process...'
         echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin
-
+      
         echo 'Cleaning up unused Docker resources...'
         docker system prune -af --volumes
-
+      
         for SERVICE in $CHANGED_SERVICES; do
           if [[ \"\${SERVICE}\" != \"proto\" ]]; then
             echo \"=== Deploying \${SERVICE} ===\"
-            
+      
             echo \"Removing old image...\"
             docker rmi ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest || true
-            
+      
             echo \"Pulling latest image...\"
             if ! docker pull ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest; then
               echo \"Error: Failed to pull image for \${SERVICE}\"
               continue
             fi
-
+      
             echo \"Stopping and removing old container...\"
             docker compose stop \${SERVICE} || true
             docker compose rm -f \${SERVICE} || true
-            
+      
             echo \"Starting service...\"
             if ! docker compose up -d \${SERVICE}; then
               echo \"Error: Failed to start \${SERVICE}\"
               continue
             fi
-            
+      
             echo \"=== \${SERVICE} deployment complete ===\"
           fi
         done
-
+      
         echo 'Checking service status...'
         docker compose ps
-        
+      
         echo 'Deployment process completed'
         docker logout"
-
+      
       echo "Verifying deployment..."
       sleep 30
       
