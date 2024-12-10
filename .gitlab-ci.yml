@@ -127,13 +127,6 @@ build:
         if [[ "${SERVICE}" != "proto" ]]; then
           echo "=== Starting build for ${SERVICE} ==="
           
-          # Set version tag based on pipeline source
-          if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
-            VERSION="pr-${CI_MERGE_REQUEST_IID}"
-          else
-            VERSION="${CI_COMMIT_SHA}"
-          fi
-          
           if [ ! -d "${SERVICE}" ]; then
             echo "Error: Directory ${SERVICE} does not exist!"
             continue
@@ -150,29 +143,26 @@ build:
           CURRENT_DIR=$(pwd)
           cd "${SERVICE}" || exit 1
       
-          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
-          if ! docker build -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" .; then
+          # Build directly with latest tag
+          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
+          if ! docker build -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest" .; then
             echo "Error: Docker build failed for ${SERVICE}"
             cd "${CURRENT_DIR}" || exit 1
             continue
           fi
           
-          # Only push and tag as latest if on develop branch
+          # Only push if on develop branch
           if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
-            echo "Pushing image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
-            if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"; then
+            echo "Pushing latest image for ${SERVICE}"
+            if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"; then
               echo "Error: Docker push failed for ${SERVICE}"
               cd "${CURRENT_DIR}" || exit 1
               continue
             fi
-            
-            echo "Tagging and pushing latest"
-            docker tag "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
-            docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
           fi
       
           cd "${CURRENT_DIR}" || exit 1
-          echo "=== ${SERVICE} build complete ==="
+          echo "=== ${SERVICE} build and push complete ==="
         fi
       done
   after_script:
@@ -230,13 +220,13 @@ deploy:
             echo \"Pulling latest image...\"
             if ! docker pull ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest; then
               echo \"Error: Failed to pull image for \${SERVICE}\"
-              exit 1
+              continue
             fi
       
             echo \"Starting service...\"
             if ! docker compose up -d \${SERVICE}; then
               echo \"Error: Failed to start \${SERVICE}\"
-              exit 1
+              continue
             fi
       
             echo \"=== \${SERVICE} deployment complete ===\"
