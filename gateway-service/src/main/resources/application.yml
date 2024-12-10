@@ -246,12 +246,12 @@ spring:
         - AddResponseHeader=Access-Control-Allow-Origin, *
 
 server:
-  port: 8085
+  port: ${GATEWAY_PORT:8085}
 
 eureka:
   client:
     serviceUrl:
-      defaultZone: ${EUREKA_URI:http://localhost:8761/eureka}
+      defaultZone:  ${EUREKA_DEFAULT_ZONE}
   instance:
     preferIpAddress: true
     hostname: localhost
@@ -303,7 +303,7 @@ logging:
     console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
 
 jwt:
-  secret: 5367566B59703373367639792F423F4528482B4D6251655468576D5A71347437
+  secret: ${JWT_SECRET}
   expiration: 3600000000
   reset:
     expiration: 900000
