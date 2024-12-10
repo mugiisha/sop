@@ -3,7 +3,7 @@
    WORKDIR /build
    COPY pom.xml ./
    COPY src ./src
-   RUN mvn clean package -DskipTests
+   RUN mvn clean package -DskipTests -q
 
    # Stage 2: Runtime stage
    FROM eclipse-temurin:21

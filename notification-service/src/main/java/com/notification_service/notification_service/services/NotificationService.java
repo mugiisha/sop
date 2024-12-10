@@ -40,6 +40,7 @@ public class NotificationService {
         notification.setMessage(createNotificationDto.getMessage());
         notification.setType(createNotificationDto.getType());
         notification.setSopId(createNotificationDto.getSopId());
+        notification.setSopTitle(createNotificationDto.getSopTitle());
         notification.setCreatedAt(LocalDateTime.now().toString());
 
         notificationRepository.save(notification);

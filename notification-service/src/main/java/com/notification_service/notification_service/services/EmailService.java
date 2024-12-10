@@ -16,8 +16,8 @@ public class EmailService {
     @Value("${spring.mail.username}")
     private String fromEmail;
 
-    @Value("${app.base-url}")
-    private String baseUrl;
+    @Value("${frontend.url}")
+    private String frontendUrl;
 
     public void sendWelcomeEmail(String toEmail, String name, String password) {
         try {
@@ -69,7 +69,7 @@ public class EmailService {
             message.setText("Dear " + name + ",\n\n" +
                     "Welcome to our platform! To complete your registration, please:\n\n" +
                     "Verify your email by clicking on the following link:\n" +
-                    baseUrl + "/api/v1/users/verify-email/" + verificationToken + "\n\n" +
+                    frontendUrl + "/verify-email/" + verificationToken + "\n\n" +
                     "This verification link and temporary password will expire in 24 hours.\n\n" +
                     "Best regards,\nThe Team");
 
