@@ -279,3 +279,5 @@ workflow:
     - if: $CI_COMMIT_BRANCH == "develop"
       when: always
     - when: never
+
+#pipeline editor
