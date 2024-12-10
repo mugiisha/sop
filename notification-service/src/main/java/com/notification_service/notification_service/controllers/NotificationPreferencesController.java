@@ -4,6 +4,7 @@ import com.notification_service.notification_service.dtos.UpdateNotificationPref
 import com.notification_service.notification_service.models.NotificationPreferences;
 import com.notification_service.notification_service.services.NotificationPreferencesService;
 import com.notification_service.notification_service.utils.Response;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,22 +21,23 @@ public class NotificationPreferencesController {
         this.notificationPreferencesService = notificationPreferencesService;
     }
 
-    @GetMapping("/{userId}")
-    public Response<NotificationPreferences> getUserNotificationPreferences(@PathVariable UUID userId) {
-
-        NotificationPreferences preferences = notificationPreferencesService.getUserNotificationPreferences(userId);
+    @GetMapping
+    public Response<NotificationPreferences> getUserNotificationPreferences(HttpServletRequest request) {
+        String userId = request.getHeader("X-User-Id");
+        NotificationPreferences preferences = notificationPreferencesService.getUserNotificationPreferences(UUID.fromString(userId));
 
         return new Response<>(true,
                 "User notification preferences retrieved successfully",
                 preferences);
     }
 
-    @PutMapping("/{userId}")
-    public Response<NotificationPreferences> updateNotificationPreferences(@PathVariable UUID userId,
+    @PutMapping
+    public Response<NotificationPreferences> updateNotificationPreferences(HttpServletRequest request,
                                                                           @RequestBody UpdateNotificationPreferencesDto updateNotificationPreference) {
 
+        String userId = request.getHeader("X-User-Id");
         NotificationPreferences preferences = notificationPreferencesService
-                .updateNotificationPreferences(userId, updateNotificationPreference);
+                .updateNotificationPreferences(UUID.fromString(userId), updateNotificationPreference);
 
         return new Response<>(true,
                 "User notification preferences updated successfully",
