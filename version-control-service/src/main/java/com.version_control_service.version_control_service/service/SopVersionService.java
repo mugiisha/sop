@@ -1,191 +1,268 @@
 package com.version_control_service.version_control_service.service;
 
-import com.cloudinary.Cloudinary;
-import com.cloudinary.utils.ObjectUtils;
-import com.version_control_service.version_control_service.config.CloudinaryConfig;
-import com.version_control_service.version_control_service.dto.ApiResponse;
-import com.version_control_service.version_control_service.dto.SopDto;
-import com.version_control_service.version_control_service.exception.SopNotFoundException;
 import com.version_control_service.version_control_service.model.SopVersionModel;
-import com.version_control_service.version_control_service.utils.SopVersionUtils;
 import com.version_control_service.version_control_service.repository.SopVersionRepository;
-import com.version_control_service.version_control_service.utils.ValidateSopVersion;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import com.version_control_service.version_control_service.exception.SopNotFoundException;
+import com.version_control_service.version_control_service.dto.ApiResponse;
+import com.version_control_service.version_control_service.utils.SopVersionUtils;
+import org.bson.types.ObjectId;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
-import java.io.IOException;
+import org.springframework.data.domain.Sort;
+
 import java.util.List;
-import java.util.Map;
-import java.util.NoSuchElementException;
 import java.util.Optional;
-import org.bson.types.ObjectId;
-import org.springframework.web.server.ResponseStatusException;
-import static com.version_control_service.version_control_service.utils.ValidateSopVersion.validateSopVersion;
 
 @Service
 public class SopVersionService {
 
-    @Autowired
-    private SopVersionRepository sopVersionRepository;
+    private final SopVersionRepository sopVersionRepository;
 
     @Autowired
-    private CloudinaryConfig cloudinaryConfig;
+    public SopVersionService(SopVersionRepository sopVersionRepository) {
+        this.sopVersionRepository = sopVersionRepository;
+    }
 
-    @Autowired
-    private Cloudinary cloudinary;
-
-    private SopVersionUtils sopVersionUtils;
-
-    private static final Logger logger = LoggerFactory.getLogger(SopVersionService.class);
-
-    public ApiResponse<SopVersionModel> createNewSopVersion(SopVersionModel newVersionDetails, String sopId) {
+    // Create a new SOP version
+    public ApiResponse<SopVersionModel> createVersion(SopVersionModel newVersion) {
         try {
-            // Validate SOP ID format
-            if (sopId == null || !ObjectId.isValid(sopId)) {
-                throw new IllegalArgumentException("Invalid SOP ID format: " + sopId);
-            }
+            // Validate required fields
+            SopVersionUtils.validateRequiredFields(newVersion);
 
-            // Convert sopId to ObjectId and validate
-            ObjectId objectId = new ObjectId(sopId);
-            List<SopVersionModel> existingSopVersions = sopVersionRepository.findBySopId(objectId);
+            // Populate default values if needed
+            SopVersionUtils.populateDefaultValues(newVersion);
 
-            if (existingSopVersions == null || existingSopVersions.isEmpty()) {
-                throw new IllegalArgumentException("Invalid SOP ID: " + sopId);
-            }
+            // Save the new version
+            SopVersionModel savedVersion = sopVersionRepository.save(newVersion);
 
-            // Validate required fields and populate default values using the utility methods
-            SopVersionUtils.validateRequiredFields(newVersionDetails);
-            SopVersionUtils.populateDefaultValues(newVersionDetails);
-
-            // Save new version to the repository
-            SopVersionModel savedVersion = sopVersionRepository.save(newVersionDetails);
-
-            // Log success message
-            String message = String.format("Successfully created SOP version with ID: %s", savedVersion.getId());
-            logger.info(message);
-
-            // Return the response
-            return new ApiResponse<>(HttpStatus.CREATED.value(), message, savedVersion);
-
+            return new ApiResponse<>(
+                    200,
+                    "SOP version created successfully",
+                    savedVersion
+            );
         } catch (IllegalArgumentException e) {
-            // Handle validation errors
-            String errorMessage = "Validation error: " + e.getMessage();
-            logger.warn(errorMessage);
-            return new ApiResponse<>(HttpStatus.BAD_REQUEST.value(), errorMessage, null);
-
+            return new ApiResponse<>(
+                    400,
+                    e.getMessage(),
+                    null
+            );
         } catch (Exception e) {
-            // Handle unexpected errors
-            String errorMessage = "An unexpected error occurred: " + e.getMessage();
-            logger.error(errorMessage, e);
-            return new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorMessage, null);
+            return new ApiResponse<>(
+                    500,
+                    "Error creating SOP version: " + e.getMessage(),
+                    null
+            );
         }
     }
 
+    // Get a specific version by ID
+    public ApiResponse<SopVersionModel> getVersionById(String id) {
+        try {
+            Optional<SopVersionModel> version = sopVersionRepository.findById(id);
+            if (version.isPresent()) {
+                return new ApiResponse<>(
+                        200,
+                        "SOP version retrieved successfully",
+                        version.get()
+                );
+            } else {
+                return new ApiResponse<>(
+                        404,
+                        "SOP version not found",
+                        null
+                );
+            }
+        } catch (Exception e) {
+            return new ApiResponse<>(
+                    500,
+                    "Error retrieving SOP version: " + e.getMessage(),
+                    null
+            );
+        }
+    }
+
+    // Get all versions for a specific SOP
+    public ApiResponse<List<SopVersionModel>> getVersionsBySopId(ObjectId sopId) {
+        try {
+            List<SopVersionModel> versions = sopVersionRepository.findBySopId(
+                    sopId,
+                    Sort.by(Sort.Direction.DESC, "versionNumber")
+            );
+
+            return new ApiResponse<>(
+                    200,
+                    "SOP versions retrieved successfully",
+                    versions
+            );
+        } catch (Exception e) {
+            return new ApiResponse<>(
+                    500,
+                    "Error retrieving SOP versions: " + e.getMessage(),
+                    null
+            );
+        }
+    }
+    // Add these methods to your existing SopVersionService class
+
+    public ApiResponse<SopVersionModel> createNewSopVersion(SopVersionModel newVersionDetails, String sopId) {
+        try {
+            // Convert string sopId to ObjectId
+            ObjectId sopObjectId = new ObjectId(sopId);
+            newVersionDetails.setSopId(sopObjectId);
+
+            // Validate and save
+            return createVersion(newVersionDetails);
+        } catch (IllegalArgumentException e) {
+            return new ApiResponse<>(400, "Invalid SOP ID format", null);
+        } catch (Exception e) {
+            return new ApiResponse<>(500, "Error creating SOP version: " + e.getMessage(), null);
+        }
+    }
 
     public ApiResponse<SopVersionModel> getSopVersionById(String versionId) {
-        try {
-            SopVersionModel sopVersion = sopVersionRepository.findById(versionId)
-                    .orElseThrow(() -> new NoSuchElementException("SOP Version not found for ID: " + versionId));
-
-            String message = String.format("Successfully retrieved SOP version for ID: %s", versionId);
-            logger.info(message);
-            return new ApiResponse<>(HttpStatus.OK.value(), message, sopVersion);
-
-        } catch (NoSuchElementException e) {
-            String errorMessage = e.getMessage();
-            logger.warn(errorMessage);
-            return new ApiResponse<>(HttpStatus.NOT_FOUND.value(), errorMessage, null);
-
-        } catch (Exception e) {
-            String errorMessage = String.format("Error occurred while retrieving SOP version for ID: %s", e.getMessage());
-            logger.error(errorMessage, e);
-            return new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorMessage, null);
-        }
+        return getVersionById(versionId);
     }
 
     public ApiResponse<List<SopVersionModel>> getAllVersionsBySopId(String sopId) {
         try {
-            List<SopVersionModel> sopVersions = sopVersionRepository.findBySopId(new ObjectId(sopId));
-
-            if (sopVersions.isEmpty()) {
-                String message = String.format("No SOP versions found for sopId: %s", sopId);
-                logger.warn(message);
-                return new ApiResponse<>(HttpStatus.NOT_FOUND.value(), message, null);
-            }
-
-            String message = String.format("Successfully retrieved SOP versions for sopId: %s", sopId);
-            logger.info(message);
-            return new ApiResponse<>(HttpStatus.OK.value(), message, sopVersions);
-
-        } catch (Exception e) {
-            String errorMessage = String.format("Error occurred while retrieving SOP versions: %s", e.getMessage());
-            logger.error(errorMessage, e);
-            return new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(), errorMessage, null);
+            ObjectId sopObjectId = new ObjectId(sopId);
+            return getVersionsBySopId(sopObjectId);
+        } catch (IllegalArgumentException e) {
+            return new ApiResponse<>(400, "Invalid SOP ID format", null);
         }
     }
 
     public ResponseEntity<ApiResponse<SopVersionModel>> getVersionBySopIdAndVersion(String sopId, String versionNumber) {
-        logger.info("Fetching SOP version for sopId: {} and versionNumber: {}", sopId, versionNumber);
-
         try {
-            // Fetch versions by sopId
-            List<SopVersionModel> sopVersions = sopVersionRepository.findBySopId(new ObjectId(sopId));
-            logger.debug("Fetched {} versions for sopId: {}", sopVersions.size(), sopId);
+            ObjectId sopObjectId = new ObjectId(sopId);
+            Optional<SopVersionModel> versions = sopVersionRepository.findBySopIdAndVersionNumber(sopObjectId, versionNumber);
 
-            if (sopVersions.isEmpty()) {
-                logger.warn("No SOP versions found for sopId: {}", sopId);
-                return new ResponseEntity<>(
-                        new ApiResponse<>(HttpStatus.NOT_FOUND.value(),
-                                String.format("No SOP versions found for sopId: %s", sopId),
-                                null),
-                        HttpStatus.NOT_FOUND
+            if (!versions.isEmpty()) {
+                return ResponseEntity.ok(new ApiResponse<>(200, "Version retrieved successfully", versions.get()));
+            } else {
+                return ResponseEntity.status(404)
+                        .body(new ApiResponse<>(404, "Version not found", null));
+            }
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest()
+                    .body(new ApiResponse<>(400, "Invalid SOP ID format", null));
+        } catch (Exception e) {
+            return ResponseEntity.status(500)
+                    .body(new ApiResponse<>(500, "Error retrieving version: " + e.getMessage(), null));
+        }
+    }
+
+    // Update a specific version
+    public ApiResponse<SopVersionModel> updateVersion(String id, SopVersionModel updatedVersion) {
+        try {
+            Optional<SopVersionModel> existingVersion = sopVersionRepository.findById(id);
+            if (existingVersion.isPresent()) {
+                SopVersionModel versionToUpdate = existingVersion.get();
+
+                // Update fields if they're not null
+                if (updatedVersion.getTitle() != null) {
+                    versionToUpdate.setTitle(updatedVersion.getTitle());
+                }
+                if (updatedVersion.getDescription() != null) {
+                    versionToUpdate.setDescription(updatedVersion.getDescription());
+                }
+                if (updatedVersion.getVersionNumber() != null) {
+                    versionToUpdate.setVersionNumber(updatedVersion.getVersionNumber());
+                }
+                if (updatedVersion.getCode() != null) {
+                    versionToUpdate.setCode(updatedVersion.getCode());
+                }
+                if (updatedVersion.getVisibility() != null) {
+                    versionToUpdate.setVisibility(updatedVersion.getVisibility());
+                }
+                if (updatedVersion.getCategory() != null) {
+                    versionToUpdate.setCategory(updatedVersion.getCategory());
+                }
+                if (updatedVersion.getImageFile() != null) {
+                    versionToUpdate.setImageFile(updatedVersion.getImageFile());
+                }
+                if (updatedVersion.getDocumentFile() != null) {
+                    versionToUpdate.setDocumentFile(updatedVersion.getDocumentFile());
+                }
+
+                // Save the updated version
+                SopVersionModel savedVersion = sopVersionRepository.save(versionToUpdate);
+
+                return new ApiResponse<>(
+                        200,
+                        "SOP version updated successfully",
+                        savedVersion
+                );
+            } else {
+                return new ApiResponse<>(
+                        404,
+                        "SOP version not found",
+                        null
                 );
             }
-
-            // Normalize input version number
-            String normalizedInputVersion = versionNumber.trim().replaceAll("\"", "");
-
-            for (SopVersionModel version : sopVersions) {
-                String normalizedDataVersion = version.getVersionNumber().trim();
-
-                if (normalizedDataVersion.equals(normalizedInputVersion) ||
-                        normalizedDataVersion.startsWith(normalizedInputVersion + ".")) {
-                    logger.info("Found matching version: {} for sopId: {}", normalizedDataVersion, sopId);
-                    return new ResponseEntity<>(
-                            new ApiResponse<>(HttpStatus.OK.value(), "SOP version found", version),
-                            HttpStatus.OK
-                    );
-                }
-            }
-
-            logger.warn("No matching SOP version found for sopId: {} and versionNumber: {}", sopId, versionNumber);
-            return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.NOT_FOUND.value(),
-                            String.format("No SOP version found for sopId: %s and versionNumber: %s", sopId, versionNumber),
-                            null),
-                    HttpStatus.NOT_FOUND
-            );
-
         } catch (Exception e) {
-            logger.error("Error retrieving SOP version for sopId: {} and versionNumber: {}", sopId, versionNumber, e);
-            return new ResponseEntity<>(
-                    new ApiResponse<>(HttpStatus.INTERNAL_SERVER_ERROR.value(),
-                            String.format("Error retrieving SOP version: %s", e.getMessage()),
-                            null),
-                    HttpStatus.INTERNAL_SERVER_ERROR
+            return new ApiResponse<>(
+                    500,
+                    "Error updating SOP version: " + e.getMessage(),
+                    null
             );
         }
     }
 
+    // Delete a specific version
+    public ApiResponse<Void> deleteVersion(String id) {
+        try {
+            if (sopVersionRepository.existsById(id)) {
+                sopVersionRepository.deleteById(id);
+                return new ApiResponse<>(
+                        200,
+                        "SOP version deleted successfully",
+                        null
+                );
+            } else {
+                return new ApiResponse<>(
+                        404,
+                        "SOP version not found",
+                        null
+                );
+            }
+        } catch (Exception e) {
+            return new ApiResponse<>(
+                    500,
+                    "Error deleting SOP version: " + e.getMessage(),
+                    null
+            );
+        }
+    }
 
+    // Get latest version for a specific SOP
+    public ApiResponse<SopVersionModel> getLatestVersion(ObjectId sopId) {
+        try {
+            List<SopVersionModel> versions = sopVersionRepository.findBySopId(
+                    sopId,
+                    Sort.by(Sort.Direction.DESC, "versionNumber")
+            );
 
-
-
-
-
+            if (!versions.isEmpty()) {
+                return new ApiResponse<>(
+                        200,
+                        "Latest SOP version retrieved successfully",
+                        versions.get(0)
+                );
+            } else {
+                return new ApiResponse<>(
+                        404,
+                        "No versions found for this SOP",
+                        null
+                );
+            }
+        } catch (Exception e) {
+            return new ApiResponse<>(
+                    500,
+                    "Error retrieving latest SOP version: " + e.getMessage(),
+                    null
+            );
+        }
+    }
 }
-

@@ -1,10 +1,8 @@
 package com.version_control_service.version_control_service.controller;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.version_control_service.version_control_service.dto.ApiResponse;
 import com.version_control_service.version_control_service.dto.SopDto;
 import com.version_control_service.version_control_service.model.SopVersionModel;
-import com.version_control_service.version_control_service.service.SopVersionGrpcService;
 import com.version_control_service.version_control_service.service.SopVersionService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,7 +23,7 @@ public class SopVersionController {
     private static final Logger logger = LoggerFactory.getLogger(SopVersionController.class);
 
     @Autowired
-    private SopVersionGrpcService SopVersionGrpcService;
+    private com.version_control_service.version_control_service.service.SopVersionGrpcService SopVersionGrpcService;
 
     @Autowired
     private SopVersionService sopVersionService;
