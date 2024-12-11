@@ -12,7 +12,7 @@
      -Dpackaging=jar \
      -DSkipTests
 
- RUN mvn clean package -DskipTests
+ RUN mvn clean package -DskipTests -q
 
  FROM eclipse-temurin:21-jre
  WORKDIR /app
