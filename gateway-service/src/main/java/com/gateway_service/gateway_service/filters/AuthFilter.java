@@ -7,6 +7,7 @@ import com.gateway_service.gateway_service.utils.JwtUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.cloud.gateway.filter.GatewayFilter;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.factory.AbstractGatewayFilterFactory;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.http.HttpHeaders;
@@ -20,12 +21,14 @@ import reactor.core.publisher.Mono;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> {
 
     private static final Logger log = LoggerFactory.getLogger(AuthFilter.class);
     private static final String BEARER_PREFIX = "Bearer ";
+    private static final String REQUEST_ID_HEADER = "X-Request-ID";
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
     private final RouteValidator routeValidator;
@@ -42,54 +45,65 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
             String path = request.getURI().getPath();
+            String requestId = generateRequestId();
 
-            log.debug("Processing request for path: {}", path);
+            log.debug("Processing request [{}] for path: {}", requestId, path);
 
             // Check if the route requires authentication
             if (routeValidator.isSecured.test(request)) {
-                try {
-                    // Extract and validate the token
-                    String token = extractToken(request);
-                    if (token == null) {
-                        log.warn("No token provided for secured endpoint: {}", path);
-                        return createErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Authentication token is required");
-                    }
+                return handleSecuredRoute(exchange, chain, request, path, requestId);
+            }
 
-                    // Validate the token
-                    if (!jwtUtils.isTokenValid(token)) {
-                        log.warn("Invalid token provided for path: {}", path);
-                        return createErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Invalid or expired token");
-                    }
+            // Add request ID to non-secured routes as well
+            ServerHttpRequest modifiedRequest = request.mutate()
+                    .header(REQUEST_ID_HEADER, requestId)
+                    .build();
+            return chain.filter(exchange.mutate().request(modifiedRequest).build());
+        };
+    }
 
-                    // Handle different token types
-                    String tokenType = jwtUtils.extractTokenType(token);
-                    if (!isValidTokenTypeForPath(tokenType, path)) {
-                        log.warn("Invalid token type {} for path: {}", tokenType, path);
-                        return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Invalid token type for this operation");
-                    }
+    private Mono<Void> handleSecuredRoute(ServerWebExchange exchange, GatewayFilterChain chain,
+                                          ServerHttpRequest request, String path, String requestId) {
+        try {
+            // Extract and validate the token
+            String token = extractToken(request);
+            if (token == null) {
+                log.warn("No token provided for secured endpoint [{}]: {}", requestId, path);
+                return createErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Authentication token is required");
+            }
 
-                    // Check permissions for non-password-reset endpoints
-                    if (!"PASSWORD_RESET".equals(tokenType)) {
-                        String userRole = jwtUtils.extractRole(token);
-                        if (!routeValidator.hasRequiredRole(path, userRole)) {
-                            log.warn("Insufficient permissions for user with role {} on path: {}", userRole, path);
-                            return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Insufficient permissions");
-                        }
-                    }
+            // Validate the token first
+            if (!jwtUtils.isTokenValid(token)) {
+                log.warn("Invalid token provided for request [{}] path: {}", requestId, path);
+                return createErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+            }
 
-                    // Create modified request with additional headers
-                    ServerHttpRequest modifiedRequest = enrichRequestWithHeaders(request, token);
-                    return chain.filter(exchange.mutate().request(modifiedRequest).build());
+            // Handle different token types
+            String tokenType = jwtUtils.extractTokenType(token);
+            if (!isValidTokenTypeForPath(tokenType, path)) {
+                log.warn("Invalid token type {} for request [{}] path: {}", tokenType, requestId, path);
+                return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Invalid token type for this operation");
+            }
 
-                } catch (Exception e) {
-                    log.error("Error processing authentication", e);
-                    return createErrorResponse(exchange, HttpStatus.INTERNAL_SERVER_ERROR, "Authentication processing error");
+            // Check permissions for non-password-reset endpoints
+            if (!"PASSWORD_RESET".equals(tokenType)) {
+                String userRole = jwtUtils.extractRole(token);
+                if (!routeValidator.hasRequiredRole(path, userRole)) {
+                    log.warn("Insufficient permissions for user with role {} on request [{}] path: {}",
+                            userRole, requestId, path);
+                    return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Insufficient permissions");
                 }
             }
 
-            // Allow the request to proceed for non-secured routes
-            return chain.filter(exchange);
-        };
+            // Create modified request with additional headers
+            ServerHttpRequest modifiedRequest = enrichRequestWithHeaders(request, token, requestId);
+            return chain.filter(exchange.mutate().request(modifiedRequest).build());
+
+        } catch (Exception e) {
+            log.error("Error processing authentication for request [{}]", requestId, e);
+            return createErrorResponse(exchange, HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Authentication processing error: " + e.getMessage());
+        }
     }
 
     private boolean isValidTokenTypeForPath(String tokenType, String path) {
@@ -99,13 +113,16 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         return "ACCESS".equals(tokenType);
     }
 
-    private ServerHttpRequest enrichRequestWithHeaders(ServerHttpRequest request, String token) {
+    private ServerHttpRequest enrichRequestWithHeaders(ServerHttpRequest request, String token, String requestId) {
         ServerHttpRequest.Builder builder = request.mutate()
                 .header("X-User-Id", jwtUtils.extractUserId(token))
-                .header("X-Token-Type", jwtUtils.extractTokenType(token));
+                .header("X-Token-Type", jwtUtils.extractTokenType(token))
+                .header(REQUEST_ID_HEADER, requestId);
+
+        String tokenType = jwtUtils.extractTokenType(token);
 
         // Add role and department ID for ACCESS tokens
-        if ("ACCESS".equals(jwtUtils.extractTokenType(token))) {
+        if ("ACCESS".equals(tokenType)) {
             String role = jwtUtils.extractRole(token);
             String departmentId = jwtUtils.extractDepartmentId(token);
             if (role != null) {
@@ -117,7 +134,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         }
 
         // Add email for PASSWORD_RESET tokens
-        if ("PASSWORD_RESET".equals(jwtUtils.extractTokenType(token))) {
+        if ("PASSWORD_RESET".equals(tokenType)) {
             String email = jwtUtils.extractEmail(token);
             if (email != null) {
                 builder.header("X-User-Email", email);
@@ -135,6 +152,10 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         return null;
     }
 
+    private String generateRequestId() {
+        return UUID.randomUUID().toString();
+    }
+
     private Mono<Void> createErrorResponse(ServerWebExchange exchange, HttpStatus status, String message) {
         ServerHttpResponse response = exchange.getResponse();
         response.setStatusCode(status);
@@ -145,6 +166,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         errorBody.put("error", status.getReasonPhrase());
         errorBody.put("message", message);
         errorBody.put("path", exchange.getRequest().getURI().getPath());
+        errorBody.put("requestId", exchange.getRequest().getHeaders().getFirst(REQUEST_ID_HEADER));
 
         try {
             byte[] bytes = objectMapper.writeValueAsBytes(errorBody);
@@ -157,7 +179,6 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     }
 
     public static class Config {
-        // Configuration properties can be added here if needed
         private boolean includeDebugInfo = false;
 
         public boolean isIncludeDebugInfo() {
