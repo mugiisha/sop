@@ -1,6 +1,7 @@
+
 services:
   discovery-service:
-    image: isaruratech/sop-rw:discovery-service
+    image: isaruratech/sop-rw:discovery-service-latest
     container_name: discovery-service
     env_file:
       - .env
@@ -8,164 +9,245 @@ services:
       - "8761:8761"
     networks:
       - sop-network
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8761/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   gateway-service:
-    image: isaruratech/sop-rw:gateway-service
+    image: isaruratech/sop-rw:gateway-service-latest
     container_name: gateway-service
     env_file:
       - .env
     ports:
       - "9091:8085"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8085/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   user-management-service:
-    image: isaruratech/sop-rw:user-management-service
+    image: isaruratech/sop-rw:user-management-service-latest
     container_name: user-management-service
     env_file:
       - .env
     ports:
       - "6075:8081"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   analytics-insights-service:
-    image: isaruratech/sop-rw:analytics-insights-service
-    container_name: analytics-service
+    image: isaruratech/sop-rw:analytics-insights-service-latest
+    container_name: analytics-insights-service
     env_file:
       - .env
     ports:
       - "6067:8082"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8082/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   audit-compliance-tracking-service:
-    image: isaruratech/sop-rw:audit-compliance-tracking-service
-    container_name: audit-service
+    image: isaruratech/sop-rw:audit-compliance-tracking-service-latest
+    container_name: audit-compliance-tracking-service
     env_file:
       - .env
     ports:
       - "8088:8083"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   compliance-reporting-service:
-    image: isaruratech/sop-rw:compliance-reporting-service
-    container_name: reporting-service
+    image: isaruratech/sop-rw:compliance-reporting-service-latest
+    container_name: compliance-reporting-service
     env_file:
       - .env
     ports:
       - "8084:8084"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8084/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   notification-service:
-    image: isaruratech/sop-rw:notification-service
+    image: isaruratech/sop-rw:notification-service-latest
     container_name: notification-service
     env_file:
       - .env
     ports:
       - "8085:8085"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - redis
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8085/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   sop-content-service:
-    image: isaruratech/sop-rw:sop-content-service
+    image: isaruratech/sop-rw:sop-content-service-latest
     container_name: sop-content-service
     env_file:
       - .env
     ports:
       - "8086:8086"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8086/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   sop-recommendation-service:
-    image: isaruratech/sop-rw:sop-recommendation-service
-    container_name: recommendation-service
+    image: isaruratech/sop-rw:sop-recommendation-service-latest
+    container_name: sop-recommendation-service
     env_file:
       - .env
     ports:
       - "8087:8087"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - redis
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8087/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   sop-workflow-service:
-    image: isaruratech/sop-rw:sop-workflow-service
-    container_name: workflow-service
+    image: isaruratech/sop-rw:sop-workflow-service-latest
+    container_name: sop-workflow-service
     env_file:
       - .env
     ports:
       - "6063:8088"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      kafka:
+        condition: service_started
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8088/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   version-control-service:
-    image: isaruratech/sop-rw:version-control-service
+    image: isaruratech/sop-rw:version-control-service-latest
     container_name: version-control-service
     env_file:
       - .env
     ports:
       - "5060:8089"
+    depends_on:
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - sop-network
-    depends_on:
-      - discovery-service
-      - postgres
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8089/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   role-access-control-service:
-    image: isaruratech/sop-rw:role-access-control-service
-    container_name: role-access-service
+    image: isaruratech/sop-rw:role-access-control-service-latest
+    container_name: role-access-control-service
     env_file:
       - .env
     ports:
       - "7079:8090"
-    networks:
-      - sop-network
     depends_on:
-      - discovery-service
-      - postgres
-
-  zookeeper:
-    image: apache/zookeeper:latest
-    container_name: zookeeper
-    env_file:
-      - .env
-    environment:
-      ZOO_MY_ID: 1
-      ZOO_PORT: 2181
-    ports:
-      - "2181:2181"
+      discovery-service:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
     networks:
       - sop-network
-    volumes:
-      - zookeeper_data:/data
-      - zookeeper_log:/datalog
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8090/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   kafka:
     image: apache/kafka:latest
@@ -174,20 +256,21 @@ services:
       - .env
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_LISTENERS: PLAINTEXT://:9092,INTERNAL://:29092
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:29092
+      KAFKA_NODE_ID: 1
+      KAFKA_LISTENERS: PLAINTEXT://:9092,INTERNAL://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092,INTERNAL://kafka:9093
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,INTERNAL:PLAINTEXT
       KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      PROCESS_ROLES: broker,controller
+      CLUSTER_ID: "1234567890"
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
       ALLOW_PLAINTEXT_LISTENER: yes
     ports:
       - "9092:9092"
+      - "9093:9093"
     networks:
       - sop-network
-    volumes:
-      - kafka_data:/kafka
-    depends_on:
-      - zookeeper
+    restart: unless-stopped
 
   postgres:
     image: postgres:latest
@@ -204,6 +287,12 @@ services:
       - postgres_data:/var/lib/postgresql/data
     networks:
       - sop-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
   redis:
     image: redis:latest
@@ -214,6 +303,12 @@ services:
       - redis_data:/data
     networks:
       - sop-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
 
 networks:
   sop-network:
@@ -222,6 +317,3 @@ networks:
 volumes:
   postgres_data:
   redis_data:
-  kafka_data:
-  zookeeper_data:
-  zookeeper_log:
