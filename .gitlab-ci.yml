@@ -22,6 +22,8 @@ variables:
   AVAILABLE_SERVICES: "role-access-control-service user-management-service discovery-service gateway-service analytics-insights-service audit-compliance-tracking-service compliance-reporting-service notification-service sop-content-service sop-recommendation-service sop-workflow-service version-control-service"
   DOCKER_CLEANUP_ENABLED: "true"
   DEPLOYMENT_TIMEOUT: "300"
+  HEALTH_CHECK_RETRIES: "30"
+  HEALTH_CHECK_INTERVAL: "10"
 
 cache:
   paths:
@@ -32,7 +34,6 @@ cache:
   if [ "$DOCKER_CLEANUP_ENABLED" = "true" ]; then
     echo "Cleaning up Docker resources..."
     docker system prune -f
-    docker volume prune -f
   fi
 
 detect-changes:
@@ -75,6 +76,11 @@ detect-changes:
             servicesInChanges+=($service)
           fi
         done
+      
+        if [ ${#servicesInChanges[@]} -gt 0 ]; then
+          servicesInChanges+=("discovery-service" "gateway-service")
+        fi
+      
         export CHANGED_SERVICES=$(echo "${servicesInChanges[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ')
       fi
     - echo "Services to process:" $CHANGED_SERVICES
@@ -140,7 +146,7 @@ build:
       
           if [ ! -d "${SERVICE}" ] || [ ! -f "${SERVICE}/Dockerfile" ]; then
             echo "Error: Invalid service directory or missing Dockerfile for ${SERVICE}"
-            continue
+            exit 1
           fi
       
           mkdir -p "${SERVICE}/libs/"
@@ -149,24 +155,19 @@ build:
           CURRENT_DIR=$(pwd)
           cd "${SERVICE}" || exit 1
       
-          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
-          if ! docker build --no-cache -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" .; then
+          # Build with -latest tag
+          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
+          if ! docker build --no-cache -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest" .; then
             echo "Error: Docker build failed for ${SERVICE}"
             cd "${CURRENT_DIR}"
-            continue
+            exit 1
           fi
       
           if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
-            echo "Tagging and pushing images for ${SERVICE}"
-            docker tag "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" \
-                      "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
-      
-            if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"; then
-              echo "Error: Failed to push version-tagged image for ${SERVICE}"
-            fi
-      
+            echo "Pushing image for ${SERVICE}"
             if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"; then
-              echo "Error: Failed to push latest image for ${SERVICE}"
+              echo "Error: Failed to push image for ${SERVICE}"
+              exit 1
             fi
           fi
       
@@ -219,17 +220,47 @@ deploy:
         echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin
       
         echo 'Cleaning up unused Docker resources...'
-        docker system prune -af --volumes
+        docker system prune -af
       
+        # First, deploy discovery service if it's in the list
+        if [[ \"$CHANGED_SERVICES\" == *\"discovery-service\"* ]]; then
+          echo \"=== Deploying discovery-service first ===\"
+          docker compose pull discovery-service
+          docker compose up -d discovery-service
+      
+          echo \"Waiting for discovery-service to be ready...\"
+          for i in \$(seq 1 30); do
+            if docker compose ps discovery-service | grep -q \"Up\"; then
+              break
+            fi
+            echo \"Attempt \$i/30: discovery-service not ready yet, waiting...\"
+            sleep 10
+          done
+        fi
+      
+        # Next, deploy gateway service if it's in the list
+        if [[ \"$CHANGED_SERVICES\" == *\"gateway-service\"* ]]; then
+          echo \"=== Deploying gateway-service ===\"
+          docker compose pull gateway-service
+          docker compose up -d gateway-service
+      
+          echo \"Waiting for gateway-service to be ready...\"
+          for i in \$(seq 1 30); do
+            if docker compose ps gateway-service | grep -q \"Up\"; then
+              break
+            fi
+            echo \"Attempt \$i/30: gateway-service not ready yet, waiting...\"
+            sleep 10
+          done
+        fi
+      
+        # Deploy the rest of the services
         for SERVICE in $CHANGED_SERVICES; do
-          if [[ \"\${SERVICE}\" != \"proto\" ]]; then
+          if [[ \"\${SERVICE}\" != \"proto\" && \"\${SERVICE}\" != \"discovery-service\" && \"\${SERVICE}\" != \"gateway-service\" ]]; then
             echo \"=== Deploying \${SERVICE} ===\"
       
-            echo \"Removing old image...\"
-            docker rmi ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest || true
-      
             echo \"Pulling latest image...\"
-            if ! docker pull ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest; then
+            if ! docker compose pull \${SERVICE}; then
               echo \"Error: Failed to pull image for \${SERVICE}\"
               continue
             fi
@@ -244,11 +275,20 @@ deploy:
               continue
             fi
       
+            echo \"Waiting for \${SERVICE} to be ready...\"
+            for i in \$(seq 1 30); do
+              if docker compose ps \${SERVICE} | grep -q \"Up\"; then
+                break
+              fi
+              echo \"Attempt \$i/30: \${SERVICE} not ready yet, waiting...\"
+              sleep 10
+            done
+      
             echo \"=== \${SERVICE} deployment complete ===\"
           fi
         done
       
-        echo 'Checking service status...'
+        echo 'Checking final service status...'
         docker compose ps
       
         echo 'Deployment process completed'
@@ -260,7 +300,10 @@ deploy:
       for SERVICE in $CHANGED_SERVICES; do
         if [[ "${SERVICE}" != "proto" ]]; then
           echo "Checking ${SERVICE}..."
-          ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "docker ps | grep ${SERVICE}"
+          if ! ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "docker compose ps ${SERVICE} | grep -q Up"; then
+            echo "Error: ${SERVICE} is not running properly"
+            exit 1
+          fi
         fi
       done
   rules:
@@ -279,6 +322,3 @@ workflow:
     - if: $CI_COMMIT_BRANCH == "develop"
       when: always
     - when: never
-
-#pipeline editor
-#pipeline editor
