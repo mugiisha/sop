@@ -24,16 +24,29 @@ public class DtoConverter {
 
     // Converts SopModel (entity) to SOPDto
     public static SOPDto sopDtoFromEntity(SopModel sopModel) {
+        // Safely parse authors and approvers
+        UUID authorUuid = parseUuid(String.valueOf(sopModel.getAuthors()));
+        UUID approverUuid = parseUuid(String.valueOf(sopModel.getApprovers()));
+
         return new SOPDto(
                 sopModel.getId(),
                 sopModel.getTitle(),
                 sopModel.getVisibility(),
-                UUID.fromString(String.valueOf(sopModel.getAuthors())), // Assuming the first author as main author
+                authorUuid, // First author safely converted
                 sopModel.getCategoryId(),
                 sopModel.getReviewers().stream()
-                        .map(UUID::fromString)
+                        .map(DtoConverter::parseUuid) // Convert reviewers safely
                         .collect(Collectors.toList()),
-                UUID.fromString(String.valueOf(sopModel.getApprovers())) // Assuming the first approver as main approver
+                approverUuid // First approver safely converted
         );
+    }
+
+    // Utility method to parse UUIDs safely
+    private static UUID parseUuid(String uuidString) {
+        try {
+            return uuidString != null ? UUID.fromString(uuidString) : null;
+        } catch (IllegalArgumentException e) {
+            return null; // Handle invalid UUID gracefully
+        }
     }
 }
