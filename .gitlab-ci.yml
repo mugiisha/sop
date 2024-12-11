@@ -19,7 +19,6 @@ variables:
   DOCKER_BUILDKIT: "1"
   DOCKER_HOST: tcp://docker:2375
   DOCKER_TLS_CERTDIR: ""
-  # Unified service names
   AVAILABLE_SERVICES: "role-access-control-service user-management-service discovery-service gateway-service analytics-insights-service audit-compliance-tracking-service compliance-reporting-service notification-service sop-content-service sop-recommendation-service sop-workflow-service version-control-service"
   DOCKER_CLEANUP_ENABLED: "true"
   DEPLOYMENT_TIMEOUT: "300"
@@ -40,18 +39,6 @@ cache:
 detect-changes:
   stage: detect-changes
   script:
-    - |
-      get_service_name() {
-        local directory_name=$1
-        # Map directory names to service names if needed
-        case $directory_name in
-          "analytics") echo "analytics-insights-service" ;;
-          "audit") echo "audit-compliance-tracking-service" ;;
-          "reporting") echo "compliance-reporting-service" ;;
-          "recommendation") echo "sop-recommendation-service" ;;
-          *) echo "$directory_name" ;;
-        esac
-      }
     - echo "Fetching the latest base branch history..."
     - git fetch origin $BASE_BRANCH --prune
     - |
@@ -84,14 +71,12 @@ detect-changes:
       
         servicesInChanges=()
         for change in $detectedChanges; do
-          directory=$(echo $change | cut -d '/' -f 1)
-          service=$(get_service_name "$directory")
+          service=$(echo $change | cut -d '/' -f 1)
           if [[ " $AVAILABLE_SERVICES " == *" $service "* ]]; then
             servicesInChanges+=($service)
           fi
         done
       
-        # Always include discovery-service and gateway-service for dependent services
         if [ ${#servicesInChanges[@]} -gt 0 ]; then
           servicesInChanges+=("discovery-service" "gateway-service")
         fi
@@ -145,18 +130,6 @@ build:
     - *cleanup_script
     - source changes || echo "Failed to source changes file"
     - |
-      get_service_directory() {
-        local service_name=$1
-        # Map service names to directory names if needed
-        case $service_name in
-          "analytics-insights-service") echo "analytics" ;;
-          "audit-compliance-tracking-service") echo "audit" ;;
-          "compliance-reporting-service") echo "reporting" ;;
-          "sop-recommendation-service") echo "recommendation" ;;
-          *) echo "$service_name" ;;
-        esac
-      }
-    - |
       if [ -z "$CHANGED_SERVICES" ]; then
         echo "No services to build"
         exit 0
@@ -166,43 +139,34 @@ build:
         if [[ "${SERVICE}" != "proto" ]]; then
           echo "=== Starting build for ${SERVICE} ==="
       
-          SERVICE_DIR=$(get_service_directory "${SERVICE}")
-      
           VERSION="${CI_COMMIT_SHA}"
           if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
             VERSION="pr-${CI_MERGE_REQUEST_IID}"
           fi
       
-          if [ ! -d "${SERVICE_DIR}" ] || [ ! -f "${SERVICE_DIR}/Dockerfile" ]; then
-            echo "Error: Invalid service directory or missing Dockerfile for ${SERVICE} (${SERVICE_DIR})"
+          if [ ! -d "${SERVICE}" ] || [ ! -f "${SERVICE}/Dockerfile" ]; then
+            echo "Error: Invalid service directory or missing Dockerfile for ${SERVICE}"
             exit 1
           fi
       
-          mkdir -p "${SERVICE_DIR}/libs/"
-          cp libs/*.jar "${SERVICE_DIR}/libs/" 2>/dev/null || true
+          mkdir -p "${SERVICE}/libs/"
+          cp libs/*.jar "${SERVICE}/libs/" 2>/dev/null || true
       
           CURRENT_DIR=$(pwd)
-          cd "${SERVICE_DIR}" || exit 1
+          cd "${SERVICE}" || exit 1
       
-          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
-          if ! docker build --no-cache -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" .; then
+          # Build with -latest tag
+          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
+          if ! docker build --no-cache -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest" .; then
             echo "Error: Docker build failed for ${SERVICE}"
             cd "${CURRENT_DIR}"
             exit 1
           fi
       
           if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
-            echo "Tagging and pushing images for ${SERVICE}"
-            docker tag "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" \
-                      "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
-      
-            if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"; then
-              echo "Error: Failed to push version-tagged image for ${SERVICE}"
-              exit 1
-            fi
-      
+            echo "Pushing image for ${SERVICE}"
             if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"; then
-              echo "Error: Failed to push latest image for ${SERVICE}"
+              echo "Error: Failed to push image for ${SERVICE}"
               exit 1
             fi
           fi
@@ -264,7 +228,6 @@ deploy:
           docker compose pull discovery-service
           docker compose up -d discovery-service
       
-          # Wait for discovery service to be healthy
           echo \"Waiting for discovery-service to be ready...\"
           for i in \$(seq 1 30); do
             if docker compose ps discovery-service | grep -q \"Up\"; then
@@ -281,7 +244,6 @@ deploy:
           docker compose pull gateway-service
           docker compose up -d gateway-service
       
-          # Wait for gateway service to be ready
           echo \"Waiting for gateway-service to be ready...\"
           for i in \$(seq 1 30); do
             if docker compose ps gateway-service | grep -q \"Up\"; then
@@ -313,7 +275,6 @@ deploy:
               continue
             fi
       
-            # Wait for service to be ready
             echo \"Waiting for \${SERVICE} to be ready...\"
             for i in \$(seq 1 30); do
               if docker compose ps \${SERVICE} | grep -q \"Up\"; then
