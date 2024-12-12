@@ -6,8 +6,6 @@ import com.user_management_service.user_management_service.models.User;
 import com.user_management_service.user_management_service.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -27,7 +25,6 @@ public class UserProfileService {
     private final AuditService auditService;
     private final S3Service s3Service;
 
-    @Cacheable(value = "userProfiles", key = "#userId")
     public UserProfileDTO getUserProfile(UUID userId) {
         log.debug("Fetching user profile for ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -36,7 +33,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public UserProfileDTO updateProfile(UUID userId, UserProfileUpdateDTO updateDTO) {
         log.info("Updating profile for user ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -60,7 +56,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public UserProfileDTO updateProfilePicture(UUID userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -83,7 +78,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public UserProfileDTO removeProfilePicture(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -99,7 +93,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public void updatePassword(UUID userId, PasswordUpdateDTO passwordUpdateDTO) {
         log.info("Updating password for user ID: {}", userId);
         User user = userRepository.findById(userId)
