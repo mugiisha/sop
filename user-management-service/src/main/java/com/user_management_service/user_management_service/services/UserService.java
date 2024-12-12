@@ -8,9 +8,6 @@ import com.user_management_service.user_management_service.utils.PasswordGenerat
 import com.user_management_service.user_management_service.validation.PasswordValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -35,10 +32,6 @@ public class UserService {
     private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
 
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "usersByDepartment", allEntries = true),
-            @CacheEvict(value = "unverifiedUsers", allEntries = true)
-    })
     public UserResponseDTO registerUser(UserRegistrationDTO registrationDTO) {
         log.info("Registering new user with email: {}", registrationDTO.getEmail());
 
@@ -78,7 +71,6 @@ public class UserService {
             throw new RoleServerException(response.getErrorMessage());
         }
 
-        // prepare object to send via kafka
         CustomUserDto createdUserDto = new CustomUserDto(
                 user.getId(),
                 user.getEmail(),
@@ -94,7 +86,6 @@ public class UserService {
         return mapToUserResponseDTO(savedUser, "");
     }
 
-    @Cacheable(value = "users", key = "#id")
     public UserResponseDTO getUserById(UUID id) {
         log.debug("Fetching user by ID: {}", id);
 
@@ -112,10 +103,6 @@ public class UserService {
     }
 
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "users", key = "#id"),
-            @CacheEvict(value = "usersByDepartment", allEntries = true)
-    })
     public UserResponseDTO updateUser(UUID id, UserUpdateDTO updateDTO) {
         log.info("Updating user with ID: {}", id);
 
@@ -163,7 +150,7 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
 
         userRepository.save(user);
-        // prepare object to send via kafka
+
         CustomUserDto createdUserDto = new CustomUserDto();
         createdUserDto.setId(user.getId());
         createdUserDto.setEmail(user.getEmail());
@@ -191,7 +178,7 @@ public class UserService {
         user.setUpdatedAt(LocalDateTime.now());
 
         userRepository.save(user);
-        // prepare object to send via kafka
+
         CustomUserDto createdUserDto = new CustomUserDto();
         createdUserDto.setId(user.getId());
         createdUserDto.setEmail(user.getEmail());
@@ -202,11 +189,6 @@ public class UserService {
     }
 
     @Transactional
-    @Caching(evict = {
-            @CacheEvict(value = "users", key = "#id"),
-            @CacheEvict(value = "usersByDepartment", allEntries = true),
-            @CacheEvict(value = "inactiveUsers", allEntries = true)
-    })
     public void deactivateUser(UUID id) {
         log.info("Deactivating user with ID: {}", id);
 
@@ -221,7 +203,6 @@ public class UserService {
         user.setDeactivatedAt(LocalDateTime.now());
         userRepository.save(user);
 
-        // prepare object to send via kafka
         CustomUserDto customUserDto = new CustomUserDto();
         customUserDto.setId(user.getId());
         customUserDto.setEmail(user.getEmail());
@@ -231,7 +212,6 @@ public class UserService {
         auditService.logUserDeactivation(user.getId(), user.getEmail());
     }
 
-    @Cacheable(value = "usersByDepartment")
     public List<UserResponseDTO> getUsersByDepartment(UUID departmentId) {
         log.debug("Fetching users for department ID: {}", departmentId);
 
@@ -251,7 +231,6 @@ public class UserService {
                 .toList();
     }
 
-    @Cacheable(value = "users")
     public List<UserResponseDTO> getUsers() {
         return userRepository.findAll().stream()
                 .map(user -> {
@@ -265,7 +244,6 @@ public class UserService {
                 .toList();
     }
 
-    @Cacheable(value = "unverifiedUsers")
     public List<UserResponseDTO> getUnverifiedUsers() {
         log.debug("Fetching all unverified users");
         return userRepository.findByEmailVerifiedFalse().stream()
@@ -273,7 +251,6 @@ public class UserService {
                 .toList();
     }
 
-    @Cacheable(value = "inactiveUsers")
     public List<UserResponseDTO> getInactiveUsers(int days) {
         log.debug("Fetching users inactive for {} days", days);
 
@@ -287,7 +264,6 @@ public class UserService {
                 .toList();
     }
 
-    @Cacheable(value = "notificationPreferences", key = "#userId")
     public NotificationPreferenceDTO getNotificationPreferences(UUID userId) {
         log.debug("Fetching notification preferences for user ID: {}", userId);
 
@@ -302,7 +278,6 @@ public class UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "notificationPreferences", key = "#userId")
     public NotificationPreferenceDTO updateNotificationPreferences(
             UUID userId,
             NotificationPreferenceDTO preferencesDTO) {
