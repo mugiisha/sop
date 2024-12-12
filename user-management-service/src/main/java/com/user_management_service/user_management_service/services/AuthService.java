@@ -8,10 +8,6 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.kafka.core.KafkaTemplate;
-import org.springframework.cache.annotation.CacheConfig;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.CachePut;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,7 +18,6 @@ import java.time.LocalDateTime;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-@CacheConfig(cacheNames = {"auth"})
 public class AuthService {
     private final AuthRepository authRepository;
     private final PasswordEncoder passwordEncoder;
@@ -34,7 +29,6 @@ public class AuthService {
 
     private static final int MAX_LOGIN_ATTEMPTS = 10;
 
-    @Cacheable(key = "'login_' + #loginDTO.email", unless = "#result == null")
     public LoginResponseDTO login(UserLoginDTO loginDTO) {
         log.info("Attempting login for user: {}", loginDTO.getEmail());
 
@@ -63,7 +57,6 @@ public class AuthService {
     }
 
     @Transactional
-    @CachePut(key = "'reset_request_' + #requestDTO.email")
     public OtpResponseDTO requestPasswordReset(@Valid EmailRequestDTO requestDTO) {
         log.info("Password reset requested for email: {}", requestDTO.getEmail());
 
@@ -84,7 +77,6 @@ public class AuthService {
         return null;
     }
 
-    @Cacheable(key = "'otp_verification_' + #verificationDTO.email", unless = "#result == null")
     public String verifyOtpAndGenerateToken(OtpVerificationDTO verificationDTO) {
         log.info("Verifying OTP for email: {}", verificationDTO.getEmail());
 
@@ -102,7 +94,6 @@ public class AuthService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "auth", allEntries = true)
     public void resetPassword(String resetToken, PasswordResetDTO resetDTO) {
         validatePasswordReset(resetDTO);
 
@@ -117,7 +108,6 @@ public class AuthService {
     }
 
     @Transactional
-    @CacheEvict(cacheNames = "auth", allEntries = true)
     public void verifyEmail(String token) {
         log.info("Processing email verification for token: {}", token);
 
@@ -136,7 +126,6 @@ public class AuthService {
         log.info("Email verification successful for user: {}", user.getEmail());
     }
 
-    @CachePut(key = "'login_attempts_' + #user.email")
     public void handleFailedLoginAttempt(User user) {
         user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
         user.setLastFailedLogin(LocalDateTime.now());
@@ -148,7 +137,6 @@ public class AuthService {
         authRepository.save(user);
     }
 
-    @CacheEvict(key = "'login_attempts_' + #user.email")
     public void handleSuccessfulLoginAttempt(User user) {
         user.setFailedLoginAttempts(0);
         user.setLastFailedLogin(null);
@@ -167,25 +155,6 @@ public class AuthService {
             log.warn("Unverified user attempted to login: {}", user.getEmail());
             throw new AuthenticationException("Email not verified");
         }
-    }
-
-    private void handleSuccessfulLogin(User user) {
-        user.setFailedLoginAttempts(0);
-        user.setLastFailedLogin(null);
-        user.setLastLogin(LocalDateTime.now());
-        authRepository.save(user);
-        auditService.logUserLogin(user.getId(), user.getEmail());
-    }
-
-    private void handleFailedLogin(User user) {
-        user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
-        user.setLastFailedLogin(LocalDateTime.now());
-
-        if (user.getFailedLoginAttempts() >= MAX_LOGIN_ATTEMPTS) {
-            lockUserAccount(user);
-        }
-
-        authRepository.save(user);
     }
 
     private void lockUserAccount(User user) {
@@ -258,6 +227,4 @@ public class AuthService {
                 userDTO
         );
     }
-
-  
 }
