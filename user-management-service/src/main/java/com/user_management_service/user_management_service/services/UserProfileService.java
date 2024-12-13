@@ -6,8 +6,7 @@ import com.user_management_service.user_management_service.models.User;
 import com.user_management_service.user_management_service.repositories.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,11 +21,10 @@ import java.util.UUID;
 public class UserProfileService {
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
-    private final EmailService emailService;
+    private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
     private final AuditService auditService;
     private final S3Service s3Service;
 
-    @Cacheable(value = "userProfiles", key = "#userId")
     public UserProfileDTO getUserProfile(UUID userId) {
         log.debug("Fetching user profile for ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -35,7 +33,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public UserProfileDTO updateProfile(UUID userId, UserProfileUpdateDTO updateDTO) {
         log.info("Updating profile for user ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -59,7 +56,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public UserProfileDTO updateProfilePicture(UUID userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -82,7 +78,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public UserProfileDTO removeProfilePicture(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -98,7 +93,6 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CacheEvict(value = {"userProfiles", "users"}, key = "#userId")
     public void updatePassword(UUID userId, PasswordUpdateDTO passwordUpdateDTO) {
         log.info("Updating password for user ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -112,7 +106,13 @@ public class UserProfileService {
         user.setMustChangePassword(false);
         userRepository.save(user);
 
-        emailService.sendPasswordChangeConfirmation(user.getEmail(), user.getName());
+        // prepare object to send via kafka
+        CustomUserDto customUserDto = new CustomUserDto();
+        customUserDto.setId(user.getId());
+        customUserDto.setEmail(user.getEmail());
+        customUserDto.setName(user.getName());
+
+        kafkaTemplate.send("user-password-change", customUserDto);
         auditService.logPasswordChange(user.getId(), user.getEmail());
     }
 

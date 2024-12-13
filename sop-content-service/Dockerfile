@@ -1,16 +1,25 @@
-  # Build stage
-  FROM eclipse-temurin:21 AS builder
-  WORKDIR /build
-  COPY . .
-  RUN ./mvnw clean package -DskipTests
+ # Build stage
+ FROM maven:3.8.8-eclipse-temurin-21 AS builder
+ WORKDIR /build
 
-  # Run stage
-  FROM eclipse-temurin:21-jre-alpine
-  WORKDIR /app
-  COPY --from=builder /build/target/*.jar app.jar
-  EXPOSE 8080
-  ENTRYPOINT ["java", "-jar", "app.jar"]
+ # Copy files needed for build
+ COPY pom.xml ./
+ COPY src ./src
+ COPY libs ./libs
 
-  # Health check
-  HEALTHCHECK --interval=30s --timeout=3s \
-    CMD wget -q --spider http://localhost:8080/actuator/health || exit 1
+ # Install local dependency and build application
+ RUN mvn install:install-file \
+     -Dfile=libs/proto-1.0-SNAPSHOT.jar \
+     -DgroupId=com.at \
+     -DartifactId=proto \
+     -Dversion=1.0-SNAPSHOT \
+     -Dpackaging=jar \
+     -DskipTests \
+     && mvn clean package -DskipTests -q
+
+ # Runtime stage
+ FROM eclipse-temurin:21-jre
+ WORKDIR /app
+ COPY --from=builder /build/target/*.jar app.jar
+ EXPOSE 8084
+ ENTRYPOINT ["java", "-jar", "app.jar"]

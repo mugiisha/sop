@@ -1,4 +1,5 @@
 package com.sop_content_service.sop_content_service.repository;
+
 import com.sop_content_service.sop_content_service.model.SopModel;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -8,9 +9,9 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public interface SopRepositorySearch extends MongoRepository<SopModel, String> {
-//    Page<SopModel> findByDepartment(String department, Pageable pageable);
-    Page<SopModel> findByCategory(String category, Pageable pageable);
-    Page<SopModel> findByStatus(String status, Pageable pageable);
+    //    Page<SopModel> findByDepartment(String department, Pageable pageable);
+    Page<SopModel> findByCategoryId(String categoryId, Pageable pageable);
+    Page<SopModel> findByVisibility(String visibility, Pageable pageable);  // Changed from findByStatus
 
     @Query("{ $or: [ " +
             "{ title: { $regex: ?0, $options: 'i' } }, " +
