@@ -9,5 +9,5 @@ import java.util.List;
 public interface FeedbackRepository extends MongoRepository<FeedbackModel, String> {
     List<FeedbackModel> findBySopId(String sopId); // Find all feedbacks by SOP ID
 
-    List<FeedbackModel> findByUserId(ObjectId userId);
+    List<FeedbackModel> findByUserId(String userId);
 }

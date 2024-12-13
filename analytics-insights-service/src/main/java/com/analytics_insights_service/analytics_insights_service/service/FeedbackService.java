@@ -1,10 +1,13 @@
 package com.analytics_insights_service.analytics_insights_service.service;
 
 import com.analytics_insights_service.analytics_insights_service.dto.ApiResponse;
+import com.analytics_insights_service.analytics_insights_service.dto.FeedbackDto;
 import com.analytics_insights_service.analytics_insights_service.exception.SopNotFoundException;
 import com.analytics_insights_service.analytics_insights_service.model.FeedbackModel;
 import com.analytics_insights_service.analytics_insights_service.repository.FeedbackRepository;
+import com.analytics_insights_service.analytics_insights_service.util.DtoConverter;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,13 +16,9 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.List;
-import java.util.Optional;
-
-
+import java.util.Map;
 
 
 @Service
@@ -34,8 +33,27 @@ public class FeedbackService {
             topics = "sop-created",
             groupId = "analytics-insights-service"
     )
-    public void sopCreatedListener(String data) throws JsonProcessingException {
-        log.info("Received sop created event: {}", data);
+    public void FeedbackCreatedListener(String data) throws JsonProcessingException {
+        log.info("Received SOP created event: {}", data);
+        try {
+            // Convert the incoming data to a DTO or directly to a FeedbackModel
+
+            // Use a Map to parse the JSON and extract only required fields
+            Map<String, Object> jsonData = new ObjectMapper().readValue(data, Map.class);
+            String id = (String) jsonData.get("id");
+
+            FeedbackDto feedbackDto = new FeedbackDto(id);
+
+            FeedbackModel feedbackModel = new FeedbackModel();
+            feedbackModel.setId(feedbackDto.getId()); // Set the ID from the DTO
+
+
+            // Save the model to the database
+            feedbackRepository.save(feedbackModel);
+            log.info("Saved Feedback model: {}", feedbackModel);
+        } catch (Exception e) {
+            log.error("Error processing SOP created event: {}", e.getMessage(), e);
+        }
     }
 
 
@@ -44,13 +62,12 @@ public class FeedbackService {
      */
     public ResponseEntity<ApiResponse<FeedbackModel>> createFeedback(String sopId, String userId, FeedbackModel feedbackModel) {
         try {
-            // Find the list of FeedbackModels by sopId
-            List<FeedbackModel> existingFeedbacks = feedbackRepository.findBySopId(sopId);
-
-            if (existingFeedbacks.isEmpty()) {
-                // If no feedback exists for the given sopId, return a NotFound response
-                ApiResponse<FeedbackModel> response = new ApiResponse<>("No feedback found for the given SOP ID", null);
-                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            // Check if the sopId exists
+            boolean sopExists = feedbackRepository.existsById(sopId); // Assuming sopRepository is available and properly set up
+            if (!sopExists) {
+                // Throw an error if sopId does not exist
+                ApiResponse<FeedbackModel> response = new ApiResponse<>("SOP ID does not exist", null);
+                return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
 
             // Set sopId and userId to the feedbackModel
@@ -115,7 +132,7 @@ public class FeedbackService {
      */
     public ResponseEntity<ApiResponse<List<FeedbackModel>>> getFeedbacksByUserId(String userId) {
         try {
-            List<FeedbackModel> feedbacks = feedbackRepository.findByUserId(new ObjectId(userId));
+            List<FeedbackModel> feedbacks = feedbackRepository.findByUserId(userId);
             ApiResponse<List<FeedbackModel>> response = new ApiResponse<>("Feedbacks retrieved successfully", feedbacks);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {

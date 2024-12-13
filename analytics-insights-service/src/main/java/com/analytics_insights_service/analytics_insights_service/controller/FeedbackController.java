@@ -3,11 +3,14 @@ package com.analytics_insights_service.analytics_insights_service.controller;
 import com.analytics_insights_service.analytics_insights_service.dto.ApiResponse;
 import com.analytics_insights_service.analytics_insights_service.model.FeedbackModel;
 import com.analytics_insights_service.analytics_insights_service.service.FeedbackService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/feedbacks")
@@ -19,16 +22,22 @@ public class FeedbackController {
     /**
      * Create a new feedback.
      * @param sopId SOP ID.
-     * @param userId User ID.
      * @param feedbackModel Feedback data.
      * @return Created feedback response.
      */
-    @PostMapping("/{sopId}/{userId}")
+    @PostMapping("/{sopId}")
     public ResponseEntity<ApiResponse<FeedbackModel>> createFeedback(
+            HttpServletRequest request,
             @PathVariable String sopId,
-            @PathVariable String userId,
             @RequestBody FeedbackModel feedbackModel
     ) {
+        // Retrieve user ID from the request header
+        String userId = request.getHeader("X-User-Id");
+        // Check if the user ID header is missing
+        if (userId == null || userId.isEmpty()) {
+            ApiResponse<FeedbackModel> response = new ApiResponse<>("User ID header is missing", null);
+            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        }
         return feedbackService.createFeedback(sopId, userId, feedbackModel);
     }
 
