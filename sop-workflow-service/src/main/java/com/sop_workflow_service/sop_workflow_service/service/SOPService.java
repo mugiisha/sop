@@ -48,7 +48,7 @@ public class SOPService {
         log.info("Creating SOP: {}", createSOPDto);
         //get provided Category
         Category category = categoryService.getCategoryById(createSOPDto.getCategoryId());
-
+        log.info("category SOP: {}", category);
         SOP sop = new SOP();
         sop.setTitle(createSOPDto.getTitle());
         sop.setVisibility(Visibility.valueOf(createSOPDto.getVisibility().toUpperCase()));
@@ -57,6 +57,7 @@ public class SOPService {
         sop.setCategory(category);
         sop.setCreatedAt(LocalDateTime.now());
         sop.setUpdatedAt(LocalDateTime.now());
+
 
         SOP createdSop = sopRepository.save(sop);
 

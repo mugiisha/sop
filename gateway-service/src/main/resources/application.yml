@@ -251,7 +251,7 @@ server:
 eureka:
   client:
     serviceUrl:
-      defaultZone:  ${EUREKA_DEFAULT_ZONE:http://discovery-service-latest:8761/eureka/}
+      defaultZone:  ${EUREKA_DEFAULT_ZONE:http://eureka:password@localhost:8761/eureka/}
   instance:
     preferIpAddress: true
     hostname: localhost

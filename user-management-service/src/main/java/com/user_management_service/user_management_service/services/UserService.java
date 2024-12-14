@@ -90,7 +90,7 @@ public class UserService {
         log.debug("Fetching user by ID: {}", id);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"+id));
 
         GetRoleByUserIdResponse userRole = userRoleClientService
                 .getUserRoles(user.getId().toString());
