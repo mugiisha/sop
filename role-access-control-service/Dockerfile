@@ -12,10 +12,11 @@
      -Dpackaging=jar \
      -DSkipTests
 
- RUN mvn clean package -DskipTests
+ RUN mvn clean package -DskipTests -q
 
  FROM eclipse-temurin:21-jre
  WORKDIR /app
  COPY --from=builder /build/target/*.jar /app/app.jar
  EXPOSE 8081
  ENTRYPOINT ["java", "-jar", "/app/app.jar"]
+

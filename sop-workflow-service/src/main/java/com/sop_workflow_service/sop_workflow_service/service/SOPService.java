@@ -65,6 +65,7 @@ public class SOPService {
         sop.setCreatedAt(LocalDateTime.now());
         sop.setUpdatedAt(LocalDateTime.now());
 
+
         SOP createdSop = sopRepository.save(sop);
 
         // Create workflow stages

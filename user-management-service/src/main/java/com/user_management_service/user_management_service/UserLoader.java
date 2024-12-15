@@ -37,6 +37,7 @@ public class UserLoader {
                         {"approver@domain.com", "Employee", "APPROVER", "Human Resources"},
                         {"hod@domain.com", "Employee", "HOD", "Human Resources"},
                         {"author@domain.com", "Employee", "AUTHOR", "Human Resources"},
+                        {"auditor@domain.com", "Employee", "AUDIT", "Human Resources"},
                         {"staff@domain.com", "Employee", "STAFF", "Human Resources"},
                         {"iradukundakvn8@gmail.com", "Employee", "ADMIN", "Administration"}
                 };

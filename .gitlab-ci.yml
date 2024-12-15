@@ -22,6 +22,8 @@ variables:
   AVAILABLE_SERVICES: "role-access-control-service user-management-service discovery-service gateway-service analytics-insights-service audit-compliance-tracking-service compliance-reporting-service notification-service sop-content-service sop-recommendation-service sop-workflow-service version-control-service"
   DOCKER_CLEANUP_ENABLED: "true"
   DEPLOYMENT_TIMEOUT: "300"
+  HEALTH_CHECK_RETRIES: "30"
+  HEALTH_CHECK_INTERVAL: "10"
 
 cache:
   paths:
@@ -32,7 +34,6 @@ cache:
   if [ "$DOCKER_CLEANUP_ENABLED" = "true" ]; then
     echo "Cleaning up Docker resources..."
     docker system prune -f
-    docker volume prune -f
   fi
 
 detect-changes:
@@ -75,6 +76,11 @@ detect-changes:
             servicesInChanges+=($service)
           fi
         done
+      
+        if [ ${#servicesInChanges[@]} -gt 0 ]; then
+          servicesInChanges+=("discovery-service" "gateway-service")
+        fi
+      
         export CHANGED_SERVICES=$(echo "${servicesInChanges[@]}" | tr ' ' '\n' | sort -u | tr '\n' ' ')
       fi
     - echo "Services to process:" $CHANGED_SERVICES
@@ -133,14 +139,9 @@ build:
         if [[ "${SERVICE}" != "proto" ]]; then
           echo "=== Starting build for ${SERVICE} ==="
       
-          VERSION="${CI_COMMIT_SHA}"
-          if [ "$CI_PIPELINE_SOURCE" = "merge_request_event" ]; then
-            VERSION="pr-${CI_MERGE_REQUEST_IID}"
-          fi
-      
           if [ ! -d "${SERVICE}" ] || [ ! -f "${SERVICE}/Dockerfile" ]; then
             echo "Error: Invalid service directory or missing Dockerfile for ${SERVICE}"
-            continue
+            exit 1
           fi
       
           mkdir -p "${SERVICE}/libs/"
@@ -149,24 +150,18 @@ build:
           CURRENT_DIR=$(pwd)
           cd "${SERVICE}" || exit 1
       
-          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"
-          if ! docker build --no-cache -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" .; then
+          echo "Building image ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
+          if ! docker build --no-cache -t "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest" .; then
             echo "Error: Docker build failed for ${SERVICE}"
             cd "${CURRENT_DIR}"
-            continue
+            exit 1
           fi
       
           if [ "$CI_COMMIT_BRANCH" = "develop" ]; then
-            echo "Tagging and pushing images for ${SERVICE}"
-            docker tag "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}" \
-                      "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"
-      
-            if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-${VERSION}"; then
-              echo "Error: Failed to push version-tagged image for ${SERVICE}"
-            fi
-      
+            echo "Pushing image for ${SERVICE}"
             if ! docker push "${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:${SERVICE}-latest"; then
-              echo "Error: Failed to push latest image for ${SERVICE}"
+              echo "Error: Failed to push image for ${SERVICE}"
+              exit 1
             fi
           fi
       
@@ -192,7 +187,7 @@ deploy:
     - job: detect-changes
       artifacts: true
   before_script:
-    - apk add --no-cache openssh bash curl
+    - apk add --no-cache openssh bash curl jq
     - mkdir -p ~/.ssh
     - echo "$SSH_PRIVATE_KEY" > ~/.ssh/id_rsa
     - chmod 600 ~/.ssh/id_rsa
@@ -212,59 +207,104 @@ deploy:
       fi
       
       echo "Deploying services: $CHANGED_SERVICES"
-      ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "
-        cd /home/projects/sop-rw || exit 1
       
-        echo 'Starting deployment process...'
+      # Copy deployment script and docker-compose to EC2
+      ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "
+        cd /home/projects/sop-rw || mkdir -p /home/projects/sop-rw
+      
+        # Set environment variables
+        export DOCKER_USERNAME='$DOCKER_USERNAME'
+        export DOCKER_PASSWORD='$DOCKER_PASSWORD'
+        export CHANGED_SERVICES='$CHANGED_SERVICES'
+      
+        # Login to Docker Hub
         echo '$DOCKER_PASSWORD' | docker login -u '$DOCKER_USERNAME' --password-stdin
       
-        echo 'Cleaning up unused Docker resources...'
-        docker system prune -af --volumes
+        # Deploy discovery service first if it's in the changed services
+        if [[ \"$CHANGED_SERVICES\" == *\"discovery-service\"* ]]; then
+          echo \"Deploying discovery-service...\"
+          docker compose pull discovery-service
+          docker compose up -d discovery-service
       
+          # Wait for discovery service
+          for i in \$(seq 1 $HEALTH_CHECK_RETRIES); do
+            if docker compose ps discovery-service | grep -q \"Up\"; then
+              break
+            fi
+            echo \"Waiting for discovery-service... Attempt \$i/$HEALTH_CHECK_RETRIES\"
+            sleep $HEALTH_CHECK_INTERVAL
+          done
+        fi
+      
+        # Deploy gateway service next if it's in the changed services
+        if [[ \"$CHANGED_SERVICES\" == *\"gateway-service\"* ]]; then
+          echo \"Deploying gateway-service...\"
+          docker compose pull gateway-service
+          docker compose up -d gateway-service
+      
+          # Wait for gateway service
+          for i in \$(seq 1 $HEALTH_CHECK_RETRIES); do
+            if docker compose ps gateway-service | grep -q \"Up\"; then
+              break
+            fi
+            echo \"Waiting for gateway-service... Attempt \$i/$HEALTH_CHECK_RETRIES\"
+            sleep $HEALTH_CHECK_INTERVAL
+          done
+        fi
+      
+        # Deploy remaining services
         for SERVICE in $CHANGED_SERVICES; do
-          if [[ \"\${SERVICE}\" != \"proto\" ]]; then
-            echo \"=== Deploying \${SERVICE} ===\"
+          if [[ \"\$SERVICE\" != \"proto\" && \"\$SERVICE\" != \"discovery-service\" && \"\$SERVICE\" != \"gateway-service\" ]]; then
+            echo \"Deploying \$SERVICE...\"
       
-            echo \"Removing old image...\"
-            docker rmi ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest || true
+            # Pull latest image
+            docker compose pull \$SERVICE || { echo \"Failed to pull \$SERVICE\"; continue; }
       
-            echo \"Pulling latest image...\"
-            if ! docker pull ${DOCKER_REGISTRY}/${DOCKER_USERNAME}/${IMAGE_NAME}:\${SERVICE}-latest; then
-              echo \"Error: Failed to pull image for \${SERVICE}\"
-              continue
-            fi
+            # Stop and remove existing container
+            docker compose stop \$SERVICE || true
+            docker compose rm -f \$SERVICE || true
       
-            echo \"Stopping and removing old container...\"
-            docker compose stop \${SERVICE} || true
-            docker compose rm -f \${SERVICE} || true
+            # Start new container
+            docker compose up -d \$SERVICE
       
-            echo \"Starting service...\"
-            if ! docker compose up -d \${SERVICE}; then
-              echo \"Error: Failed to start \${SERVICE}\"
-              continue
-            fi
-      
-            echo \"=== \${SERVICE} deployment complete ===\"
+            # Wait for service to be healthy
+            for i in \$(seq 1 $HEALTH_CHECK_RETRIES); do
+              if docker compose ps \$SERVICE | grep -q \"Up\"; then
+                break
+              fi
+              echo \"Waiting for \$SERVICE... Attempt \$i/$HEALTH_CHECK_RETRIES\"
+              sleep $HEALTH_CHECK_INTERVAL
+            done
           fi
         done
       
-        echo 'Checking service status...'
+        # Final status check
+        echo \"Final status of services:\"
         docker compose ps
       
-        echo 'Deployment process completed'
-        docker logout"
+        # Cleanup
+        docker system prune -f
+        docker logout
+      "
       
-      echo "Verifying deployment..."
-      sleep 30
-      
+      # Verify deployment
+      echo "Verifying final deployment status..."
       for SERVICE in $CHANGED_SERVICES; do
         if [[ "${SERVICE}" != "proto" ]]; then
           echo "Checking ${SERVICE}..."
-          ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "docker ps | grep ${SERVICE}"
+          if ! ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "cd /home/projects/sop-rw && docker compose ps ${SERVICE} | grep -q Up"; then
+            echo "Service ${SERVICE} failed to start. Checking logs..."
+            ssh -i ~/.ssh/id_rsa ubuntu@$DEPLOY_SERVER "cd /home/projects/sop-rw && docker compose logs ${SERVICE}"
+            exit 1
+          fi
+          echo "${SERVICE} is running properly"
         fi
       done
   rules:
     - if: $CI_COMMIT_BRANCH == "develop"
+      when: always
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+      when: never
   retry:
     max: 2
     when:
@@ -279,6 +319,3 @@ workflow:
     - if: $CI_COMMIT_BRANCH == "develop"
       when: always
     - when: never
-
-#pipeline editor
-#pipeline editor
