@@ -1,16 +1,16 @@
 package com.sop_content_service.sop_content_service.repository;
 
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.enums.Visibility;
+import com.sop_content_service.sop_content_service.model.Sop;
 import org.springframework.data.mongodb.repository.MongoRepository;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.UUID;
 
-public interface SopRepository extends MongoRepository<SopModel, String> {
-    List<SopModel> findAllByOrderByCreatedAtDesc();
-//    List<SopModel> findByStatusOrderByCreatedAtDesc(String status);
+public interface SopRepository extends MongoRepository<Sop, String> {
+    List<Sop> findAllByOrderByCreatedAtDesc();
     boolean existsById(String id);
-    SopModel findVersionsById(String id);
+    List<Sop> findByDepartmentIdOrVisibilityOrderByCreatedAtDesc(UUID departmentId, Visibility visibility);
 
 
 }

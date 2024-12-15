@@ -1,7 +1,7 @@
 package com.sop_content_service.sop_content_service.strategy;
 
 import com.sop_content_service.sop_content_service.dto.SopSearchRequest;
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.model.Sop;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
@@ -18,7 +18,7 @@ public class SearchContext {
         this.complexSearchStrategy = complexSearchStrategy;
     }
 
-    public Page<SopModel> executeSearch(SopSearchRequest request, Pageable pageable) {
+    public Page<Sop> executeSearch(SopSearchRequest request, Pageable pageable) {
         SearchStrategy strategy = isSimpleQuery(request) ?
                 simpleSearchStrategy : complexSearchStrategy;
         return strategy.search(request, pageable);

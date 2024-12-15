@@ -2,7 +2,7 @@ package com.sop_content_service.sop_content_service.controller;
 
 import com.sop_content_service.sop_content_service.dto.SopSearchRequest;
 import com.sop_content_service.sop_content_service.dto.SopSearchResponse;
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.model.Sop;
 import com.sop_content_service.sop_content_service.service.SopSearchService;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
@@ -18,7 +18,7 @@ public class SopSearchController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<SopSearchResponse<Page<SopModel>>> searchSOPs(
+    public ResponseEntity<SopSearchResponse<Page<Sop>>> searchSOPs(
             @ModelAttribute SopSearchRequest request,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,

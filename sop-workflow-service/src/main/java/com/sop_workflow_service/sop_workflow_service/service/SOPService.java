@@ -1,4 +1,5 @@
 package com.sop_workflow_service.sop_workflow_service.service;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPResponseDto;
 import com.sop_workflow_service.sop_workflow_service.dto.StageDto;
@@ -10,13 +11,15 @@ import com.sop_workflow_service.sop_workflow_service.model.Category;
 import com.sop_workflow_service.sop_workflow_service.model.Comment;
 import com.sop_workflow_service.sop_workflow_service.model.SOP;
 import com.sop_workflow_service.sop_workflow_service.model.WorkflowStage;
-import com.sop_workflow_service.sop_workflow_service.repository.CategoryRepository;
 import com.sop_workflow_service.sop_workflow_service.repository.CommentRepository;
 import com.sop_workflow_service.sop_workflow_service.repository.SOPRepository;
 import com.sop_workflow_service.sop_workflow_service.repository.WorkflowStageRepository;
+import com.sop_workflow_service.sop_workflow_service.utils.DtoConverter;
+import com.sop_workflow_service.sop_workflow_service.utils.exception.BadRequestException;
 import com.sop_workflow_service.sop_workflow_service.utils.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,12 +50,16 @@ public class SOPService {
 
         log.info("Creating SOP: {}", createSOPDto);
         //get provided Category
-        Category category = categoryService.getCategoryById(createSOPDto.getCategoryId());
+        Category category = categoryService.getCategoryByName(createSOPDto.getCategory());
+
+        if(category == null){
+            throw new NotFoundException("Category not found");
+        }
 
         SOP sop = new SOP();
         sop.setTitle(createSOPDto.getTitle());
         sop.setVisibility(Visibility.valueOf(createSOPDto.getVisibility().toUpperCase()));
-        sop.setStatus(SOPStatus.INITIALIZED);
+        sop.setStatus(createSOPDto.getStatus());
         sop.setDepartmentId(departmentId);
         sop.setCategory(category);
         sop.setCreatedAt(LocalDateTime.now());
@@ -78,6 +85,7 @@ public class SOPService {
 
         SOP createdSOP= sopRepository.save(createdSop);
         createSOPDto.setId(createdSOP.getId());
+        createSOPDto.setDepartmentId(departmentId);
 
         //send SOPDto to notify services accordingly
         kafkaTemplate.send("sop-created", createSOPDto);
@@ -96,10 +104,11 @@ public class SOPService {
 
     }
 
-    // Get All SOPs
-    public List<SOPResponseDto> getSops() {
-        log.info("Fetching all SOPs");
-        List<SOP> sops =  sopRepository.findAll();
+    // public get sops getting
+    public List<SOPResponseDto>  getSops(UUID departmentId){
+        log.info("Getting SOPs with departmentId: {}", departmentId);
+
+        List<SOP> sops = sopRepository.findByDepartmentIdOrVisibilityOrderByCreatedAtDesc(departmentId, Visibility.PUBLIC);
 
         List<SOPResponseDto> formattedSops = new ArrayList<>();
 
@@ -110,10 +119,10 @@ public class SOPService {
         return formattedSops;
     }
 
-    // Get All SOPs per department
-    public List<SOPResponseDto> getDepartmentSops(UUID departmentId) {
-        log.info("Querying SOPs for department: {}", departmentId);
-        List<SOP> sops =  sopRepository.findByDepartmentId(departmentId);
+    // Get All SOPs
+    public List<SOPResponseDto> getAllSops() {
+        log.info("Fetching all SOPs");
+        List<SOP> sops =  sopRepository.findAllByOrderByCreatedAtDesc();
 
         List<SOPResponseDto> formattedSops = new ArrayList<>();
 
@@ -126,7 +135,13 @@ public class SOPService {
 
     // Delete SOP
     public void deleteSOP(String id) {
-        sopRepository.deleteById(id);
+        SOP sop = sopRepository.findById(id)
+                .orElseThrow(() -> new NotFoundException("SOP not found"));
+
+        sopRepository.delete(sop);
+        //send deleted SOP event to delete it's content too
+        SOPDto sopDto = mapSOPToSOPDto(sop);
+        kafkaTemplate.send("sop-deleted", sopDto);
     }
 
 
@@ -135,6 +150,10 @@ public class SOPService {
 
         SOP sop = sopRepository.findById(sopId)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
+
+        if(sop.getStatus() == SOPStatus.DRAFTED){
+            throw new BadRequestException("SOP is not yet ready for review");
+        }
 
         Optional<WorkflowStage> optionalStage = workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId);
 
@@ -240,6 +259,53 @@ public class SOPService {
         return sop;
     }
 
+    public boolean isSopApproved(String sopId) {
+        List<WorkflowStage> stages = workflowStageRepository.findBySopId(sopId);
+        return stages.stream().allMatch(stage -> stage.getApprovalStatus() == ApprovalStatus.APPROVED);
+    }
+
+
+    @KafkaListener(topics = "sop-drafted")
+    public void sopDraftedListener(String data) throws JsonProcessingException {
+
+        SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+        // update the sop status to drafted
+        log.info("SOP Drafted: {}", sopDto.getId());
+
+        SOP sop = sopRepository.findById(sopDto.getId())
+                .orElseThrow(() -> new NotFoundException("SOP not found"));
+
+        sop.setStatus(SOPStatus.DRAFTED);
+        sopRepository.save(sop);
+    }
+
+    @KafkaListener(topics = "sop-reviewal-ready")
+    public void sopReviewalReadyListener(String data) throws JsonProcessingException {
+
+        SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+        // update the sop status to drafted
+        log.info("SOP reviewal ready: {}", sopDto.getId());
+
+        SOP sop = sopRepository.findById(sopDto.getId())
+                .orElseThrow(() -> new NotFoundException("SOP not found"));
+
+        sop.setStatus(SOPStatus.REVIEWAL);
+        sopRepository.save(sop);
+    }
+
+    @KafkaListener(topics = "sop-published")
+    public void sopPublishedListener(String data) throws JsonProcessingException {
+
+        SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+        // update the sop status to drafted
+        log.info("SOP published: {}", sopDto.getId());
+
+        SOP sop = sopRepository.findById(sopDto.getId())
+                .orElseThrow(() -> new NotFoundException("SOP not found"));
+
+        sop.setStatus(SOPStatus.PUBLISHED);
+        sopRepository.save(sop);
+    }
 
     private WorkflowStage createWorkflowStage(String sopId, Roles roleRequired, UUID userId) {
         WorkflowStage stage = new WorkflowStage();
@@ -312,7 +378,8 @@ public class SOPService {
         SOPDto sopDto = new SOPDto();
         sopDto.setId(sop.getId());
         sopDto.setTitle(sop.getTitle());
-        sopDto.setCategoryId(sop.getCategory().getName());
+        sopDto.setCategory(sop.getCategory().getName());
+        sopDto.setDepartmentId(sop.getDepartmentId());
         sopDto.setAuthorId(sop.getWorkflowStages().stream()
                 .filter(stage -> stage.getRoleRequired() == Roles.AUTHOR)
                 .map(WorkflowStage::getUserId)

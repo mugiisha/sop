@@ -9,5 +9,5 @@ import java.util.UUID;
 
 @Repository
 public interface NotificationRepository extends MongoRepository<Notification,String> {
-    List<Notification> findAllByUserId(UUID userId);
+    List<Notification> findAllByUserIdOrderByCreatedAtDesc(UUID userId);
 }

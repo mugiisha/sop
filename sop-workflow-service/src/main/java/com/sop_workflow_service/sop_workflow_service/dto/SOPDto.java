@@ -1,4 +1,5 @@
 package com.sop_workflow_service.sop_workflow_service.dto;
+import com.sop_workflow_service.sop_workflow_service.enums.SOPStatus;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
@@ -18,11 +19,14 @@ public class SOPDto {
     @NotEmpty(message = "Visibility is required")
     private String visibility;
 
-    @NotEmpty(message = "Category id is required")
-    private String categoryId;
+    @NotEmpty(message = "Category is required")
+    private String category;
+
+    private SOPStatus status = SOPStatus.INITIALIZED;
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;
+    private UUID departmentId;
 
     @NotEmpty(message = "At least one reviewer is required")
     private List<UUID> reviewers;
