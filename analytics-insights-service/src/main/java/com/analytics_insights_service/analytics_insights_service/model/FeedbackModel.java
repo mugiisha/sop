@@ -32,10 +32,14 @@ public class FeedbackModel {
     @CreatedDate
     private Date timestamp; // Automatically populated with the creation timestamp
 
+    @Size(max = 1000, message = "Response must not exceed 1000 characters")
+    private String response;
+
     // Constructor with all parameters
-    public FeedbackModel(String sopId, String userId, String content) {
+    public FeedbackModel(String sopId, String userId, String content, String response) {
         this.sopId = sopId;
         this.userId = userId;
         this.content = content;
+        this.response = response;
     }
 }
