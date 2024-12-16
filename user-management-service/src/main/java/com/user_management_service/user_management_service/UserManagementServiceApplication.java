@@ -9,7 +9,6 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 @SpringBootApplication
 @ConfigurationPropertiesScan
-@EnableCaching
 public class UserManagementServiceApplication {
 
 	public static void main(String[] args) {
