@@ -1,5 +1,6 @@
 package com.notification_service.notification_service.dtos;
 
+import com.notification_service.notification_service.enums.SOPStatus;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -24,7 +25,9 @@ public class SOPDto {
     private UUID authorId;
 
     @NotEmpty(message = "Category name is required")
-    private String categoryId;
+    private String category;
+
+    private SOPStatus status;
 
     @NotEmpty(message = "At least one reviewer is required")
     private List<UUID> reviewers;

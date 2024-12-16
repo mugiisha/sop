@@ -1,7 +1,7 @@
 package com.sop_content_service.sop_content_service.strategy;
 
 import com.sop_content_service.sop_content_service.dto.SopSearchRequest;
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.model.Sop;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -24,12 +24,12 @@ public class ComplexSearchStrategy implements SearchStrategy {
     }
 
     @Override
-    public Page<SopModel> search(SopSearchRequest request, Pageable pageable) {
+    public Page<Sop> search(SopSearchRequest request, Pageable pageable) {
         Query query = buildQuery(request);
-        long total = mongoTemplate.count(query, SopModel.class);
+        long total = mongoTemplate.count(query, Sop.class);
 
         query.with(pageable);
-        List<SopModel> results = mongoTemplate.find(query, SopModel.class);
+        List<Sop> results = mongoTemplate.find(query, Sop.class);
 
         return new PageImpl<>(results, pageable, total);
     }

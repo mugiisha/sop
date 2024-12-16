@@ -35,12 +35,14 @@ public class RouteValidator {
 
     private final Map<String, String> routeRoles = Map.of(
             "/api/v1/roles", "ADMIN",
+            "/api/v1/users", "ADMIN",
+            "/api/v1/sops/all", "ADMIN",
+            "/api/v1/users/department", "HOD",
+            "/api/v1/departments", "ADMIN",
             "/api/v1/sops/create", "AUTHOR",
             "/api/v1/sops/review", "REVIEWER",
-            "/api/v1/sops/approve", "APPROVER",
-            "/api/v1/users", "ADMIN",
-            "/api/v1/users/department", "HOD",
-            "/api/v1/departments", "ADMIN"
+            "/api/v1/sops/approve", "APPROVER"
+
     );
 
     public Predicate<ServerHttpRequest> isSecured = request -> {

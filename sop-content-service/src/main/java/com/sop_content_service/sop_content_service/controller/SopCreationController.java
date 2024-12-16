@@ -1,12 +1,10 @@
 package com.sop_content_service.sop_content_service.controller;
 
-import static com.sop_content_service.sop_content_service.util.validateSopRequest.validate;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sop_content_service.sop_content_service.dto.ApiResponse;
-import com.sop_content_service.sop_content_service.dto.SOPDto;
-import com.sop_content_service.sop_content_service.dto.SopRequest;
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.dto.SopContentDto;
+import com.sop_content_service.sop_content_service.model.Sop;
 import com.sop_content_service.sop_content_service.service.SopService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,49 +15,62 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
-
+import java.util.UUID;
 
 
 @RestController
-@RequestMapping("/api/v1/sop")
+@RequestMapping("/api/v1/sops")
 public class SopCreationController {
 
     private static final Logger log = LoggerFactory.getLogger(SopCreationController.class);
 
     private final SopService sopService;
-    private final ObjectMapper objectMapper;
 
 
 
-    public SopCreationController(SopService sopService, ObjectMapper objectMapper) {
+    public SopCreationController(SopService sopService) {
         this.sopService = sopService;
-        this.objectMapper = objectMapper;
 
     }
 
-    @PutMapping(value = "/create/{sopId}", consumes = { "multipart/form-data" })
-    public ResponseEntity<ApiResponse<SopModel>> updateSop(
-            @Valid
+    @PutMapping(value = "/{sopId}/create", consumes = { "multipart/form-data" })
+    public ResponseEntity<ApiResponse<Sop>> updateSop(
             @PathVariable String sopId,
             @RequestPart(value = "documents", required = false) List<MultipartFile> documents,
             @RequestPart(value = "coverImage", required = false) MultipartFile coverImage,
-            @RequestPart("sop") String sopJson) throws IOException {
+            @Valid @RequestPart("sopContent") SopContentDto sopContentDto) throws IOException {
 
-        SopRequest sopRequest = objectMapper.readValue(sopJson, SopRequest.class);
 
-        validate(sopRequest);
+        Sop updatedSop = sopService.addSopContent(sopId, documents, coverImage, sopContentDto);
+        ApiResponse<Sop> response = new ApiResponse<>("SOP content added successfully", updatedSop);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+    }
 
-        SopModel updatedSop = sopService.createSop(sopId, documents, coverImage, sopRequest);
-        ApiResponse<SopModel> response = new ApiResponse<>("SOP Created successfully", updatedSop);
+    @PutMapping("/{sopId}/publish")
+    public ResponseEntity<ApiResponse<Sop>> publishSop(@PathVariable String sopId) {
+        Sop sop = sopService.publishSop(sopId);
+        ApiResponse<Sop> response = new ApiResponse<>("SOP published successfully.", sop);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 
 
 //      * @return ApiResponse containing a list of SOPDto objects
     @GetMapping
-    public ResponseEntity<ApiResponse<List<SOPDto>>> getAllSops() {
-        List<SOPDto> sops = sopService.getAllSops();
-        ApiResponse<List<SOPDto>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
+    public ResponseEntity<ApiResponse<List<Sop>>> getSops(HttpServletRequest request) {
+
+        String departmentId = request.getHeader("X-Department-Id");
+
+        List<Sop> sops = sopService.getSops(UUID.fromString(departmentId));
+        ApiResponse<List<Sop>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
+        return ResponseEntity.status(HttpStatus.OK).body(response);
+
+    }
+
+    //      * @return ApiResponse containing a list of SOPDto objects
+    @GetMapping("/all")
+    public ResponseEntity<ApiResponse<List<Sop>>> getAllSops() {
+        List<Sop> sops = sopService.getAllSops();
+        ApiResponse<List<Sop>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
         return ResponseEntity.status(HttpStatus.OK).body(response);
 
     }
@@ -70,9 +81,9 @@ public class SopCreationController {
      */
 
     @GetMapping("/{sopId}")
-    public ResponseEntity<ApiResponse<SOPDto>> getSopById(@PathVariable String sopId) {
-        SOPDto sop = sopService.getSopById(sopId);
-        ApiResponse<SOPDto> response = new ApiResponse<>("Fetched SOP successfully.", sop);
+    public ResponseEntity<ApiResponse<Sop>> getSopById(@PathVariable String sopId) {
+        Sop sop = sopService.getSopById(sopId);
+        ApiResponse<Sop> response = new ApiResponse<>("Fetched SOP successfully.", sop);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 

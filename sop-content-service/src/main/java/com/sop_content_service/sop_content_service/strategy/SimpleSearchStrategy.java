@@ -1,7 +1,7 @@
 package com.sop_content_service.sop_content_service.strategy;
 
 import com.sop_content_service.sop_content_service.dto.SopSearchRequest;
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.model.Sop;
 import com.sop_content_service.sop_content_service.repository.SopRepositorySearch;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -17,12 +17,12 @@ public class SimpleSearchStrategy implements SearchStrategy {
     }
 
     @Override
-    public Page<SopModel> search(SopSearchRequest request, Pageable pageable) {
+    public Page<Sop> search(SopSearchRequest request, Pageable pageable) {
         if (StringUtils.hasText(request.getStatus())) {
             return repository.findByVisibility(request.getStatus(), pageable);  // Changed from findByStatus to findByVisibility
         }
         if (StringUtils.hasText(request.getCategory())) {
-            return repository.findByCategoryId(request.getCategory(), pageable);
+            return repository.findByCategory(request.getCategory(), pageable);
         }
         return Page.empty(pageable);
     }

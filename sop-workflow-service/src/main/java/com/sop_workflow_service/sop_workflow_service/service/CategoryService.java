@@ -48,6 +48,10 @@ public class CategoryService {
                 });
     }
 
+    public Category getCategoryByName(String name){
+        return categoryRepository.findFirstByName(name);
+    }
+
     public Category updateCategory(String id, String name){
         Category category = categoryRepository.findById(id).orElseThrow(() -> {
             log.error("Error retrieving category with id: {}", id);

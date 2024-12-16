@@ -29,18 +29,6 @@ public class PasswordGenerator {
             password.append(ALL_CHARACTERS.charAt(random.nextInt(ALL_CHARACTERS.length())));
         }
 
-        // Shuffle the characters to ensure randomness
-        List<Character> passwordChars = new ArrayList<>();
-        for (char c : password.toString().toCharArray()) {
-            passwordChars.add(c);
-        }
-        Collections.shuffle(passwordChars);
-
-        StringBuilder shuffledPassword = new StringBuilder();
-        for (char c : passwordChars) {
-            shuffledPassword.append(c);
-        }
-
-        return shuffledPassword.toString();
+        return password.toString();
     }
 }

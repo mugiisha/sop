@@ -38,6 +38,12 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
     }
 
+    @ExceptionHandler(BadRequestException.class)
+    public ResponseEntity<Response<Object>> handleBadRequestException(NotFoundException ex) {
+        Response<Object> response = new Response<>(false, ex.getMessage(), null);
+        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+    }
+
     @ExceptionHandler(AlreadyExistsException.class)
     public ResponseEntity<Response<Object>> handleAlreadyExistsException(Exception ex) {
         Response<Object> response = new Response<>(false, ex.getMessage(), null);

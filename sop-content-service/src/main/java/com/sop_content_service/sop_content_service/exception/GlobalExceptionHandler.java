@@ -51,4 +51,18 @@ public class GlobalExceptionHandler {
         ApiResponse<Object> response = new ApiResponse<>(ex.getMessage(), null);
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(response);
     }
+
+    @ExceptionHandler(BadInputRequest.class)
+    @ResponseStatus(HttpStatus.BAD_REQUEST)
+    public ResponseEntity<ApiResponse<String>> handleBadInputRequest(BadInputRequest ex) {
+        ApiResponse<String> errorResponse = new ApiResponse<>(ex.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
+
+    @ExceptionHandler(WorkflowServerException.class)
+    @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
+    public ResponseEntity<ApiResponse<String>> handleWorkflowServerException(WorkflowServerException ex) {
+        ApiResponse<String> errorResponse = new ApiResponse<>(ex.getMessage(), null);
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
+    }
 }

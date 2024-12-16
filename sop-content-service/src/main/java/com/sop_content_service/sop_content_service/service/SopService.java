@@ -4,17 +4,24 @@ import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.sop_content_service.sop_content_service.dto.SOPDto;
-import com.sop_content_service.sop_content_service.dto.SopRequest;
+import com.sop_content_service.sop_content_service.dto.SopContentDto;
+import com.sop_content_service.sop_content_service.enums.SOPStatus;
+import com.sop_content_service.sop_content_service.enums.Visibility;
+import com.sop_content_service.sop_content_service.exception.BadInputRequest;
 import com.sop_content_service.sop_content_service.exception.SopNotFoundException;
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.exception.WorkflowServerException;
+import com.sop_content_service.sop_content_service.model.Sop;
 import com.sop_content_service.sop_content_service.repository.SopRepository;
 import com.sop_content_service.sop_content_service.util.DtoConverter;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
+import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import sopWorkflowService.IsSOPApprovedResponse;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -22,7 +29,7 @@ import java.io.InputStream;
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
+import java.util.UUID;
 
 @Service
 public class SopService {
@@ -31,27 +38,47 @@ public class SopService {
 
     private final AmazonS3 s3Client;
     private final SopRepository sopRepository;
+    private final KafkaTemplate<String, Object> kafkaTemplate;
+    private final WorkflowClientService workflowClientService;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
 
-    public SopService(AmazonS3 s3Client, SopRepository sopRepository) {
+    public SopService(AmazonS3 s3Client, SopRepository sopRepository, KafkaTemplate<String, Object> kafkaTemplate, WorkflowClientService workflowClientService) {
         this.s3Client = s3Client;
         this.sopRepository = sopRepository;
-
+        this.kafkaTemplate = kafkaTemplate;
+        this.workflowClientService = workflowClientService;
     }
 
-    public SopModel createSop(String sopId, List<MultipartFile> documents, MultipartFile coverImage, SopRequest sopRequest) throws IOException {
+    public Sop addSopContent(String sopId,
+                             List<MultipartFile> documents,
+                             MultipartFile coverImage,
+                             @Valid SopContentDto sopContentDto) throws IOException {
 
-        Optional<SopModel> optionalSop = sopRepository.findById(sopId);
-        if (optionalSop.isEmpty()) {
+        Optional<Sop> sop = sopRepository.findById(sopId);
+        if (sop.isEmpty()) {
             throw new SopNotFoundException("SOP with id " + sopId + " not found.");
         }
 
 
-        SopModel existingSop = optionalSop.get();
+        Sop existingSop = sop.get();
 
-        // Handle document upload first
+        existingSop.setDescription(sopContentDto.getDescription());
+        existingSop.setBody(sopContentDto.getBody());
+
+        // Check cover image existence
+        if (existingSop.getCoverUrl()== null && (coverImage == null || coverImage.isEmpty())) {
+            throw new BadInputRequest("Cover image is required.");
+        }
+
+        if(coverImage != null && !coverImage.isEmpty()){
+            String coverUrl = uploadFileToS3(coverImage);
+            existingSop.setCoverUrl(coverUrl);
+        }
+
+
+        // Handle document upload
         if (documents != null && !documents.isEmpty()) {
             log.info("Uploading {} documents.", documents.size());
             // Upload documents to S3 and retrieve their URLs
@@ -62,44 +89,53 @@ public class SopService {
             log.info("Uploaded document URLs: {}", documentUrls);
         }
 
-        // Handle cover image upload
-        if (coverImage != null && !coverImage.isEmpty()) {
-            log.info("Uploading cover image.");
-            // Upload cover image to S3 and retrieve its URL
-            String coverUrl = uploadFileToS3(coverImage);
-            existingSop.setCoverUrl(coverUrl);
-            log.info("Uploaded cover image URL: {}", coverUrl);
+        existingSop.setUpdatedAt(new Date());
+        existingSop.setStatus(sopContentDto.getStatus());
+
+        Sop updatedSop = sopRepository.save(existingSop);
+
+        // prepare kafka transfer object to notify concerned users
+        SOPDto sopDto = mapSOPToSOPDto(updatedSop);
+
+        if(SOPStatus.REVIEWAL.equals(updatedSop.getStatus())){
+            kafkaTemplate.send("sop-reviewal-ready", sopDto);
+        }else{
+            kafkaTemplate.send("sop-drafted", sopDto);
         }
 
-        // Now update the SOP fields based on SopRequest, but only if they are not null and the current field is null
-        if (sopRequest.getTitle() != null && existingSop.getTitle() == null) {
-            existingSop.setTitle(sopRequest.getTitle());
+        return updatedSop;
+    }
+
+
+    public Sop publishSop(String sopId) {
+        Optional<Sop> sop = sopRepository.findById(sopId);
+        if (sop.isEmpty()) {
+            throw new SopNotFoundException("SOP with id " + sopId + " not found.");
         }
-        if (sopRequest.getDescription() != null && existingSop.getDescription() == null) {
-            existingSop.setDescription(sopRequest.getDescription());
+
+        Sop existingSop = sop.get();
+
+        // Check if SOP is approved
+        IsSOPApprovedResponse response = workflowClientService.isSOPApproved(sopId);
+        if(!response.getSuccess()){
+            log.info("Failed to check if SOP is approved. {}", response.getErrorMessage());
+            throw new WorkflowServerException("Failed to check if SOP is approved. Please try again.");
         }
-        if (sopRequest.getBody() != null && existingSop.getBody() == null) {
-            existingSop.setBody(sopRequest.getBody());
+
+        if(!response.getSOPApproved()){
+            throw new BadInputRequest("SOP is not approved yet.");
         }
-        if (sopRequest.getCategory() != null && existingSop.getCategoryId() == null) {
-            existingSop.setCategoryId(sopRequest.getCategory());
-        }
-        if (sopRequest.getVisibility() != null && existingSop.getVisibility() == null) {
-            existingSop.setVisibility(sopRequest.getVisibility());
-        }
-        if (sopRequest.getAuthors() != null && existingSop.getAuthors() == null) {
-            existingSop.setAuthors(sopRequest.getAuthors());
-        }
-        if (sopRequest.getReviewers() != null && existingSop.getReviewers() == null) {
-            existingSop.setReviewers(sopRequest.getReviewers());
-        }
-        if (sopRequest.getApprovers() != null && existingSop.getApprovers() == null) {
-            existingSop.setApprovers(sopRequest.getApprovers());
-        }
-        // Update the timestamp
+
+        existingSop.setStatus(SOPStatus.PUBLISHED);
         existingSop.setUpdatedAt(new Date());
-        // Save the updated SOP
-        return sopRepository.save(existingSop);
+
+        Sop updatedSop = sopRepository.save(existingSop);
+
+        // prepare kafka transfer object to notify concerned users
+        SOPDto sopDto = mapSOPToSOPDto(updatedSop);
+        kafkaTemplate.send("sop-published", sopDto);
+
+        return updatedSop;
     }
 
     private String uploadFileToS3(MultipartFile file) {
@@ -121,51 +157,77 @@ public class SopService {
         }
     }
 
-    @KafkaListener(
-            topics = "sop-created",
-            groupId = "sop-content-service"
-    )
-    public void sopCreatedListener(String data) throws JsonProcessingException {
-        log.info("Received sop created event: {}", data);
-
-        // Convert JSON string to DTO
-        SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
-        // Map DTO to entity
-        SopModel sopModel = new SopModel();
-        sopModel.setId(sopDto.getId());
-        sopModel.setTitle(sopDto.getTitle());
-        sopModel.setVisibility(sopDto.getVisibility());
-        sopModel.setCategoryId(sopDto.getCategoryId());
-        sopModel.setAuthors(List.of(String.valueOf(sopDto.getAuthorId()))); // Assuming a single author maps to authors list
-        sopModel.setReviewers(List.of(String.valueOf(sopDto.getReviewers())));
-        sopModel.setApprovers(List.of(String.valueOf(sopDto.getApproverId()))); // Assuming a single approver maps to approvers list
-
-        // Save to repository
-        sopRepository.save(sopModel);
-        log.info("Saved SOP model: {}", sopModel);
-    }
 
 //      @return List of SOPs
 
-    public List<SOPDto> getAllSops() {
-        log.info("Fetching all SOPs.");
-        List<SopModel> sopModels = sopRepository.findAll();
-        return sopModels.stream()
-                .map(DtoConverter::sopDtoFromEntity)
-                .collect(Collectors.toList());
+    public List<Sop> getSops(UUID departmentId) {
+        log.info("Fetching all SOPs.-USER");
+        return sopRepository.findByDepartmentIdOrVisibilityOrderByCreatedAtDesc(departmentId, Visibility.PUBLIC);
     }
 
-//    @throws SopNotFoundException if the SOP is not found
-    public SOPDto getSopById(String sopId) {
+    //      @return List of SOPs for admin
+
+    public List<Sop> getAllSops() {
+        log.info("Fetching all SOPs.-ADMIN");
+        return sopRepository.findAllByOrderByCreatedAtDesc();
+    }
+
+
+    //    @throws SopNotFoundException if the SOP is not found
+    public Sop getSopById(String sopId) {
         log.info("Fetching SOP with ID: {}", sopId);
         return sopRepository.findById(sopId)
-                .map(DtoConverter::sopDtoFromEntity)
                 .orElseThrow(() -> new SopNotFoundException("SOP with id " + sopId + " not found."));
     }
 
 
+    @KafkaListener(topics = "sop-created")
+    public void sopCreatedListener(String data) throws JsonProcessingException {
+        log.info("Received sop initiated event: {}", data);
+
+        // Convert JSON string to DTO
+        SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+
+        // save the newly initiated sop to our database
+        Sop sop = new Sop();
+        sop.setId(sopDto.getId());
+        sop.setTitle(sopDto.getTitle());
+        sop.setVisibility(sopDto.getVisibility());
+        sop.setCategory(sopDto.getCategory());
+        sop.setDepartmentId(sopDto.getDepartmentId());
+        sop.setAuthor(sopDto.getAuthorId());
+        sop.setReviewers(sopDto.getReviewers());
+        sop.setApprover(sopDto.getApproverId());
+        sop.setStatus(sopDto.getStatus());
+
+        // Save to repository
+        sopRepository.save(sop);
+        log.info("Saved SOP model: {}", sop);
+    }
+
+    @KafkaListener(topics = "sop-deleted")
+    public void sopDeletedListener(String data) throws JsonProcessingException{
+        log.info("Received sop deleted event: {}", data);
+        // Convert JSON string to DTO
+        SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+        // delete the sop from our database
+        sopRepository.deleteById(sopDto.getId());
+        log.info("Deleted SOP model: {}", sopDto);
+    }
 
 
-
+    // maps sop model to sop dto to prepare kafka communication objects
+    public SOPDto mapSOPToSOPDto(Sop sop) {
+        SOPDto sopDto = new SOPDto();
+        sopDto.setId(sop.getId());
+        sopDto.setTitle(sop.getTitle());
+        sopDto.setCategory(sop.getCategory());
+        sopDto.setDepartmentId(sop.getDepartmentId());
+        sopDto.setAuthorId(sop.getAuthor());
+        sopDto.setReviewers(sop.getReviewers());
+        sopDto.setApproverId(sop.getApprover());
+        sopDto.setStatus(sop.getStatus());
+        return sopDto;
+    }
 }
 

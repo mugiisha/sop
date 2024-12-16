@@ -2,7 +2,7 @@ package com.sop_content_service.sop_content_service.service;
 
 import com.sop_content_service.sop_content_service.dto.*;
 import com.sop_content_service.sop_content_service.exception.*;
-import com.sop_content_service.sop_content_service.model.SopModel;
+import com.sop_content_service.sop_content_service.model.Sop;
 import com.sop_content_service.sop_content_service.strategy.SearchContext;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
@@ -36,7 +36,7 @@ public class SopSearchService {
             key = "#searchRequest.hashCode() + '_' + #page + '_' + #size + '_' + #sortBy + '_' + #sortDir",
             unless = "#result.body == null || #result.body.data.content.isEmpty()"
     )
-    public ResponseEntity<SopSearchResponse<Page<SopModel>>> searchSOPs(
+    public ResponseEntity<SopSearchResponse<Page<Sop>>> searchSOPs(
             SopSearchRequest searchRequest,
             int page,
             int size,
@@ -58,7 +58,7 @@ public class SopSearchService {
             Pageable pageable = PageRequest.of(page, size, sort);
 
             // Execute search
-            Page<SopModel> results = searchContext.executeSearch(searchRequest, pageable);
+            Page<Sop> results = searchContext.executeSearch(searchRequest, pageable);
 
             // Handle empty results
             if (results.isEmpty()) {
@@ -69,7 +69,7 @@ public class SopSearchService {
             // Create metadata and response
             SearchMetadata metadata = createSearchMetadata(results, sortBy, sortDir, searchRequest);
 
-            SopSearchResponse<Page<SopModel>> response = new SopSearchResponse<>(
+            SopSearchResponse<Page<Sop>> response = new SopSearchResponse<>(
                     results,
                     "SOPs retrieved successfully",
                     metadata
@@ -141,7 +141,7 @@ public class SopSearchService {
     }
 
     private SearchMetadata createSearchMetadata(
-            Page<SopModel> results,
+            Page<Sop> results,
             String sortBy,
             String sortDir,
             SopSearchRequest request) {

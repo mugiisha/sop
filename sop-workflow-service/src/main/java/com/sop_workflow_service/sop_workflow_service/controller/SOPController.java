@@ -38,19 +38,19 @@ public class SOPController {
         return new Response<>(true, "SOP retrieved successfully", sop);
     }
 
-    // Get All SOPs
+    // Get  SOPs
     @GetMapping
-    public Response<List<SOPResponseDto>> getSOPs() {
-        List<SOPResponseDto> sops = sopService.getSops();
+    public Response<List<SOPResponseDto>> getSOPs(HttpServletRequest request) {
+        String departmentId = request.getHeader("X-Department-Id");
+        List<SOPResponseDto> sops = sopService.getSops(UUID.fromString(departmentId));
 
         return new Response<>(true, "SOPs retrieved successfully", sops);
     }
 
-    // Get All department SOPs
-    @GetMapping("/department/{departmentId}")
-    public Response<List<SOPResponseDto>> getDepartmentSOPs(@PathVariable String departmentId) {
-        List<SOPResponseDto> sops = sopService.getDepartmentSops(UUID.fromString(departmentId));
-
+    // Get all SOPs by admin
+    @GetMapping("/all")
+    public Response<List<SOPResponseDto>> getAllSOPs() {
+        List<SOPResponseDto> sops = sopService.getAllSops();
         return new Response<>(true, "SOPs retrieved successfully", sops);
     }
 

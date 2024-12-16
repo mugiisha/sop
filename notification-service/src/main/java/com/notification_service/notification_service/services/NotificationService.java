@@ -1,11 +1,11 @@
 package com.notification_service.notification_service.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.notification_service.notification_service.dtos.CreateNotificationDto;
 import com.notification_service.notification_service.dtos.CustomUserDto;
 import com.notification_service.notification_service.dtos.SOPDto;
 import com.notification_service.notification_service.enums.NotificationType;
 import com.notification_service.notification_service.models.Notification;
+import com.notification_service.notification_service.models.NotificationPreferences;
 import com.notification_service.notification_service.repositories.NotificationRepository;
 import com.notification_service.notification_service.utils.DtoConverter;
 import com.notification_service.notification_service.utils.exception.NotFoundException;
@@ -59,7 +59,7 @@ public class NotificationService {
     public List<Notification> getNotificationsByUserId(UUID userId) throws NotFoundException {
         log.info("Retrieving notification for user with id: {}", userId);
 
-        return notificationRepository.findAllByUserId(userId);
+        return notificationRepository.findAllByUserIdOrderByCreatedAtDesc(userId);
     }
 
 
@@ -79,11 +79,7 @@ public class NotificationService {
     }
 
 
-    @KafkaListener(
-            topics = "user-created",
-            groupId = "notification-service"
-    )
-
+    @KafkaListener(topics = "user-created")
     void userCreatedListener(String data) {
         try {
             log.info("Received user created event: {}", data);
@@ -103,10 +99,7 @@ public class NotificationService {
     }
 
 
-    @KafkaListener(
-            topics = "user-deactivated",
-            groupId = "notification-service"
-    )
+    @KafkaListener(topics = "user-deactivated")
     void userDeactivatedListener(String data) {
         try {
             log.info("Received user deactivated event: {}", data);
@@ -121,10 +114,7 @@ public class NotificationService {
     }
 
 
-    @KafkaListener(
-            topics = "user-locked",
-            groupId = "notification-service"
-    )
+    @KafkaListener(topics = "user-locked")
     void userLockedListener(String data) {
         try {
             log.info("Received user deactivated event: {}", data);
@@ -139,10 +129,7 @@ public class NotificationService {
     }
 
 
-    @KafkaListener(
-            topics = "otp-request",
-            groupId = "notification-service"
-    )
+    @KafkaListener(topics = "otp-request")
     void otpRequestListener(String data) {
         try {
             log.info("Received user deactivated event: {}", data);
@@ -156,10 +143,7 @@ public class NotificationService {
         }
     }
 
-    @KafkaListener(
-            topics = "password-updated",
-            groupId = "notification-service"
-    )
+    @KafkaListener(topics = "password-updated")
     void passwordUpdatedListener(String data) {
         try {
             log.info("Received user deactivated event: {}", data);
@@ -174,13 +158,10 @@ public class NotificationService {
     }
 
 
-    @KafkaListener(
-            topics = "email-verified",
-            groupId = "notification-service"
-    )
+    @KafkaListener(topics = "email-verified")
     void emailVerifiedListener(String data) {
         try {
-            log.info("Received user deactivated event: {}", data);
+            log.info("Received email verification event: {}", data);
 
             // transform incoming data from user-management-service to CustomUserDto
             CustomUserDto customUserDto = DtoConverter.userDtoFromJson(data);
@@ -192,10 +173,7 @@ public class NotificationService {
     }
 
 
-    @KafkaListener(
-            topics = "sop-created",
-            groupId = "notification-service"
-    )
+    @KafkaListener(topics = "sop-created")
     void sopCreatedListener(String data) {
         try {
             log.info("Received sop created event: {}", data);
@@ -205,7 +183,9 @@ public class NotificationService {
             UUID approverId = sopDto.getApproverId();
 
             // Check author's preferences before we create and send notification for the author
-            if (notificationPreferencesService.isAllSOPAlertsEnabled(authorId) || notificationPreferencesService.isAuthorAlertsEnabled(authorId)) {
+            NotificationPreferences authorPreferences = notificationPreferencesService.getUserNotificationPreferences(authorId);
+
+            if (authorPreferences.isAllSOPAlertsEnabled() || authorPreferences.isAuthorAlertsEnabled()) {
                 CreateNotificationDto authorNotificationDto = prepareNotificationDto(
                         authorId,
                         NotificationType.SOP_ASSIGNED_AS_AUTHOR,
@@ -215,11 +195,23 @@ public class NotificationService {
                 );
 
                 createAndSendNotification(authorNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        authorPreferences.getEmail(),
+                        "Author",
+                        "Author",
+                        "Assigned SOP",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-created-author"
+                );
             }
 
             // Loop through reviewers,Check reviewer's preferences before we create and send notifications for each
             for (UUID reviewerId : sopDto.getReviewers()) {
-                if (notificationPreferencesService.isAllSOPAlertsEnabled(reviewerId) || notificationPreferencesService.isReviewerAlertsEnabled(reviewerId)) {
+
+                NotificationPreferences reviewerPreferences = notificationPreferencesService.getUserNotificationPreferences(reviewerId);
+
+                if (reviewerPreferences.isAllSOPAlertsEnabled() || reviewerPreferences.isReviewerAlertsEnabled()) {
                     CreateNotificationDto notificationDto = prepareNotificationDto(
                             reviewerId,
                             NotificationType.SOP_ASSIGNED_AS_REVIEWER,
@@ -229,11 +221,22 @@ public class NotificationService {
                     );
 
                     createAndSendNotification(notificationDto);
+                    emailService.sendSOPWorkflowEmail(
+                            reviewerPreferences.getEmail(),
+                            "Reviewer",
+                            "Reviewer",
+                            "Assigned SOP",
+                            sopDto.getTitle(),
+                            sopDto.getId(),
+                            "sop-created"
+                    );
                 }
             }
 
             // Create and send notification for the approver
-            if(notificationPreferencesService.isAllSOPAlertsEnabled(approverId) || notificationPreferencesService.isApproverAlertsEnabled(approverId)) {
+            NotificationPreferences approverPreferences = notificationPreferencesService.getUserNotificationPreferences(approverId);
+
+            if(approverPreferences.isAllSOPAlertsEnabled() || approverPreferences.isApproverAlertsEnabled()) {
                 CreateNotificationDto approverNotificationDto = prepareNotificationDto(
                         approverId,
                         NotificationType.SOP_ASSIGNED_AS_APPROVER,
@@ -243,6 +246,15 @@ public class NotificationService {
                 );
 
                 createAndSendNotification(approverNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        approverPreferences.getEmail(),
+                        "Approver",
+                        "Approver",
+                        "Assigned SOP",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-created"
+                );
             }
 
         } catch (Exception e) {
@@ -251,7 +263,7 @@ public class NotificationService {
     }
 
 
-    @KafkaListener(topics = "sop-reviewed", groupId = "notification-service")
+    @KafkaListener(topics = "sop-reviewed")
     public void sopReviewedListener(String data) {
         try{
             log.info("Received sop reviewed event: {}", data);
@@ -260,7 +272,9 @@ public class NotificationService {
             UUID approverId = sopDto.getApproverId();
 
             // Check approver's preferences before we create and send notification to the author
-            if(notificationPreferencesService.isAllSOPAlertsEnabled(approverId) || notificationPreferencesService.isApproverAlertsEnabled(approverId)) {
+            NotificationPreferences approverPreferences = notificationPreferencesService.getUserNotificationPreferences(approverId);
+
+            if(approverPreferences.isAllSOPAlertsEnabled() || approverPreferences.isApproverAlertsEnabled()) {
                 CreateNotificationDto authorNotificationDto = prepareNotificationDto(
                         approverId,
                         NotificationType.SOP_APPROVAL_REQUIRED,
@@ -270,6 +284,15 @@ public class NotificationService {
                 );
 
                 createAndSendNotification(authorNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        approverPreferences.getEmail(),
+                        "Approver",
+                        "Approver",
+                        "Approval Required",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-reviewed"
+                );
             }
 
         }catch (Exception e){
@@ -279,10 +302,7 @@ public class NotificationService {
 
 
 
-    @KafkaListener(
-            topics = "sop-approved",
-            groupId = "notification-service"
-    )
+    @KafkaListener(topics = "sop-approved")
     void sopApprovedListener(String data) {
         try {
             log.info("Received sop approved event: {}", data);
@@ -292,7 +312,9 @@ public class NotificationService {
             UUID approverId = sopDto.getApproverId();
 
             // Check author's preferences before we create and send notification for the author
-            if (notificationPreferencesService.isAllSOPAlertsEnabled(authorId) || notificationPreferencesService.isAuthorAlertsEnabled(authorId)) {
+            NotificationPreferences authorPreferences = notificationPreferencesService.getUserNotificationPreferences(authorId);
+
+            if (authorPreferences.isAllSOPAlertsEnabled() || authorPreferences.isAuthorAlertsEnabled()) {
                 CreateNotificationDto authorNotificationDto = prepareNotificationDto(
                         authorId,
                         NotificationType.SOP_APPROVED,
@@ -302,11 +324,22 @@ public class NotificationService {
                 );
 
                 createAndSendNotification(authorNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        authorPreferences.getEmail(),
+                        "Author",
+                        "Author",
+                        "SOP Approved",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-approved-author"
+                );
             }
 
             // Loop through reviewers,Check reviewer's preferences before we create and send notifications for each
             for (UUID reviewerId : sopDto.getReviewers()) {
-                if (notificationPreferencesService.isAllSOPAlertsEnabled(reviewerId) || notificationPreferencesService.isReviewerAlertsEnabled(reviewerId)) {
+                NotificationPreferences reviewerPreferences = notificationPreferencesService.getUserNotificationPreferences(reviewerId);
+
+                if (reviewerPreferences.isAllSOPAlertsEnabled() || reviewerPreferences.isReviewerAlertsEnabled()) {
                     CreateNotificationDto notificationDto = prepareNotificationDto(
                             reviewerId,
                             NotificationType.SOP_APPROVED,
@@ -316,11 +349,21 @@ public class NotificationService {
                     );
 
                     createAndSendNotification(notificationDto);
+                    emailService.sendSOPWorkflowEmail(
+                            reviewerPreferences.getEmail(),
+                            "Reviewer",
+                            "Reviewer",
+                            "SOP Approved",
+                            sopDto.getTitle(),
+                            sopDto.getId(),
+                            "sop-approved-reviewer"
+                    );
                 }
             }
 
             // Create and send notification for the approver
-            if(notificationPreferencesService.isAllSOPAlertsEnabled(approverId) || notificationPreferencesService.isApproverAlertsEnabled(approverId)) {
+            NotificationPreferences approverPreferences = notificationPreferencesService.getUserNotificationPreferences(approverId);
+            if(approverPreferences.isAllSOPAlertsEnabled() || approverPreferences.isApproverAlertsEnabled()) {
                 CreateNotificationDto approverNotificationDto = prepareNotificationDto(
                         approverId,
                         NotificationType.SOP_APPROVED,
@@ -330,6 +373,15 @@ public class NotificationService {
                 );
 
                 createAndSendNotification(approverNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        approverPreferences.getEmail(),
+                        "Approver",
+                        "Approver",
+                        "SOP Approved",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-approved-approver"
+                );
             }
 
         } catch (Exception e) {
@@ -338,8 +390,153 @@ public class NotificationService {
     }
 
 
+    @KafkaListener(topics="sop-reviewal-ready")
+    public void sopReviewalReadyListener(String data) {
+        try {
+            log.info("Received sop reviewal ready event: {}", data);
+
+            SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+            UUID approverId = sopDto.getApproverId();
+
+            // Check approver's preferences before we create and send notification to the approver
+            NotificationPreferences approverPreferences = notificationPreferencesService.getUserNotificationPreferences(approverId);
+            if(approverPreferences.isAllSOPAlertsEnabled() || approverPreferences.isApproverAlertsEnabled()) {
+                CreateNotificationDto approverNotificationDto = prepareNotificationDto(
+                        approverId,
+                        NotificationType.SOP_REVIEW_REQUIRED,
+                        "An SOP titled " + sopDto.getTitle() + " you are assigned to approve have been made ready for reviews",
+                        sopDto.getId(),
+                        sopDto.getTitle()
+                );
+
+                createAndSendNotification(approverNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        approverPreferences.getEmail(),
+                        "Approver",
+                        "Approver",
+                        "Review Required",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-reviewal-ready"
+                );
+            }
+
+            // Loop through reviewers,Check reviewer's preferences before we create and send notifications for each
+            for (UUID reviewerId : sopDto.getReviewers()) {
+                NotificationPreferences reviewerPreferences = notificationPreferencesService.getUserNotificationPreferences(reviewerId);
+
+                if (reviewerPreferences.isAllSOPAlertsEnabled() || reviewerPreferences.isReviewerAlertsEnabled()) {
+                    CreateNotificationDto notificationDto = prepareNotificationDto(
+                            reviewerId,
+                            NotificationType.SOP_REVIEW_REQUIRED,
+                            "An SOP titled " + sopDto.getTitle() + " you are assigned to review have been made ready for reviews",
+                            sopDto.getId(),
+                            sopDto.getTitle()
+                    );
+
+                    createAndSendNotification(notificationDto);
+                    emailService.sendSOPWorkflowEmail(
+                            reviewerPreferences.getEmail(),
+                            "Reviewer",
+                            "Reviewer",
+                            "Review Required",
+                            sopDto.getTitle(),
+                            sopDto.getId(),
+                            "sop-reviewal-ready"
+                    );
+                }
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to create and send notification for sop: {}", data, e);
+        }
+    }
 
 
+    @KafkaListener(topics = "sop-published")
+    void sopPublishedListener(String data) {
+        try {
+            log.info("Received sop published event: {}", data);
+
+            SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+            UUID authorId = sopDto.getAuthorId();
+            UUID approverId = sopDto.getApproverId();
+
+            // Check author's preferences before we create and send notification for the author
+            NotificationPreferences authorPreferences = notificationPreferencesService.getUserNotificationPreferences(authorId);
+            if (authorPreferences.isAllSOPAlertsEnabled() || authorPreferences.isAuthorAlertsEnabled()) {
+                CreateNotificationDto authorNotificationDto = prepareNotificationDto(
+                        authorId,
+                        NotificationType.SOP_PUBLISHED,
+                        "An SOP "+ sopDto.getTitle() + "you authored has been published",
+                        sopDto.getId(),
+                        sopDto.getTitle()
+                );
+
+                createAndSendNotification(authorNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        authorPreferences.getEmail(),
+                        "Author",
+                        "Author",
+                        "SOP Published",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-published-author"
+                );
+            }
+
+            // Loop through reviewers,Check reviewer's preferences before we create and send notifications for each
+            for (UUID reviewerId : sopDto.getReviewers()) {
+                NotificationPreferences reviewerPreferences = notificationPreferencesService.getUserNotificationPreferences(reviewerId);
+                if (reviewerPreferences.isAllSOPAlertsEnabled() || reviewerPreferences.isReviewerAlertsEnabled()) {
+                    CreateNotificationDto notificationDto = prepareNotificationDto(
+                            reviewerId,
+                            NotificationType.SOP_PUBLISHED,
+                            "An SOP titled " + sopDto.getTitle() + " you reviewed has been published",
+                            sopDto.getId(),
+                            sopDto.getTitle()
+                    );
+
+                    createAndSendNotification(notificationDto);
+                    emailService.sendSOPWorkflowEmail(
+                            reviewerPreferences.getEmail(),
+                            "Reviewer",
+                            "Reviewer",
+                            "SOP Published",
+                            sopDto.getTitle(),
+                            sopDto.getId(),
+                            "sop-published"
+                    );
+                }
+            }
+
+            // Create and send notification for the approver
+            NotificationPreferences approverPreferences = notificationPreferencesService.getUserNotificationPreferences(approverId);
+            if(approverPreferences.isAllSOPAlertsEnabled() || approverPreferences.isApproverAlertsEnabled()) {
+                CreateNotificationDto approverNotificationDto = prepareNotificationDto(
+                        approverId,
+                        NotificationType.SOP_PUBLISHED,
+                        "An SOP titled " + sopDto.getTitle() + " you approved has been published",
+                        sopDto.getId(),
+                        sopDto.getTitle()
+                );
+
+                createAndSendNotification(approverNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        approverPreferences.getEmail(),
+                        "Approver",
+                        "Approver",
+                        "SOP Published",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-published"
+                );
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to create and send notification for sop: {}", data, e);
+        }
+    }
 
     private CreateNotificationDto prepareNotificationDto(UUID userId, NotificationType type, String message, String sopId, String sopTitle) {
         CreateNotificationDto notificationDto = new CreateNotificationDto();

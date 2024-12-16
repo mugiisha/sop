@@ -1,5 +1,6 @@
 package com.sop_content_service.sop_content_service.dto;
 
+import com.sop_content_service.sop_content_service.enums.SOPStatus;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -22,9 +23,12 @@ public class SOPDto {
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;
+    private UUID departmentId;
 
-    @NotEmpty(message = "Category Id is required")
-    private String categoryId;
+    @NotEmpty(message = "Category is required")
+    private String category;
+
+    private SOPStatus status;
 
     @NotEmpty(message = "At least one reviewer is required")
     private List<UUID> reviewers;
