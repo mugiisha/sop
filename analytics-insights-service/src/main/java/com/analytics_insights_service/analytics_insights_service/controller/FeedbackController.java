@@ -81,8 +81,7 @@ public class FeedbackController {
     /**
      * Delete feedback by feedback ID (Only HOD can delete)
      */
-    @PreAuthorize("hasRole('HOD')")
-    @DeleteMapping("/{feedbackId}")
+    @DeleteMapping("/delete/{feedbackId}")
     public ResponseEntity<ApiResponse<Void>> deleteFeedback(@PathVariable String feedbackId) {
         return feedbackService.deleteFeedbackById(feedbackId);
     }
