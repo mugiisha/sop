@@ -113,6 +113,20 @@ public class NotificationService {
         }
     }
 
+    @KafkaListener(topics = "user-deactivated")
+    void userActivatedListener(String data) {
+        try {
+            log.info("Received user deactivated event: {}", data);
+
+            // transform incoming data from user-management-service to CustomUserDto
+            CustomUserDto customUserDto = DtoConverter.userDtoFromJson(data);
+
+            emailService.sendAccountActivationEmail(customUserDto.getEmail(), customUserDto.getName());
+        } catch (Exception e) {
+            log.error("Failed to send user deactivated email: {}", data, e);
+        }
+    }
+
 
     @KafkaListener(topics = "user-locked")
     void userLockedListener(String data) {

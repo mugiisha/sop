@@ -88,6 +88,17 @@ public class EmailService {
         }
     }
 
+    public void sendAccountActivationEmail(String toEmail, String name) {
+        try {
+            Map<String, Object> templateModel = Map.of(
+                    "name", name
+            );
+            sendEmailWithTemplate(toEmail, "Account Activation", "account-activation", templateModel);
+        } catch (Exception e) {
+            log.error("Failed to send account deactivation email to: {}", toEmail, e);
+        }
+    }
+
     public void sendOtpEmail(String toEmail, String name, String otp) {
         try {
             Map<String, Object> templateModel = Map.of(
