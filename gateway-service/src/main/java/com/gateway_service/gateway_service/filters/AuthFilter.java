@@ -78,14 +78,8 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                 return createErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Invalid or expired token");
             }
 
-            // Handle different token types
             String tokenType = jwtUtils.extractTokenType(token);
-            if (!isValidTokenTypeForPath(tokenType, path)) {
-                log.warn("Invalid token type {} for request [{}] path: {}", tokenType, requestId, path);
-                return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Invalid token type for this operation");
-            }
 
-            // Check permissions for non-password-reset endpoints
             if (!"PASSWORD_RESET".equals(tokenType)) {
                 String userRole = jwtUtils.extractRole(token);
                 if (!routeValidator.hasRequiredRole(path, userRole)) {
@@ -94,6 +88,8 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                     return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Insufficient permissions");
                 }
             }
+
+
 
             // Create modified request with additional headers
             ServerHttpRequest modifiedRequest = enrichRequestWithHeaders(request, token, requestId);
@@ -104,13 +100,6 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             return createErrorResponse(exchange, HttpStatus.INTERNAL_SERVER_ERROR,
                     "Authentication processing error: " + e.getMessage());
         }
-    }
-
-    private boolean isValidTokenTypeForPath(String tokenType, String path) {
-        if (routeValidator.isPasswordResetEndpoint(path)) {
-            return "PASSWORD_RESET".equals(tokenType);
-        }
-        return "ACCESS".equals(tokenType);
     }
 
     private ServerHttpRequest enrichRequestWithHeaders(ServerHttpRequest request, String token, String requestId) {

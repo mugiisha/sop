@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.*;
 import java.util.function.Predicate;
+import java.util.regex.Pattern;
 
 @Component
 public class RouteValidator {
@@ -17,20 +18,10 @@ public class RouteValidator {
             "/auth/login",
             "/password-reset/request-otp",
             "/password-reset/verify-otp",
-            "/api/v1/auth/password-reset",
             "/swagger-ui",
             "/v3/api-docs",
             "/api/v1/users/verify-email/**",
-            "/users/api/v1/users/verify-email/**",
             "/webjars"
-    );
-
-    public static final List<String> passwordResetEndpoints = List.of(
-            "/password-reset/request-otp",
-            "/password-reset/verify-otp",
-            "/api/v1/auth/password-reset",
-            "/api/v1/auth/reset-password",
-            "/api/v1/auth/confirm-reset"
     );
 
     private final Map<String, String> routeRoles = Map.of(
@@ -47,72 +38,35 @@ public class RouteValidator {
 
     );
 
-    public Predicate<ServerHttpRequest> isSecured = request -> {
-        String path = request.getURI().getPath();
-        boolean isOpen = isOpenEndpoint(path);
-        logger.debug("Security check for path: {} - isSecured: {}", path, !isOpen);
-        return !isOpen;
-    };
+    public Predicate<ServerHttpRequest> isSecured =
+            request -> {
+                String path = request.getURI().getPath();
+                boolean isOpen = openEndpoints.stream()
+                        .anyMatch(pattern -> path.contains(pattern.replace("**", "")));
 
-    public boolean isOpenEndpoint(String path) {
-        return openEndpoints.stream()
-                .anyMatch(endpoint -> matchPath(path, endpoint));
-    }
+                logger.debug("Checking security for path: {} - isSecured: {}", path, !isOpen);
+                return !isOpen;
+            };
 
-    public boolean isPasswordResetEndpoint(String path) {
-        return passwordResetEndpoints.stream()
-                .anyMatch(endpoint -> matchPath(path, endpoint));
-    }
 
+    //     Get required role for a specific path
     public String getRequiredRole(String path) {
         for (Map.Entry<String, String> entry : routeRoles.entrySet()) {
-            if (matchPath(path, entry.getKey())) {
+            if (path.contains(entry.getKey())) {
                 return entry.getValue();
             }
         }
         return null;
     }
 
-    public boolean hasRequiredRole(String path, String userRole) {
-        // Skip role check for password reset endpoints
-        if (isPasswordResetEndpoint(path)) {
-            logger.debug("Skipping role check for password reset endpoint: {}", path);
-            return true;
-        }
 
-        // Get required role for the path
+//     Check if user's role matches the required role for the path
+
+    public boolean hasRequiredRole(String path, String userRole) {
         String requiredRole = getRequiredRole(path);
         if (requiredRole == null) {
-            logger.debug("No specific role required for path: {}", path);
-            return true;
+            return true; // No specific role required
         }
-
-        boolean hasRole = requiredRole.equals(userRole);
-        logger.debug("Role check for path: {} - Required: {} - User: {} - Result: {}",
-                path, requiredRole, userRole, hasRole);
-
-        return hasRole;
-    }
-
-    private boolean matchPath(String path, String pattern) {
-        // Handle wildcard patterns
-        if (pattern.endsWith("/**")) {
-            String basePattern = pattern.substring(0, pattern.length() - 3);
-            return path.startsWith(basePattern);
-        }
-        // Simple contains check for non-wildcard patterns
-        return path.contains(pattern);
-    }
-
-    public String getSecurityLevel(String path) {
-        if (isOpenEndpoint(path)) {
-            return "PUBLIC";
-        } else if (isPasswordResetEndpoint(path)) {
-            return "PASSWORD_RESET";
-        } else if (getRequiredRole(path) != null) {
-            return "ROLE_PROTECTED";
-        } else {
-            return "AUTHENTICATED";
-        }
+        return requiredRole.equals(userRole);
     }
 }

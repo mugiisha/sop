@@ -157,14 +157,6 @@ public class JwtUtils {
         return true;
     }
 
-    public boolean isTokenExpired(String token) {
-        try {
-            Claims claims = extractAllClaims(token);
-            return isTokenExpired(claims);
-        } catch (ExpiredJwtException e) {
-            return true;
-        }
-    }
 
     private boolean isTokenExpired(Claims claims) {
         try {
@@ -179,14 +171,4 @@ public class JwtUtils {
         return extractClaim(token, Claims::getExpiration);
     }
 
-    public Long extractExpirationTimeInSeconds(String token) {
-        try {
-            Date expirationDate = extractExpiration(token);
-            Date now = new Date();
-            return (expirationDate.getTime() - now.getTime()) / 1000;
-        } catch (Exception e) {
-            log.error("Error calculating expiration time", e);
-            return 0L;
-        }
-    }
 }
