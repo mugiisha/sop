@@ -18,6 +18,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
 
@@ -67,27 +68,32 @@ public class FeedbackService {
      */
     public ResponseEntity<ApiResponse<FeedbackModel>> createFeedback(String sopId, String userId, FeedbackModel feedbackModel) {
         try {
-            // Check if the sopId exists
-            boolean sopExists = feedbackRepository.existsById(sopId); // Assuming sopRepository is available and properly set up
+            // Check if the sopId exists in any feedback
+            boolean sopExists = feedbackRepository.existsBySopId(sopId);
             if (!sopExists) {
-                // Throw an error if sopId does not exist
                 ApiResponse<FeedbackModel> response = new ApiResponse<>("SOP ID does not exist", null);
                 return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
             }
+            // Check if feedback with the same sopId already exists
+            List<FeedbackModel> existingFeedbacks = feedbackRepository.findBySopId(sopId);
+            if (!existingFeedbacks.isEmpty()) {
+                // Update the existing feedback
+                FeedbackModel existingFeedback = existingFeedbacks.get(0); // Assuming only one feedback per sopId
+                existingFeedback.setContent(feedbackModel.getContent());
+                existingFeedback.setUserId(userId);
+                existingFeedback.setTimestamp(new Date()); // Update the timestamp to the current time
+                existingFeedback.setResponse(null); // Set response to null
+                FeedbackModel updatedFeedback = feedbackRepository.save(existingFeedback);
 
-            // Set sopId and userId to the feedbackModel
-            feedbackModel.setSopId(sopId);
-            feedbackModel.setUserId(userId);
-
-            // Save the new feedback to the database
-            FeedbackModel createdFeedback = feedbackRepository.save(feedbackModel);
-
-            // Return success response with the created feedback
-            ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback created successfully", createdFeedback);
-            return new ResponseEntity<>(response, HttpStatus.CREATED);
+                ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback Created Successfully", updatedFeedback);
+                return new ResponseEntity<>(response, HttpStatus.OK);
+            } else {
+                // Feedback with the given sopId does not exist
+                ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback with the given SOP ID does not exist", null);
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
         } catch (Exception e) {
-            // Handle unexpected errors
-            ApiResponse<FeedbackModel> response = new ApiResponse<>("Failed to create feedback: " + e.getMessage(), null);
+            ApiResponse<FeedbackModel> response = new ApiResponse<>("Failed to update feedback: " + e.getMessage(), null);
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }

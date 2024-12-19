@@ -13,6 +13,8 @@ public interface FeedbackRepository extends MongoRepository<FeedbackModel, Strin
 
     List<FeedbackModel> findByUserId(String userId);
 
+    boolean existsBySopId(String sopId);
+
     // Query to filter feedbacks by timestamp range
     @Query("{ 'timestamp': { $gte: ?0, $lte: ?1 } }")
     List<FeedbackModel> findByTimestampBetween(Date startDate, Date endDate);

@@ -22,7 +22,7 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 @Slf4j
-public class UserService {
+public class  UserService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
     private final NotificationPreferenceRepository notificationPreferenceRepository;
