@@ -7,6 +7,7 @@ import com.analytics_insights_service.analytics_insights_service.model.FeedbackM
 import com.analytics_insights_service.analytics_insights_service.repository.FeedbackRepository;
 import com.analytics_insights_service.analytics_insights_service.util.DtoConverter;
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
@@ -33,20 +34,24 @@ public class FeedbackService {
             topics = "sop-created",
             groupId = "analytics-insights-service"
     )
+
+    /**
+     * Consumer method for the Kafka topic sop-created
+     */
     public void FeedbackCreatedListener(String data) throws JsonProcessingException {
         log.info("Received SOP created event: {}", data);
         try {
-            // Convert the incoming data to a DTO or directly to a FeedbackModel
+            ObjectMapper objectMapper = new ObjectMapper();
+            objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-            // Use a Map to parse the JSON and extract only required fields
-            Map<String, Object> jsonData = new ObjectMapper().readValue(data, Map.class);
-            String id = (String) jsonData.get("id");
+            // Convert the incoming data to a FeedbackDto using the ObjectMapper
+            FeedbackDto feedbackDto = objectMapper.readValue(data, FeedbackDto.class);
 
-            FeedbackDto feedbackDto = new FeedbackDto(id);
-
+            // Create a new FeedbackModel and set its fields from the DTO
             FeedbackModel feedbackModel = new FeedbackModel();
-            feedbackModel.setId(feedbackDto.getId()); // Set the ID from the DTO
-
+            feedbackModel.setId(new ObjectId().toString());
+            feedbackModel.setSopId(feedbackDto.getId());
+            feedbackModel.setTitle(feedbackDto.getTitle());
 
             // Save the model to the database
             feedbackRepository.save(feedbackModel);

@@ -17,23 +17,4 @@ public class DtoConverter {
         return objectMapper.readValue(json, FeedbackDto.class);
     }
 
-    // Convert FeedbackDto to JSON
-    public static String sopDtoToJson(FeedbackDto feedbackDto) throws JsonProcessingException {
-        return objectMapper.writeValueAsString(feedbackDto);
-    }
-
-    // Convert FeedbackModel (entity) to FeedbackDto
-    public static FeedbackDto sopDtoFromEntity(FeedbackModel feedbackModel) {
-        return new FeedbackDto(
-                feedbackModel.getId()
-        );
-    }
-
-    // Convert FeedbackDto to FeedbackModel (entity)
-    public static FeedbackModel entityFromSopDto(FeedbackDto feedbackDto) {
-        FeedbackModel feedbackModel = new FeedbackModel();
-        feedbackModel.setId(feedbackDto.getId());
-
-        return feedbackModel;
-    }
 }

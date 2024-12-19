@@ -22,6 +22,9 @@ public class FeedbackModel {
     @NotBlank(message = "SOP ID cannot be blank")
     private String sopId; // ID of the associated SOP
 
+    @NotBlank(message = "title cannot be blank")
+    private String title;
+
     @NotNull(message = "User ID cannot be null")
     private String userId; // ObjectId referencing the user from the user database
 
@@ -36,10 +39,11 @@ public class FeedbackModel {
     private String response;
 
     // Constructor with all parameters
-    public FeedbackModel(String sopId, String userId, String content, String response) {
+    public FeedbackModel(String sopId, String userId, String content, String response , String title) {
         this.sopId = sopId;
         this.userId = userId;
         this.content = content;
         this.response = response;
+        this.title = title;
     }
 }
