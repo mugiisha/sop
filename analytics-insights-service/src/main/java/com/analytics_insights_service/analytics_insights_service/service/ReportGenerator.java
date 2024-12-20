@@ -73,7 +73,7 @@ public class ReportGenerator {
             Row row = sheet.createRow(rowIdx++);
             row.createCell(0).setCellValue(feedback.getId());
             row.createCell(1).setCellValue(feedback.getSopId());
-            row.createCell(2).setCellValue(feedback.getUserId());
+            row.createCell(2).setCellValue(feedback.getUserName());
             row.createCell(3).setCellValue(feedback.getContent());
             row.createCell(4).setCellValue(feedback.getResponse());
             row.createCell(5).setCellValue(feedback.getTimestamp().toString());
@@ -131,7 +131,7 @@ public class ReportGenerator {
         for (FeedbackModel feedback : feedbacks) {
             table.addCell(feedback.getId());
             table.addCell(feedback.getSopId());
-            table.addCell(feedback.getUserId());
+            table.addCell(feedback.getUserName());
             table.addCell(feedback.getContent());
             table.addCell(feedback.getResponse() != null ? feedback.getResponse() : "No response yet");
         }

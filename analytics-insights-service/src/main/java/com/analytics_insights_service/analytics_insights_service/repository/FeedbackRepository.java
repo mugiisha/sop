@@ -7,13 +7,12 @@ import org.springframework.data.mongodb.repository.Query;
 
 import java.util.Date;
 import java.util.List;
+import java.util.Optional;
 
 public interface FeedbackRepository extends MongoRepository<FeedbackModel, String> {
     List<FeedbackModel> findBySopId(String sopId); // Find all feedbacks by SOP ID
 
-    List<FeedbackModel> findByUserId(String userId);
-
-    boolean existsBySopId(String sopId);
+    boolean existsBySopId(String sopId); // Check if feedback exists by SOP ID
 
     // Query to filter feedbacks by timestamp range
     @Query("{ 'timestamp': { $gte: ?0, $lte: ?1 } }")

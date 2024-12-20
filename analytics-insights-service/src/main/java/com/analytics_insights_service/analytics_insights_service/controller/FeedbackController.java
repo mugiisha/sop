@@ -26,20 +26,13 @@ public class FeedbackController {
      * @param feedbackModel Feedback data.
      * @return Created feedback response.
      */
-    @PostMapping("/{sopId}")
+    // Create feedback based on sopId
+    @PutMapping("/{sopId}")
     public ResponseEntity<ApiResponse<FeedbackModel>> createFeedback(
-            HttpServletRequest request,
             @PathVariable String sopId,
-            @RequestBody FeedbackModel feedbackModel
-    ) {
-        // Retrieve user ID from the request header
-        String userId = request.getHeader("X-User-Id");
-        // Check if the user ID header is missing
-        if (userId == null || userId.isEmpty()) {
-            ApiResponse<FeedbackModel> response = new ApiResponse<>("User ID header is missing", null);
-            return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
-        }
-        return feedbackService.createFeedback(sopId, userId, feedbackModel);
+            @RequestBody FeedbackModel feedbackModel,
+            HttpServletRequest request) {
+        return feedbackService.createFeedback(sopId, feedbackModel, request);
     }
 
     /**
@@ -64,18 +57,6 @@ public class FeedbackController {
             @PathVariable String feedbackId
     ) {
         return feedbackService.getFeedbackById(feedbackId);
-    }
-
-    /**
-     * Get all feedbacks for a specific user.
-     * @param userId User ID.
-     * @return List of feedbacks created by the user.
-     */
-    @GetMapping("/user/{userId}")
-    public ResponseEntity<ApiResponse<List<FeedbackModel>>> getFeedbacksByUserId(
-            @PathVariable String userId
-    ) {
-        return feedbackService.getFeedbacksByUserId(userId);
     }
 
     /**
