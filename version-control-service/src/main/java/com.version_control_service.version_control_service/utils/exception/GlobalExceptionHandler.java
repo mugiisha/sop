@@ -1,6 +1,7 @@
-package com.sop_workflow_service.sop_workflow_service.utils.exception;
+package com.version_control_service.version_control_service.utils.exception;
 
-import com.sop_workflow_service.sop_workflow_service.utils.Response;
+
+import com.version_control_service.version_control_service.utils.Response;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.FieldError;
@@ -39,14 +40,14 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<Response<Object>> handleBadRequestException(BadRequestException ex) {
+    public ResponseEntity<Response<Object>> handleBadRequestExceptionException(BadRequestException ex) {
         Response<Object> response = new Response<>(false, ex.getMessage(), null);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }
 
     @ExceptionHandler(AlreadyExistsException.class)
-    public ResponseEntity<Response<Object>> handleAlreadyExistsException(Exception ex) {
+    public ResponseEntity<Response<Object>> handleAlreadyExistsException(AlreadyExistsException ex) {
         Response<Object> response = new Response<>(false, ex.getMessage(), null);
-        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
+        return new ResponseEntity<>(response, HttpStatus.CONFLICT);
     }
 }

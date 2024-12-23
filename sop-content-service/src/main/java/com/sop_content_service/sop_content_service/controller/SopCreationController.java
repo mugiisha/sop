@@ -1,6 +1,7 @@
 package com.sop_content_service.sop_content_service.controller;
 
 import com.sop_content_service.sop_content_service.dto.ApiResponse;
+import com.sop_content_service.sop_content_service.dto.SOPResponseDto;
 import com.sop_content_service.sop_content_service.dto.SopContentDto;
 import com.sop_content_service.sop_content_service.model.Sop;
 import com.sop_content_service.sop_content_service.service.SopService;
@@ -56,21 +57,21 @@ public class SopCreationController {
 
 //      * @return ApiResponse containing a list of SOPDto objects
     @GetMapping
-    public ResponseEntity<ApiResponse<List<Sop>>> getSops(HttpServletRequest request) {
+    public ResponseEntity<ApiResponse<List<SOPResponseDto>>> getSops(HttpServletRequest request) {
 
         String departmentId = request.getHeader("X-Department-Id");
 
-        List<Sop> sops = sopService.getSops(UUID.fromString(departmentId));
-        ApiResponse<List<Sop>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
+        List<SOPResponseDto> sops = sopService.getSops(UUID.fromString(departmentId));
+        ApiResponse<List<SOPResponseDto>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
         return ResponseEntity.status(HttpStatus.OK).body(response);
 
     }
 
     //      * @return ApiResponse containing a list of SOPDto objects
     @GetMapping("/all")
-    public ResponseEntity<ApiResponse<List<Sop>>> getAllSops() {
-        List<Sop> sops = sopService.getAllSops();
-        ApiResponse<List<Sop>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
+    public ResponseEntity<ApiResponse<List<SOPResponseDto>>> getAllSops() {
+        List<SOPResponseDto> sops = sopService.getAllSops();
+        ApiResponse<List<SOPResponseDto>> response = new ApiResponse<>("Fetched all SOPs successfully.", sops);
         return ResponseEntity.status(HttpStatus.OK).body(response);
 
     }
@@ -81,9 +82,9 @@ public class SopCreationController {
      */
 
     @GetMapping("/{sopId}")
-    public ResponseEntity<ApiResponse<Sop>> getSopById(@PathVariable String sopId) {
-        Sop sop = sopService.getSopById(sopId);
-        ApiResponse<Sop> response = new ApiResponse<>("Fetched SOP successfully.", sop);
+    public ResponseEntity<ApiResponse<SOPResponseDto>> getSopById(@PathVariable String sopId) {
+        SOPResponseDto sop = sopService.getSopById(sopId);
+        ApiResponse<SOPResponseDto> response = new ApiResponse<>("Fetched SOP successfully.", sop);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 

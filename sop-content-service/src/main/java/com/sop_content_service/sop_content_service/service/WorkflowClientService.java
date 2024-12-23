@@ -18,4 +18,13 @@ public class WorkflowClientService {
                                 .build()
                 );
     }
+
+    public GetWorkflowStageInfoResponse getWorkflowStage(String userId, String sopId) {
+        GetWorkflowStageInfoRequest request = GetWorkflowStageInfoRequest.newBuilder()
+                .setUserId(userId)
+                .setSopId(sopId)
+                .build();
+
+        return sopWorkflowServiceBlockingStub.getWorkflowStageInfo(request);
+    }
 }
