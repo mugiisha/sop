@@ -1,0 +1,45 @@
+spring:
+  application:
+    name: sop-recommendation-service
+  data:
+    mongodb:
+      uri: mongodb+srv://amir:RFMHyDOOQBpXy2Sh@cluster0.kflmc1e.mongodb.net/analytics?retryWrites=true&w=majority&appName=Cluster0
+      database: analytics
+      auto-index-creation: true
+      connections-per-host: 8
+      min-connections-per-host: 0
+      max-connection-idle-time: 0
+      max-wait-time: 120000
+      socket-timeout: 0
+      connect-timeout: 10000
+  webflux:
+    base-path: /api/v1
+  cloud:
+    compatibility-verifier:
+      enabled: false
+
+server:
+  port: 6068
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://eureka:password@localhost:8761/eureka/
+
+logging:
+  level:
+    root: INFO
+    com.amalisops: DEBUG
+    org.springframework.data.mongodb: DEBUG
+  pattern:
+    console: '%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n'
+
+gemini:
+  api:
+    key: AIzaSyBBqfMaUXqD0gTKLLj1H9n-sNio9kBGKpk
+    url: https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent
+
+app:
+  sop:
+    default-page-size: 10
+    max-page-size: 100
