@@ -4,6 +4,7 @@ import jakarta.xml.bind.annotation.XmlRootElement;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 @Data
 @Getter
@@ -17,6 +18,6 @@ public class ReportDto {
     private String title;
     private String visibility;
 
-    private LocalDateTime createdAt;
-    private LocalDateTime updatedAt;
+    private Date createdAt;
+    private Date updatedAt;
 }

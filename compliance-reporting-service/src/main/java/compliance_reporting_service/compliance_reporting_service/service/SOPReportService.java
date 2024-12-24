@@ -4,14 +4,20 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import compliance_reporting_service.compliance_reporting_service.dto.ReportDto;
+import compliance_reporting_service.compliance_reporting_service.dto.ReportResponseDto;
 import compliance_reporting_service.compliance_reporting_service.model.SOPReport;
 import compliance_reporting_service.compliance_reporting_service.repository.SOPReportRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.bson.types.ObjectId;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
+import sopVersionService.GetSopVersionsResponse;
+
+import java.util.ArrayList;
+import java.util.List;
 
 
 @Service
@@ -21,12 +27,13 @@ public class SOPReportService {
 
 
     private final SOPReportRepository repository;
+    private final VersionClientService versionClientService;
 
 
     @Autowired
-    public SOPReportService(SOPReportRepository repository) {
+    public SOPReportService(SOPReportRepository repository, VersionClientService versionClientService) {
         this.repository = repository;
-
+        this.versionClientService = versionClientService;
     }
 
 
@@ -53,8 +60,8 @@ public class SOPReportService {
             sopReport.setSopId(reportDto.getId());
             sopReport.setTitle(reportDto.getTitle());
             sopReport.setVisibility(reportDto.getVisibility());
-            sopReport.setCreatedAt(reportDto.getCreatedAt().toLocalDate());
-            sopReport.setUpdateAt(reportDto.getUpdatedAt().toLocalDate());
+            sopReport.setCreatedAt(reportDto.getCreatedAt());
+            sopReport.setUpdateAt(reportDto.getUpdatedAt());
 
 
 
@@ -67,6 +74,34 @@ public class SOPReportService {
         }
     }
 
+    // Read All
+    public List<ReportResponseDto> findAll() {
+        List<SOPReport> sopReport = repository.findAll();
+        List<ReportResponseDto> reportResponseDtos = new ArrayList<>();
+
+        for(SOPReport report : sopReport) {
+            reportResponseDtos.add(mapReportToReportResponseDTO(report));
+        }
+
+        return reportResponseDtos;
+    }
+
+public ReportResponseDto mapReportToReportResponseDTO(SOPReport sopReport) {
+        GetSopVersionsResponse versionsResponse = versionClientService.GetSopVersions(sopReport.getSopId());
+
+        if(!versionsResponse.getSuccess()){
+          log.error("Error fetching versions for sop with id: {}", sopReport.getSopId());
+        }
+        return ReportResponseDto
+                .builder()
+                .title(sopReport.getTitle())
+                .numberOfVersions(versionsResponse.getVersionsCount())
+                .createdAt(sopReport.getCreatedAt())
+                .updateAt(sopReport.getUpdateAt())
+                .reads(sopReport.getReads())
+                .visibility(sopReport.getVisibility())
+                .build();
+    }
 
 }
 

@@ -229,6 +229,8 @@ public class SopService {
         sop.setAuthor(sopDto.getAuthorId());
         sop.setReviewers(sopDto.getReviewers());
         sop.setApprover(sopDto.getApproverId());
+        sop.setCreatedAt(sopDto.getCreatedAt());
+        sop.setUpdatedAt(sop.getUpdatedAt());
         sop.setStatus(sopDto.getStatus());
 
         // Save to repository
