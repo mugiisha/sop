@@ -26,8 +26,8 @@ public class RouteValidator {
 
     private final Map<String, String> routeRoles = Map.of(
             "/api/v1/roles", "ADMIN",
-            "/api/v1/sops/all", "ADMIN",
             "/api/v1/users", "ADMIN",
+            "/api/v1/sops/all", "ADMIN",
             "/api/v1/users/department", "HOD",
             "/api/v1/departments", "ADMIN",
             "/api/v1/sops/create", "AUTHOR",
@@ -52,7 +52,7 @@ public class RouteValidator {
     //     Get required role for a specific path
     public String getRequiredRole(String path) {
         for (Map.Entry<String, String> entry : routeRoles.entrySet()) {
-            if (path.equals(entry.getKey())) {
+            if (path.contains(entry.getKey())) {
                 return entry.getValue();
             }
         }
