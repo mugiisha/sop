@@ -38,7 +38,7 @@ public class SOPReportService {
 /**
  * Consumer method for the Kafka topic sop-created
  */
-    public void FeedbackCreatedListener(String data) throws JsonProcessingException {
+    public void ReportCreatedListener(String data) throws JsonProcessingException {
         log.info("Received SOP created event: {}", data);
         try {
             ObjectMapper objectMapper = new ObjectMapper();
@@ -52,6 +52,12 @@ public class SOPReportService {
             sopReport.setId(new ObjectId().toString());
             sopReport.setSopId(reportDto.getId());
             sopReport.setTitle(reportDto.getTitle());
+            sopReport.setVisibility(reportDto.getVisibility());
+            sopReport.setCreatedAt(reportDto.getCreatedAt().toLocalDate());
+            sopReport.setUpdateAt(reportDto.getUpdatedAt().toLocalDate());
+
+
+
 
             // Save the model to the database
             repository.save(sopReport);
@@ -60,7 +66,6 @@ public class SOPReportService {
             log.error("Error processing SOP created event: {}", e.getMessage(), e);
         }
     }
-
 
 
 }

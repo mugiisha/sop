@@ -21,8 +21,8 @@ public class SOPReport {
     private int numberOfVersions;
     private String visibility;
     private int reads;
-    private LocalDate completionDate;
-    private LocalDate initiationDate;
+    private LocalDate createdAt;
+    private LocalDate updateAt;
 
     // Derived field for reports
     private boolean completedOnTime;
