@@ -1,6 +1,7 @@
 package com.sop_content_service.sop_content_service.dto;
 
 import com.sop_content_service.sop_content_service.enums.SOPStatus;
+import com.sop_content_service.sop_content_service.enums.Visibility;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -19,7 +20,7 @@ public class SOPDto {
     private String title;
 
     @NotEmpty(message = "Visibility is required")
-    private String visibility;
+    private Visibility visibility;
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;

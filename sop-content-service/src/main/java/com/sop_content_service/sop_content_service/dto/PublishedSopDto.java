@@ -1,26 +1,24 @@
-package com.sop_content_service.sop_content_service.model;
+package com.sop_content_service.sop_content_service.dto;
+
 
 import com.sop_content_service.sop_content_service.enums.SOPStatus;
 import com.sop_content_service.sop_content_service.enums.Visibility;
+import lombok.*;
 import org.springframework.data.annotation.CreatedDate;
-import org.springframework.data.annotation.Id;
 import org.springframework.data.annotation.LastModifiedDate;
-import org.springframework.data.mongodb.core.mapping.Document;
-
-import lombok.Data;
-import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
 import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
-@Document(collection = "sops") // Specifies the MongoDB collection name
-@Data // Lombok annotation to generate getters, setters, toString, equals, and hashCode
-@NoArgsConstructor // Generates a no-argument constructor
-public class Sop {
-
-    @Id
+@Data
+@Builder
+@AllArgsConstructor
+@NoArgsConstructor
+@Getter
+@Setter
+public class PublishedSopDto {
     private String id;
     private List<String> documentUrls;
     private String coverUrl;
@@ -30,7 +28,6 @@ public class Sop {
     private String category;
     private UUID departmentId;
     private Visibility visibility;
-    private SOPStatus status;
     private UUID author;
     private List<UUID> reviewers;
     private UUID approver;
@@ -40,5 +37,4 @@ public class Sop {
 
     @LastModifiedDate
     private Date updatedAt;
-
 }

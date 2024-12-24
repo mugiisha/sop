@@ -1,10 +1,9 @@
-package com.sop_content_service.sop_content_service.util;
+package com.version_control_service.version_control_service.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.JsonProcessingException;
-
-import com.sop_content_service.sop_content_service.dto.PublishedSopDto;
-import com.sop_content_service.sop_content_service.dto.SOPDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.version_control_service.version_control_service.dto.PublishedSopDto;
+import com.version_control_service.version_control_service.dto.SOPDto;
 
 public class DtoConverter {
 

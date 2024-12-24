@@ -2,6 +2,7 @@ package com.notification_service.notification_service.services;
 
 import com.notification_service.notification_service.dtos.CreateNotificationDto;
 import com.notification_service.notification_service.dtos.CustomUserDto;
+import com.notification_service.notification_service.dtos.PublishedSopDto;
 import com.notification_service.notification_service.dtos.SOPDto;
 import com.notification_service.notification_service.enums.NotificationType;
 import com.notification_service.notification_service.models.Notification;
@@ -113,7 +114,7 @@ public class NotificationService {
         }
     }
 
-    @KafkaListener(topics = "user-deactivated")
+    @KafkaListener(topics = "user-activated")
     void userActivatedListener(String data) {
         try {
             log.info("Received user deactivated event: {}", data);
@@ -472,9 +473,9 @@ public class NotificationService {
         try {
             log.info("Received sop published event: {}", data);
 
-            SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
-            UUID authorId = sopDto.getAuthorId();
-            UUID approverId = sopDto.getApproverId();
+            PublishedSopDto publishedSopDto = DtoConverter.publishedSopDtoFromJson(data);
+            UUID authorId = publishedSopDto.getAuthor();
+            UUID approverId = publishedSopDto.getApprover();
 
             // Check author's preferences before we create and send notification for the author
             NotificationPreferences authorPreferences = notificationPreferencesService.getUserNotificationPreferences(authorId);
@@ -482,9 +483,9 @@ public class NotificationService {
                 CreateNotificationDto authorNotificationDto = prepareNotificationDto(
                         authorId,
                         NotificationType.SOP_PUBLISHED,
-                        "An SOP "+ sopDto.getTitle() + "you authored has been published",
-                        sopDto.getId(),
-                        sopDto.getTitle()
+                        "An SOP "+ publishedSopDto.getTitle() + "you authored has been published",
+                        publishedSopDto.getId(),
+                        publishedSopDto.getTitle()
                 );
 
                 createAndSendNotification(authorNotificationDto);
@@ -493,22 +494,22 @@ public class NotificationService {
                         "Author",
                         "Author",
                         "SOP Published",
-                        sopDto.getTitle(),
-                        sopDto.getId(),
+                        publishedSopDto.getTitle(),
+                        publishedSopDto.getId(),
                         "sop-published-author"
                 );
             }
 
             // Loop through reviewers,Check reviewer's preferences before we create and send notifications for each
-            for (UUID reviewerId : sopDto.getReviewers()) {
+            for (UUID reviewerId : publishedSopDto.getReviewers()) {
                 NotificationPreferences reviewerPreferences = notificationPreferencesService.getUserNotificationPreferences(reviewerId);
                 if (reviewerPreferences.isAllSOPAlertsEnabled() || reviewerPreferences.isReviewerAlertsEnabled()) {
                     CreateNotificationDto notificationDto = prepareNotificationDto(
                             reviewerId,
                             NotificationType.SOP_PUBLISHED,
-                            "An SOP titled " + sopDto.getTitle() + " you reviewed has been published",
-                            sopDto.getId(),
-                            sopDto.getTitle()
+                            "An SOP titled " + publishedSopDto.getTitle() + " you reviewed has been published",
+                            publishedSopDto.getId(),
+                            publishedSopDto.getTitle()
                     );
 
                     createAndSendNotification(notificationDto);
@@ -517,8 +518,8 @@ public class NotificationService {
                             "Reviewer",
                             "Reviewer",
                             "SOP Published",
-                            sopDto.getTitle(),
-                            sopDto.getId(),
+                            publishedSopDto.getTitle(),
+                            publishedSopDto.getId(),
                             "sop-published"
                     );
                 }
@@ -530,9 +531,9 @@ public class NotificationService {
                 CreateNotificationDto approverNotificationDto = prepareNotificationDto(
                         approverId,
                         NotificationType.SOP_PUBLISHED,
-                        "An SOP titled " + sopDto.getTitle() + " you approved has been published",
-                        sopDto.getId(),
-                        sopDto.getTitle()
+                        "An SOP titled " + publishedSopDto.getTitle() + " you approved has been published",
+                        publishedSopDto.getId(),
+                        publishedSopDto.getTitle()
                 );
 
                 createAndSendNotification(approverNotificationDto);
@@ -541,8 +542,8 @@ public class NotificationService {
                         "Approver",
                         "Approver",
                         "SOP Published",
-                        sopDto.getTitle(),
-                        sopDto.getId(),
+                        publishedSopDto.getTitle(),
+                        publishedSopDto.getId(),
                         "sop-published"
                 );
             }

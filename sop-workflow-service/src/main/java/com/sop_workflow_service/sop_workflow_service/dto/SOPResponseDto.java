@@ -4,6 +4,7 @@ import com.sop_workflow_service.sop_workflow_service.enums.SOPStatus;
 import lombok.*;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 
 @Data
@@ -19,6 +20,6 @@ public class SOPResponseDto {
         private List<StageDto> reviewers;
         private StageDto approver;
         private StageDto author;
-        private LocalDateTime createdAt;
-        private LocalDateTime updatedAt;
+        private Date createdAt;
+        private Date updatedAt;
 }

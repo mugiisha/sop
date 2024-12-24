@@ -13,5 +13,5 @@ public class SopContentDto {
     private String description;
     @NotEmpty(message = "SOP body is required")
     private String body;
-    private SOPStatus status =  SOPStatus.DRAFTED;
+    private SOPStatus status = SOPStatus.DRAFTED;
 }

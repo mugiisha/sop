@@ -1,0 +1,25 @@
+syntax = "proto3";
+
+package sopVersionService;
+
+option java_multiple_files = true;
+
+// Service definition for gRPC communication
+service VersionService {
+  rpc GetSopVersions(GetSopVersionsRequest) returns (GetSopVersionsResponse);
+}
+
+message GetSopVersionsRequest {
+  string sopId = 1;
+}
+
+message GetSopVersionsResponse {
+  bool success = 1;
+  repeated SopVersion versions = 2;
+  string errorMessage = 3;
+}
+
+message SopVersion {
+  float versionNumber = 1;
+  bool currentVersion = 2;
+}
