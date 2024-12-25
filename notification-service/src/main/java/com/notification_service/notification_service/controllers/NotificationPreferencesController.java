@@ -31,6 +31,16 @@ public class NotificationPreferencesController {
                 preferences);
     }
 
+    @PostMapping
+    public Response<NotificationPreferences> createNotificationPreferences(HttpServletRequest request) {
+        String userId = request.getHeader("X-User-Id");
+        String email = request.getHeader("X-User-Email");
+        notificationPreferencesService.createNotificationPreferences(UUID.fromString(userId), email);
+
+        return new Response<>(true,
+                "User notification preferences created successfully",
+                null);
+    }
     @PutMapping
     public Response<NotificationPreferences> updateNotificationPreferences(HttpServletRequest request,
                                                                           @RequestBody UpdateNotificationPreferencesDto updateNotificationPreference) {

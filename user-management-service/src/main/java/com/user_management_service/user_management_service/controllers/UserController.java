@@ -105,8 +105,8 @@ public class UserController {
     }
 
     @PutMapping("/activate/{userId}")
-    @Operation(summary = "Deactivate user")
-    @ApiResponse(responseCode = "200", description = "User deactivated successfully")
+    @Operation(summary = "Activate user")
+    @ApiResponse(responseCode = "200", description = "User activated successfully")
     @ApiResponse(responseCode = "404", description = "User not found")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Map<String, String>> activateUser(
