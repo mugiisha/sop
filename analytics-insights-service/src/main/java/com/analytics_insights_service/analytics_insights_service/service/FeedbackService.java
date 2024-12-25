@@ -82,12 +82,18 @@ public class FeedbackService {
     public ResponseEntity<ApiResponse<FeedbackModel>> createFeedback(String sopId, FeedbackModel feedbackModel, HttpServletRequest request) {
         // Extract userId from the request header
         String userId = request.getHeader("X-User-Id");
+        String userRole = request.getHeader("X-User-Role");
+        String departmentId = request.getHeader("X-Department-Id");
+        log.info("departmentId:", departmentId);
+
+
 
         // Check if the user ID header is missing
         if (userId == null || userId.isEmpty()) {
             ApiResponse<FeedbackModel> response = new ApiResponse<>("User ID header is missing", null);
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
+
 
         try {
             // Check if feedback with the same sopId exists
@@ -96,7 +102,8 @@ public class FeedbackService {
                 // Fetch user information
                 getUserInfoResponse userInfoResponse = fetchUserInfo(userId);
                 log.info("User Info Response: {}", userInfoResponse);
-                String userName = userInfoResponse.getName(); // Assuming getUserName() method exists
+                String userName = userInfoResponse.getName();
+                String profilePic = userInfoResponse.getProfilePictureUrl();// Assuming getUserName() method exists
 
                 // Find the existing feedback by sopId
                 Optional<FeedbackModel> existingFeedbackOptional = feedbackRepository.findBySopId(sopId).stream().findFirst();
@@ -104,7 +111,9 @@ public class FeedbackService {
                     FeedbackModel existingFeedback = existingFeedbackOptional.get();
 
                     // Update the existing feedback
-                    existingFeedback.setUserName(userName); // Update the username
+                    existingFeedback.setUserName(userName);
+                    existingFeedback.setRole(userRole);
+                    existingFeedback.setProfilePic(profilePic);
                     existingFeedback.setContent(feedbackModel.getContent());
                     existingFeedback.setTimestamp(new Date()); // Update the timestamp to the current time
                     existingFeedback.setResponse(null); // Set response to null
