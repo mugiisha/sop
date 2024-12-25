@@ -16,6 +16,7 @@ import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -30,6 +31,7 @@ public class ReportGenerator {
 
     private final FeedbackRepository feedbackRepository;
 
+    @Autowired
     public ReportGenerator(FeedbackRepository feedbackRepository) {
         this.feedbackRepository = feedbackRepository;
     }

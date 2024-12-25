@@ -4,11 +4,13 @@ import com.analytics_insights_service.analytics_insights_service.model.FeedbackM
 import org.bson.types.ObjectId;
 import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
+import org.springframework.stereotype.Repository;
 
 import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
+@Repository
 public interface FeedbackRepository extends MongoRepository<FeedbackModel, String> {
     List<FeedbackModel> findBySopId(String sopId); // Find all feedbacks by SOP ID
 
