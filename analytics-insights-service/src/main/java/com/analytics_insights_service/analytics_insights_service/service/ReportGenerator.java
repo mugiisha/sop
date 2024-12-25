@@ -10,6 +10,7 @@ import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.property.TextAlignment;
+import com.itextpdf.layout.property.UnitValue;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -96,11 +97,20 @@ public class ReportGenerator {
         // Add a title to the document
         Paragraph title = new Paragraph("Feedback Report")
                 .setTextAlignment(TextAlignment.CENTER)
-                .setFontSize(20);
+                .setFontSize(20)
+                .setUnderline();  // Underline the title text
         document.add(title);
 
-        // Create a table with 7 columns
-        Table table = new Table(new float[]{4, 4, 4, 4, 8, 8, 4});
+        // Add generation date
+        String generationDate = "Report Generated On: " + new Date().toString();
+        document.add(new Paragraph(generationDate).setFontSize(12).setTextAlignment(TextAlignment.RIGHT));
+
+        // Add space before the table
+        document.add(new Paragraph("\n"));
+
+        // Create a table with 7 columns and set its width to 100% of the page
+        Table table = new Table(UnitValue.createPercentArray(new float[]{4, 4, 4, 4, 8, 8, 4}));
+        table.setWidth(UnitValue.createPercentValue(100));
 
         // Add headers to the table
         table.addCell(new Cell().add(new Paragraph("SOP Title")).setBackgroundColor(ColorConstants.GREEN));
@@ -115,13 +125,13 @@ public class ReportGenerator {
         for (FeedbackModel feedback : feedbacks) {
             logger.debug("Processing feedback: {}", feedback);
 
-            table.addCell(new Cell().add(new Paragraph(feedback.getTitle())));
-            table.addCell(new Cell().add(new Paragraph(feedback.getUserName())));
-            table.addCell(new Cell().add(new Paragraph(feedback.getRole())));
-            table.addCell(new Cell().add(new Paragraph(feedback.getDepartmentName())));
-            table.addCell(new Cell().add(new Paragraph(feedback.getContent())));
-            table.addCell(new Cell().add(new Paragraph(feedback.getResponse() != null ? feedback.getResponse() : "No response yet")));
-            table.addCell(new Cell().add(new Paragraph(feedback.getTimestamp().toString())));
+            table.addCell(new Cell().add(new Paragraph(feedback.getTitle())).setTextAlignment(TextAlignment.LEFT));
+            table.addCell(new Cell().add(new Paragraph(feedback.getUserName())).setTextAlignment(TextAlignment.LEFT));
+            table.addCell(new Cell().add(new Paragraph(feedback.getRole())).setTextAlignment(TextAlignment.LEFT));
+            table.addCell(new Cell().add(new Paragraph(feedback.getDepartmentName())).setTextAlignment(TextAlignment.LEFT));
+            table.addCell(new Cell().add(new Paragraph(feedback.getContent())).setTextAlignment(TextAlignment.LEFT));
+            table.addCell(new Cell().add(new Paragraph(feedback.getResponse() != null ? feedback.getResponse() : "No response yet")).setTextAlignment(TextAlignment.LEFT));
+            table.addCell(new Cell().add(new Paragraph(feedback.getTimestamp().toString())).setTextAlignment(TextAlignment.LEFT));
 
             // Log each piece of data
             logger.info("Title: {}", feedback.getTitle());
