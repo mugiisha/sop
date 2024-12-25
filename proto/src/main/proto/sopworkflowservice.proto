@@ -7,6 +7,7 @@ option java_multiple_files = true;
 // Service definition for gRPC communication
 service SopWorkflowService {
     rpc IsSOPApproved(IsSOPApprovedRequest) returns (IsSOPApprovedResponse);
+    rpc GetWorkflowStageInfo(GetWorkflowStageInfoRequest) returns (GetWorkflowStageInfoResponse);
 }
 
 // Messages for requests and responses
@@ -18,6 +19,24 @@ message IsSOPApprovedResponse {
     bool success = 1;
     bool SOPApproved = 2;
     string errorMessage = 3;
+}
+
+message GetWorkflowStageInfoRequest{
+    string sopId = 1;
+    string userId = 2;
+}
+
+message GetWorkflowStageInfoResponse{
+    bool success= 1;
+    string status=2;
+    repeated Comments comments=3;
+    string errorMessage=4;
+}
+
+message Comments{
+    string commentId = 1;
+    string comment=2;
+    string createdAt=3;
 }
 
 

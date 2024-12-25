@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package sopFromWorkflow;
+
+option java_multiple_files = true;
+
+service SopService {
+  rpc getSopDetails(GetSopDetailsRequest) returns (GetSopDetailsResponse) {}
+  rpc getAllSopDetails(GetAllSopDetailsRequest) returns (GetAllSopDetailsResponse) {}
+}
+
+message GetSopDetailsRequest {
+  string sopId = 1; // Fetch details of a single SOP by ID
+}
+
+message GetSopDetailsResponse {
+  string title = 1;
+  string visibility = 2;
+  string initiationDate = 3;  // Maps to `createdAt` in the model
+  string completionDate = 4; // Maps to `updatedAt` in the model
+}
+
+message GetAllSopDetailsRequest {
+  string filter = 1; // Optional: Use for filtering SOPs (e.g., by visibility or date range)
+}
+
+message SopDetails {
+  string sopId = 1;
+  string title = 2;
+  string initiatedBy = 3;   // Matches the "Initiated By" column
+  string visibility = 4;    // Matches the "Visibility" column
+  string initiationDate = 5; // Matches the "Initiation" column
+  string completionDate = 6; // Matches the "Completion" column
+}
+
+message GetAllSopDetailsResponse {
+  repeated SopDetails sopDetails = 1; // List of SOP details for populating the table
+}

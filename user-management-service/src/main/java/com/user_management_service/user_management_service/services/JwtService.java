@@ -2,6 +2,7 @@ package com.user_management_service.user_management_service.services;
 
 import com.user_management_service.user_management_service.models.User;
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
@@ -126,23 +127,83 @@ public class JwtService {
             Claims claims = extractAllClaims(token);
             String tokenType = claims.get("tokenType", String.class);
 
-            if (!"ACCESS".equals(tokenType)) {
-                log.warn("Invalid token type for authentication");
+            if (tokenType == null) {
+                log.warn("Token type is missing");
                 return false;
             }
 
-            return !isTokenExpired(token);
+            return switch (tokenType) {
+                case "ACCESS" -> validateAccessToken(claims);
+                case "PASSWORD_RESET" -> validatePasswordResetToken(claims);
+                case "REFRESH" -> validateRefreshToken(claims);
+                default -> {
+                    log.warn("Invalid token type: {}", tokenType);
+                    yield false;
+                }
+            };
+        } catch (ExpiredJwtException e) {
+            log.warn("Token has expired");
+            return false;
         } catch (Exception e) {
             log.error("Error validating token", e);
             return false;
         }
     }
 
-    private boolean isTokenExpired(String token) {
-        return extractExpiration(token).before(new Date());
+    private boolean validateAccessToken(Claims claims) {
+        if (isTokenExpired(claims)) {
+            log.warn("Access token has expired");
+            return false;
+        }
+
+        String role = claims.get("role", String.class);
+        if (role == null) {
+            log.warn("Access token missing role claim");
+            return false;
+        }
+
+        return true;
     }
 
-    private Date extractExpiration(String token) {
-        return extractClaim(token, Claims::getExpiration);
+    private boolean validatePasswordResetToken(Claims claims) {
+        if (isTokenExpired(claims)) {
+            log.warn("Password reset token has expired");
+            return false;
+        }
+
+        String email = claims.get("email", String.class);
+        String sub = claims.getSubject();
+
+        if (email == null || sub == null) {
+            log.warn("Password reset token missing required claims");
+            return false;
+        }
+
+        return true;
     }
+
+    private boolean validateRefreshToken(Claims claims) {
+        if (isTokenExpired(claims)) {
+            log.warn("Refresh token has expired");
+            return false;
+        }
+
+        String sub = claims.getSubject();
+        if (sub == null) {
+            log.warn("Refresh token missing subject claim");
+            return false;
+        }
+
+        return true;
+    }
+
+    private boolean isTokenExpired(Claims claims) {
+        try {
+            return claims.getExpiration().before(new Date());
+        } catch (Exception e) {
+            log.error("Error checking token expiration", e);
+            return true;
+        }
+    }
+
 }

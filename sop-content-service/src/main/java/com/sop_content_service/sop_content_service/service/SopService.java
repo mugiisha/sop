@@ -3,8 +3,8 @@ package com.sop_content_service.sop_content_service.service;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.sop_content_service.sop_content_service.dto.SOPDto;
-import com.sop_content_service.sop_content_service.dto.SopContentDto;
+import com.sop_content_service.sop_content_service.dto.*;
+import com.sop_content_service.sop_content_service.enums.ApprovalStatus;
 import com.sop_content_service.sop_content_service.enums.SOPStatus;
 import com.sop_content_service.sop_content_service.enums.Visibility;
 import com.sop_content_service.sop_content_service.exception.BadInputRequest;
@@ -16,20 +16,24 @@ import com.sop_content_service.sop_content_service.util.DtoConverter;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
+import sopVersionService.GetSopVersionsResponse;
+import sopWorkflowService.Comments;
+import sopWorkflowService.GetWorkflowStageInfoResponse;
 import sopWorkflowService.IsSOPApprovedResponse;
+import userService.getUserInfoResponse;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
-import java.util.UUID;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class SopService {
@@ -40,15 +44,20 @@ public class SopService {
     private final SopRepository sopRepository;
     private final KafkaTemplate<String, Object> kafkaTemplate;
     private final WorkflowClientService workflowClientService;
+    private final UserInfoClientService userInfoClientService;
+    private final VersionClientService versionClientService;
 
     @Value("${aws.s3.bucket}")
     private String bucketName;
 
-    public SopService(AmazonS3 s3Client, SopRepository sopRepository, KafkaTemplate<String, Object> kafkaTemplate, WorkflowClientService workflowClientService) {
+    @Autowired
+    public SopService(AmazonS3 s3Client, SopRepository sopRepository, KafkaTemplate<String, Object> kafkaTemplate, WorkflowClientService workflowClientService, UserInfoClientService userInfoClientService, VersionClientService versionClientService) {
         this.s3Client = s3Client;
         this.sopRepository = sopRepository;
         this.kafkaTemplate = kafkaTemplate;
         this.workflowClientService = workflowClientService;
+        this.userInfoClientService = userInfoClientService;
+        this.versionClientService = versionClientService;
     }
 
     public Sop addSopContent(String sopId,
@@ -66,6 +75,7 @@ public class SopService {
 
         existingSop.setDescription(sopContentDto.getDescription());
         existingSop.setBody(sopContentDto.getBody());
+        existingSop.setStatus(sopContentDto.getStatus());
 
         // Check cover image existence
         if (existingSop.getCoverUrl()== null && (coverImage == null || coverImage.isEmpty())) {
@@ -107,6 +117,49 @@ public class SopService {
     }
 
 
+//      @return List of SOPs
+
+    // public get sops getting
+    public List<SOPResponseDto>  getSops(UUID departmentId){
+        log.info("Getting SOPs with departmentId: {}", departmentId);
+
+        List<Sop> sops = sopRepository.findByDepartmentIdOrVisibilityOrderByCreatedAtDesc(departmentId, Visibility.PUBLIC);
+
+        List<SOPResponseDto> formattedSops = new ArrayList<>();
+
+        for(Sop sop: sops){
+            formattedSops.add(mapSOPToSOPResponseDto(sop));
+        }
+
+        return formattedSops;
+    }
+
+    //      @return List of SOPs for admin
+
+    public List<SOPResponseDto> getAllSops() {
+        log.info("Fetching all SOPs");
+        List<Sop> sops =  sopRepository.findAllByOrderByCreatedAtDesc();
+
+        List<SOPResponseDto> formattedSops = new ArrayList<>();
+
+        for(Sop sop: sops){
+            formattedSops.add(mapSOPToSOPResponseDto(sop));
+        }
+
+        return formattedSops;
+    }
+
+
+    //    @throws SopNotFoundException if the SOP is not found
+    public SOPResponseDto getSopById(String sopId) {
+        log.info("Fetching SOP with ID: {}", sopId);
+        Sop sop = sopRepository.findById(sopId)
+                .orElseThrow(() -> new SopNotFoundException("SOP with id " + sopId + " not found."));
+
+        return mapSOPToSOPResponseDto(sop);
+    }
+
+
     public Sop publishSop(String sopId) {
         Optional<Sop> sop = sopRepository.findById(sopId);
         if (sop.isEmpty()) {
@@ -131,9 +184,9 @@ public class SopService {
 
         Sop updatedSop = sopRepository.save(existingSop);
 
-        // prepare kafka transfer object to notify concerned users
-        SOPDto sopDto = mapSOPToSOPDto(updatedSop);
-        kafkaTemplate.send("sop-published", sopDto);
+        // kafka transfer object to notify concerned users and control versioning
+        PublishedSopDto publishedSopDto = mapSopTopublishedSopDto(updatedSop);
+        kafkaTemplate.send("sop-published", publishedSopDto);
 
         return updatedSop;
     }
@@ -158,28 +211,6 @@ public class SopService {
     }
 
 
-//      @return List of SOPs
-
-    public List<Sop> getSops(UUID departmentId) {
-        log.info("Fetching all SOPs.-USER");
-        return sopRepository.findByDepartmentIdOrVisibilityOrderByCreatedAtDesc(departmentId, Visibility.PUBLIC);
-    }
-
-    //      @return List of SOPs for admin
-
-    public List<Sop> getAllSops() {
-        log.info("Fetching all SOPs.-ADMIN");
-        return sopRepository.findAllByOrderByCreatedAtDesc();
-    }
-
-
-    //    @throws SopNotFoundException if the SOP is not found
-    public Sop getSopById(String sopId) {
-        log.info("Fetching SOP with ID: {}", sopId);
-        return sopRepository.findById(sopId)
-                .orElseThrow(() -> new SopNotFoundException("SOP with id " + sopId + " not found."));
-    }
-
 
     @KafkaListener(topics = "sop-created")
     public void sopCreatedListener(String data) throws JsonProcessingException {
@@ -198,11 +229,43 @@ public class SopService {
         sop.setAuthor(sopDto.getAuthorId());
         sop.setReviewers(sopDto.getReviewers());
         sop.setApprover(sopDto.getApproverId());
+        sop.setCreatedAt(sopDto.getCreatedAt());
+        sop.setUpdatedAt(sop.getUpdatedAt());
         sop.setStatus(sopDto.getStatus());
 
         // Save to repository
         sopRepository.save(sop);
         log.info("Saved SOP model: {}", sop);
+    }
+
+    @KafkaListener(topics = "sop-version-reverted")
+    public void sopVersionRevertedListener(String data) throws JsonProcessingException {
+        log.info("Received sop version reverted event: {}", data);
+
+        // Convert JSON string to DTO
+        PublishedSopDto sopDto = DtoConverter.publishedSopDtoFromJson(data);
+
+        // save the newly initiated sop to our database
+        Sop sop = sopRepository.findById(sopDto.getId()).orElse(null);
+        if(sop != null){
+            sop.setDocumentUrls(sopDto.getDocumentUrls());
+            sop.setCoverUrl(sopDto.getCoverUrl());
+            sop.setTitle(sopDto.getTitle());
+            sop.setDescription(sopDto.getDescription());
+            sop.setBody(sopDto.getBody());
+            sop.setVisibility(sopDto.getVisibility());
+            sop.setCategory(sopDto.getCategory());
+            sop.setDepartmentId(sopDto.getDepartmentId());
+            sop.setCreatedAt(sopDto.getCreatedAt());
+            sopDto.setUpdatedAt(sopDto.getUpdatedAt());
+
+            // Save to repository
+            sopRepository.save(sop);
+            log.info("reverted SOP: {}", sop);
+        }
+
+
+
     }
 
     @KafkaListener(topics = "sop-deleted")
@@ -229,5 +292,103 @@ public class SopService {
         sopDto.setStatus(sop.getStatus());
         return sopDto;
     }
+
+    public PublishedSopDto mapSopTopublishedSopDto(Sop sop){
+        return PublishedSopDto
+                .builder()
+                .id(sop.getId())
+                .documentUrls(sop.getDocumentUrls())
+                .coverUrl(sop.getCoverUrl())
+                .title(sop.getTitle())
+                .description(sop.getDescription())
+                .body(sop.getBody())
+                .category(sop.getCategory())
+                .departmentId(sop.getDepartmentId())
+                .visibility(sop.getVisibility())
+                .author(sop.getAuthor())
+                .reviewers(sop.getReviewers())
+                .approver(sop.getApprover())
+                .createdAt(sop.getCreatedAt())
+                .updatedAt(sop.getUpdatedAt())
+                .build();
+    }
+
+
+    private StageDto createStageDto(UUID userId, String sopId) {
+        if (userId == null) {
+            return null;
+        }
+        getUserInfoResponse userInfo = userInfoClientService.getUserInfo(userId.toString());
+        GetWorkflowStageInfoResponse stageInfo = workflowClientService.getWorkflowStage(userId.toString(), sopId);
+
+        if(!userInfo.getSuccess()){
+            log.error("Error fetching user info: {}", userInfo.getErrorMessage());
+        }
+
+        if(!stageInfo.getSuccess()){
+            log.error("Error fetching stage info: {}", stageInfo.getErrorMessage());
+        }
+
+        StageDto stageDto = new StageDto();
+        stageDto.setName(userInfo.getName());
+        stageDto.setProfilePictureUrl(userInfo.getProfilePictureUrl());
+        stageDto.setStatus(ApprovalStatus.valueOf(stageInfo.getStatus()));
+
+        stageDto.setComments(stageInfo.getCommentsList().stream()
+                    .map(comment -> new CommentDto(
+                            comment.getCommentId(),
+                            comment.getComment(),
+                            LocalDateTime.parse(comment.getCreatedAt())))
+                    .collect(Collectors.toList()));
+        return stageDto;
+    }
+
+
+    // map sop to an object including assigned users profiles
+    public SOPResponseDto mapSOPToSOPResponseDto(Sop sop) {
+
+        GetSopVersionsResponse versionsResponse = versionClientService.GetSopVersions(sop.getId());
+
+        if(!versionsResponse.getSuccess()){
+            log.error("Error fetching versions: {}", versionsResponse.getErrorMessage());
+        }
+
+        SOPResponseDto response = new SOPResponseDto();
+        response.setId(sop.getId());
+        response.setTitle(sop.getTitle());
+        response.setStatus(sop.getStatus());
+        response.setCategory(sop.getCategory());
+        response.setBody(sop.getBody());
+        response.setDepartmentId(sop.getDepartmentId());
+        response.setDocumentUrls(sop.getDocumentUrls());
+        response.setCoverUrl(sop.getCoverUrl());
+        response.setVisibility(sop.getVisibility());
+        response.setDescription(sop.getDescription());
+        response.setCreatedAt(sop.getCreatedAt());
+        response.setVersions(versionsResponse.getVersionsList().stream()
+                .map(version -> SopVersionDto
+                        .builder()
+                        .versionNumber(version.getVersionNumber())
+                        .currentVersion(version.getCurrentVersion())
+                        .build())
+                .collect(Collectors.toList()));
+        response.setUpdatedAt(sop.getUpdatedAt());
+
+        List<StageDto> reviewers = new ArrayList<>();
+
+
+        for (UUID reviewerId : sop.getReviewers()) {
+            StageDto stageDto = createStageDto(reviewerId, sop.getId());
+            reviewers.add(stageDto);
+        }
+
+        response.setApprover(createStageDto(sop.getApprover(), sop.getId()));
+        response.setAuthor(createStageDto(sop.getAuthor(), sop.getId()));
+
+        response.setReviewers(reviewers);
+
+        return response;
+    }
+
 }
 

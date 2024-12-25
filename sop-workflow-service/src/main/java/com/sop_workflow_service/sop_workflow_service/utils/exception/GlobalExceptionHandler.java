@@ -39,7 +39,7 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(BadRequestException.class)
-    public ResponseEntity<Response<Object>> handleBadRequestException(NotFoundException ex) {
+    public ResponseEntity<Response<Object>> handleBadRequestException(BadRequestException ex) {
         Response<Object> response = new Response<>(false, ex.getMessage(), null);
         return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
     }

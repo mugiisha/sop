@@ -1,10 +1,12 @@
 package com.sop_content_service.sop_content_service.dto;
 
 import com.sop_content_service.sop_content_service.enums.SOPStatus;
+import com.sop_content_service.sop_content_service.enums.Visibility;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -19,7 +21,7 @@ public class SOPDto {
     private String title;
 
     @NotEmpty(message = "Visibility is required")
-    private String visibility;
+    private Visibility visibility;
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;
@@ -35,6 +37,10 @@ public class SOPDto {
 
     @NotNull(message = "Approver is required")
     private UUID approverId;
+
+    private Date createdAt;
+
+    private Date updatedAt;
 }
 
 

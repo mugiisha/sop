@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -23,7 +24,7 @@ public class SOPDto {
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;
-
+    private UUID departmentId;
     @NotEmpty(message = "Category name is required")
     private String category;
 
@@ -34,4 +35,7 @@ public class SOPDto {
 
     @NotNull(message = "Approver is required")
     private UUID approverId;
+
+    private Date createdAt;
+    private Date updatedAt;
 }

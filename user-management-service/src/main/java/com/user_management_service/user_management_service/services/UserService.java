@@ -212,6 +212,30 @@ public class  UserService {
         auditService.logUserDeactivation(user.getId(), user.getEmail());
     }
 
+    @Transactional
+    public void activateUser(UUID id) {
+        log.info("activating user with ID: {}", id);
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+
+        if (user.isActive()) {
+            throw new IllegalStateException("User is already active");
+        }
+
+        user.setActive(true);
+        user.setDeactivatedAt(null);
+        userRepository.save(user);
+
+        CustomUserDto customUserDto = new CustomUserDto();
+        customUserDto.setId(user.getId());
+        customUserDto.setEmail(user.getEmail());
+        customUserDto.setName(user.getName());
+
+        kafkaTemplate.send("user-activated", customUserDto);
+        auditService.logUserDeactivation(user.getId(), user.getEmail());
+    }
+
     public List<UserResponseDTO> getUsersByDepartment(UUID departmentId) {
         log.debug("Fetching users for department ID: {}", departmentId);
 

@@ -104,6 +104,17 @@ public class UserController {
         return ResponseEntity.ok(Map.of("message", "User deactivated successfully"));
     }
 
+    @PutMapping("/activate/{userId}")
+    @Operation(summary = "Activate user")
+    @ApiResponse(responseCode = "200", description = "User activated successfully")
+    @ApiResponse(responseCode = "404", description = "User not found")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<Map<String, String>> activateUser(
+            @PathVariable UUID userId) {
+        userService.activateUser(userId);
+        return ResponseEntity.ok(Map.of("message", "User activated successfully"));
+    }
+
     @GetMapping("/department")
     @Operation(summary = "Get users by department")
     @ApiResponse(responseCode = "200", description = "Users found")

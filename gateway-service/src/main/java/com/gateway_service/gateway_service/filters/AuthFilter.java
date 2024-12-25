@@ -44,7 +44,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
-            String path = request.getURI().getPath();
+            String path = trimPath(request.getURI().getPath());
             String requestId = generateRequestId();
 
             log.debug("Processing request [{}] for path: {}", requestId, path);
@@ -78,14 +78,8 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                 return createErrorResponse(exchange, HttpStatus.UNAUTHORIZED, "Invalid or expired token");
             }
 
-            // Handle different token types
             String tokenType = jwtUtils.extractTokenType(token);
-            if (!isValidTokenTypeForPath(tokenType, path)) {
-                log.warn("Invalid token type {} for request [{}] path: {}", tokenType, requestId, path);
-                return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Invalid token type for this operation");
-            }
 
-            // Check permissions for non-password-reset endpoints
             if (!"PASSWORD_RESET".equals(tokenType)) {
                 String userRole = jwtUtils.extractRole(token);
                 if (!routeValidator.hasRequiredRole(path, userRole)) {
@@ -94,6 +88,8 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
                     return createErrorResponse(exchange, HttpStatus.FORBIDDEN, "Insufficient permissions");
                 }
             }
+
+
 
             // Create modified request with additional headers
             ServerHttpRequest modifiedRequest = enrichRequestWithHeaders(request, token, requestId);
@@ -104,13 +100,6 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             return createErrorResponse(exchange, HttpStatus.INTERNAL_SERVER_ERROR,
                     "Authentication processing error: " + e.getMessage());
         }
-    }
-
-    private boolean isValidTokenTypeForPath(String tokenType, String path) {
-        if (routeValidator.isPasswordResetEndpoint(path)) {
-            return "PASSWORD_RESET".equals(tokenType);
-        }
-        return "ACCESS".equals(tokenType);
     }
 
     private ServerHttpRequest enrichRequestWithHeaders(ServerHttpRequest request, String token, String requestId) {
@@ -125,11 +114,15 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         if ("ACCESS".equals(tokenType)) {
             String role = jwtUtils.extractRole(token);
             String departmentId = jwtUtils.extractDepartmentId(token);
+            String email = jwtUtils.extractEmail(token);
             if (role != null) {
                 builder.header("X-User-Role", role);
             }
             if (departmentId != null) {
                 builder.header("X-Department-Id", departmentId);
+            }
+            if (email != null) {
+                builder.header("X-User-Email", email);
             }
         }
 
@@ -177,6 +170,13 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             return Mono.error(e);
         }
     }
+
+
+    private String trimPath(String path) {
+        int secondSlashIndex = path.indexOf("/", path.indexOf("/") + 1);
+        return (secondSlashIndex != -1) ? path.substring(secondSlashIndex) : path;
+    }
+
 
     public static class Config {
         private boolean includeDebugInfo = false;
