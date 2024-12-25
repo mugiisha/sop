@@ -44,7 +44,7 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
     public GatewayFilter apply(Config config) {
         return (exchange, chain) -> {
             ServerHttpRequest request = exchange.getRequest();
-            String path = request.getURI().getPath();
+            String path = trimPath(request.getURI().getPath());
             String requestId = generateRequestId();
 
             log.debug("Processing request [{}] for path: {}", requestId, path);
@@ -114,11 +114,15 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
         if ("ACCESS".equals(tokenType)) {
             String role = jwtUtils.extractRole(token);
             String departmentId = jwtUtils.extractDepartmentId(token);
+            String email = jwtUtils.extractEmail(token);
             if (role != null) {
                 builder.header("X-User-Role", role);
             }
             if (departmentId != null) {
                 builder.header("X-Department-Id", departmentId);
+            }
+            if (email != null) {
+                builder.header("X-User-Email", email);
             }
         }
 
@@ -166,6 +170,13 @@ public class AuthFilter extends AbstractGatewayFilterFactory<AuthFilter.Config> 
             return Mono.error(e);
         }
     }
+
+
+    private String trimPath(String path) {
+        int secondSlashIndex = path.indexOf("/", path.indexOf("/") + 1);
+        return (secondSlashIndex != -1) ? path.substring(secondSlashIndex) : path;
+    }
+
 
     public static class Config {
         private boolean includeDebugInfo = false;

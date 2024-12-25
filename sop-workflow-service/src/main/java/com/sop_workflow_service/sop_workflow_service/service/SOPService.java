@@ -88,7 +88,7 @@ public class SOPService {
 
         //send SOPDto to notify services accordingly
         createSOPDto.setCreatedAt(createdSOP.getCreatedAt());
-        createSOPDto.setUpdateAt(createdSOP.getUpdatedAt());
+        createSOPDto.setUpdatedAt(createdSOP.getUpdatedAt());
         kafkaTemplate.send("sop-created", createSOPDto);
 
         return createdSOP;
