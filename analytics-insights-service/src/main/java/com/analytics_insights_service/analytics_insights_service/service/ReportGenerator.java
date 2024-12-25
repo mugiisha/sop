@@ -2,6 +2,7 @@ package com.analytics_insights_service.analytics_insights_service.service;
 
 import com.analytics_insights_service.analytics_insights_service.model.FeedbackModel;
 import com.analytics_insights_service.analytics_insights_service.repository.FeedbackRepository;
+import com.itextpdf.kernel.colors.ColorConstants;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -9,18 +10,12 @@ import com.itextpdf.layout.element.Cell;
 import com.itextpdf.layout.element.Paragraph;
 import com.itextpdf.layout.element.Table;
 import com.itextpdf.layout.property.TextAlignment;
-
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
-import org.springframework.stereotype.Service;
-import com.itextpdf.kernel.colors.ColorConstants;
 import org.apache.poi.ss.usermodel.*;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.ss.usermodel.IndexedColors;
-
-
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -30,14 +25,15 @@ import java.util.List;
 @Service
 public class ReportGenerator {
 
+    private static final Logger logger = LoggerFactory.getLogger(ReportGenerator.class);
+
     private final FeedbackRepository feedbackRepository;
 
     public ReportGenerator(FeedbackRepository feedbackRepository) {
         this.feedbackRepository = feedbackRepository;
     }
 
-
-     public byte[] generateExcelReport(List<FeedbackModel> feedbacks) throws IOException {
+    public byte[] generateExcelReport(List<FeedbackModel> feedbacks) throws IOException {
         // Create a workbook and sheet
         XSSFWorkbook workbook = new XSSFWorkbook();
         XSSFSheet sheet = workbook.createSheet("Feedback Report");
@@ -55,15 +51,16 @@ public class ReportGenerator {
 
         // Header row
         Row headerRow = sheet.createRow(0);
-        headerRow.createCell(0).setCellValue("ID");
-        headerRow.createCell(1).setCellValue("SOP ID");
-        headerRow.createCell(2).setCellValue("User ID");
-        headerRow.createCell(3).setCellValue("Content");
-        headerRow.createCell(4).setCellValue("Response");
-        headerRow.createCell(5).setCellValue("Timestamp");
+        headerRow.createCell(0).setCellValue("SOP Title");
+        headerRow.createCell(1).setCellValue("UserName");
+        headerRow.createCell(2).setCellValue("Role");
+        headerRow.createCell(3).setCellValue("Department");
+        headerRow.createCell(4).setCellValue("Content");
+        headerRow.createCell(5).setCellValue("Response");
+        headerRow.createCell(6).setCellValue("CreatedOn");
 
         // Apply header styles to the header row
-        for (int i = 0; i < 6; i++) {
+        for (int i = 0; i < 7; i++) {
             headerRow.getCell(i).setCellStyle(headerCellStyle);
         }
 
@@ -71,12 +68,13 @@ public class ReportGenerator {
         int rowIdx = 1;
         for (FeedbackModel feedback : feedbacks) {
             Row row = sheet.createRow(rowIdx++);
-            row.createCell(0).setCellValue(feedback.getId());
-            row.createCell(1).setCellValue(feedback.getSopId());
-            row.createCell(2).setCellValue(feedback.getUserName());
-            row.createCell(3).setCellValue(feedback.getContent());
-            row.createCell(4).setCellValue(feedback.getResponse());
-            row.createCell(5).setCellValue(feedback.getTimestamp().toString());
+            row.createCell(0).setCellValue(feedback.getTitle());
+            row.createCell(1).setCellValue(feedback.getUserName());
+            row.createCell(2).setCellValue(feedback.getRole());
+            row.createCell(3).setCellValue(feedback.getDepartmentName());
+            row.createCell(4).setCellValue(feedback.getContent());
+            row.createCell(5).setCellValue(feedback.getResponse() != null ? feedback.getResponse() : "No response yet");
+            row.createCell(6).setCellValue(feedback.getTimestamp().toString());
         }
 
         // Write to byte array
@@ -87,68 +85,67 @@ public class ReportGenerator {
         return outputStream.toByteArray();
     }
 
-
     public byte[] generatePdfReport(List<FeedbackModel> feedbacks) throws IOException {
+        logger.info("Starting to generate PDF report");
+
+        // Create a new PDF document
         ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
-
-        // Initialize PDF writer
-        PdfWriter writer = new PdfWriter(outputStream);
-
-        // Initialize PDF document
-        PdfDocument pdfDocument = new PdfDocument(writer);
-
-        // Initialize layout document (correct usage of Document)
+        PdfDocument pdfDocument = new PdfDocument(new PdfWriter(outputStream));
         Document document = new Document(pdfDocument);
 
-        // Add title (green, underlined, and bold)
-        document.add(new Paragraph("Feedback Report")
-                .setBold()
-                .setFontColor(ColorConstants.GREEN)
-                .setUnderline()
-                .setFontSize(18));
+        // Add a title to the document
+        Paragraph title = new Paragraph("Feedback Report")
+                .setTextAlignment(TextAlignment.CENTER)
+                .setFontSize(20);
+        document.add(title);
 
-        // Add space between title and table
-        document.add(new Paragraph("\n"));
+        // Create a table with 7 columns
+        Table table = new Table(new float[]{4, 4, 4, 4, 8, 8, 4});
 
-        // Add generation date
-        String generationDate = "Report Generated On: " + new Date().toString();
-        document.add(new Paragraph(generationDate).setFontSize(12).setTextAlignment(TextAlignment.RIGHT));
+        // Add headers to the table
+        table.addCell(new Cell().add(new Paragraph("SOP Title")).setBackgroundColor(ColorConstants.GREEN));
+        table.addCell(new Cell().add(new Paragraph("UserName")).setBackgroundColor(ColorConstants.GREEN));
+        table.addCell(new Cell().add(new Paragraph("Role")).setBackgroundColor(ColorConstants.GREEN));
+        table.addCell(new Cell().add(new Paragraph("Department")).setBackgroundColor(ColorConstants.GREEN));
+        table.addCell(new Cell().add(new Paragraph("Content")).setBackgroundColor(ColorConstants.GREEN));
+        table.addCell(new Cell().add(new Paragraph("Response")).setBackgroundColor(ColorConstants.GREEN));
+        table.addCell(new Cell().add(new Paragraph("CreatedOn")).setBackgroundColor(ColorConstants.GREEN));
 
-        // Add space before the table
-        document.add(new Paragraph("\n"));
-
-        // Create the table with 5 columns
-        Table table = new Table(5); // Number of columns
-
-        // Add bold headers for each column
-        table.addCell(new Cell().add(new Paragraph("ID").setBold()));
-        table.addCell(new Cell().add(new Paragraph("SOP ID").setBold()));
-        table.addCell(new Cell().add(new Paragraph("User ID").setBold()));
-        table.addCell(new Cell().add(new Paragraph("Content").setBold()));
-        table.addCell(new Cell().add(new Paragraph("Response").setBold()));
-
-        // Add rows to the table
+        // Add feedback data to the table
         for (FeedbackModel feedback : feedbacks) {
-            table.addCell(feedback.getId());
-            table.addCell(feedback.getSopId());
-            table.addCell(feedback.getUserName());
-            table.addCell(feedback.getContent());
-            table.addCell(feedback.getResponse() != null ? feedback.getResponse() : "No response yet");
+            logger.debug("Processing feedback: {}", feedback);
+
+            table.addCell(new Cell().add(new Paragraph(feedback.getTitle())));
+            table.addCell(new Cell().add(new Paragraph(feedback.getUserName())));
+            table.addCell(new Cell().add(new Paragraph(feedback.getRole())));
+            table.addCell(new Cell().add(new Paragraph(feedback.getDepartmentName())));
+            table.addCell(new Cell().add(new Paragraph(feedback.getContent())));
+            table.addCell(new Cell().add(new Paragraph(feedback.getResponse() != null ? feedback.getResponse() : "No response yet")));
+            table.addCell(new Cell().add(new Paragraph(feedback.getTimestamp().toString())));
+
+            // Log each piece of data
+            logger.info("Title: {}", feedback.getTitle());
+            logger.info("UserName: {}", feedback.getUserName());
+            logger.info("Role: {}", feedback.getRole());
+            logger.info("Department: {}", feedback.getDepartmentName());
+            logger.info("Content: {}", feedback.getContent());
+            logger.info("Response: {}", feedback.getResponse() != null ? feedback.getResponse() : "No response yet");
+            logger.info("CreatedOn: {}", feedback.getTimestamp());
         }
 
-        // Add table to the document
+        // Add the table to the document
         document.add(table);
 
         // Close the document
         document.close();
 
+        logger.info("PDF report generation completed");
+
         return outputStream.toByteArray();
     }
-
 
     public List<FeedbackModel> fetchFeedbackData(Date startDate, Date endDate) {
         // Fetch feedbacks within the date range
         return feedbackRepository.findByTimestampBetween(startDate, endDate);
     }
-
 }
