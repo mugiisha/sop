@@ -80,7 +80,7 @@ public class FeedbackService {
      * Create feedback based on sopId
      */
     public ResponseEntity<ApiResponse<FeedbackModel>> createFeedback(String sopId, FeedbackModel feedbackModel, HttpServletRequest request) {
-        // Extract userId from the request header
+        // Extract userId,userRole,department from the request header
         String userId = request.getHeader("X-User-Id");
         String userRole = request.getHeader("X-User-Role");
         String departmentId = request.getHeader("X-Department-Id");
@@ -103,7 +103,8 @@ public class FeedbackService {
                 getUserInfoResponse userInfoResponse = fetchUserInfo(userId);
                 log.info("User Info Response: {}", userInfoResponse);
                 String userName = userInfoResponse.getName();
-                String profilePic = userInfoResponse.getProfilePictureUrl();// Assuming getUserName() method exists
+                String profilePic = userInfoResponse.getProfilePictureUrl();
+                String departmentName = userInfoResponse.getDepartmentName();
 
                 // Find the existing feedback by sopId
                 Optional<FeedbackModel> existingFeedbackOptional = feedbackRepository.findBySopId(sopId).stream().findFirst();
@@ -114,6 +115,7 @@ public class FeedbackService {
                     existingFeedback.setUserName(userName);
                     existingFeedback.setRole(userRole);
                     existingFeedback.setProfilePic(profilePic);
+                    existingFeedback.setDepartmentName(departmentName);
                     existingFeedback.setContent(feedbackModel.getContent());
                     existingFeedback.setTimestamp(new Date()); // Update the timestamp to the current time
                     existingFeedback.setResponse(null); // Set response to null
