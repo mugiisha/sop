@@ -32,6 +32,7 @@ public class UserInfoService extends userServiceGrpc.userServiceImplBase {
                     .setSuccess(true)
                     .setName(user.getName())
                     .setProfilePictureUrl(user.getProfilePictureUrl() != null ? user.getProfilePictureUrl() : "")
+                    .setDepartmentName(user.getDepartmentName())
                     .build();
 
             responseObserver.onNext(response);

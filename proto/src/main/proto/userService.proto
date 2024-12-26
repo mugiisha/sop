@@ -17,4 +17,5 @@ message getUserInfoResponse {
   string name = 2;
   string profilePictureUrl = 3;
   string errorMessage = 4;
+  string departmentName = 5;
 }

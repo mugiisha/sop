@@ -22,8 +22,20 @@ public class FeedbackModel {
     @NotBlank(message = "SOP ID cannot be blank")
     private String sopId; // ID of the associated SOP
 
-    @NotNull(message = "User ID cannot be null")
-    private String userId; // ObjectId referencing the user from the user database
+    @NotBlank(message = "title cannot be blank")
+    private String title;
+
+    @NotNull(message = "User Name cannot be null")
+    private String userName;
+
+    @NotNull(message = "role cannot be null")
+    private String role;
+
+    @NotNull(message = "departmentName be null")
+    private String departmentName;
+
+    @NotNull(message = "profilePic cannot be null")
+    private String profilePic;
 
     @NotBlank(message = "Content cannot be blank")
     @Size(max = 1000, message = "Content must not exceed 1000 characters")
@@ -36,10 +48,15 @@ public class FeedbackModel {
     private String response;
 
     // Constructor with all parameters
-    public FeedbackModel(String sopId, String userId, String content, String response) {
+    public FeedbackModel(String sopId, String userName, String profilePic ,String role , String departmentName,String content, String response , String title) {
         this.sopId = sopId;
-        this.userId = userId;
+        this.userName = userName;
+        this.profilePic = profilePic;
         this.content = content;
         this.response = response;
+        this.title = title;
+        this.role = role;
+        this.departmentName = departmentName;
+
     }
 }

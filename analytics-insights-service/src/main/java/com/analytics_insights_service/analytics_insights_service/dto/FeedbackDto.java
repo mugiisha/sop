@@ -9,6 +9,7 @@ import lombok.*;
 @Setter
 public class FeedbackDto {
     private String id;
+    private String title;
 
 }
 
