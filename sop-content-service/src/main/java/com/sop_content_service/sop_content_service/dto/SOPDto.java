@@ -21,7 +21,7 @@ public class SOPDto {
     private String title;
 
     @NotEmpty(message = "Visibility is required")
-    private Visibility visibility;
+    private String visibility;
 
     @NotNull(message = "Author ID is required")
     private UUID authorId;
