@@ -223,7 +223,7 @@ public class SopService {
         Sop sop = new Sop();
         sop.setId(sopDto.getId());
         sop.setTitle(sopDto.getTitle());
-        sop.setVisibility(sopDto.getVisibility());
+        sop.setVisibility(Visibility.valueOf(sopDto.getVisibility().toUpperCase()));
         sop.setCategory(sopDto.getCategory());
         sop.setDepartmentId(sopDto.getDepartmentId());
         sop.setAuthor(sopDto.getAuthorId());
