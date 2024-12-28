@@ -23,7 +23,6 @@ import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import sopVersionService.GetSopVersionsResponse;
-import sopWorkflowService.Comments;
 import sopWorkflowService.GetWorkflowStageInfoResponse;
 import sopWorkflowService.IsSOPApprovedResponse;
 import userService.getUserInfoResponse;
@@ -77,11 +76,6 @@ public class SopService {
         existingSop.setBody(sopContentDto.getBody());
         existingSop.setStatus(sopContentDto.getStatus());
 
-        // Check cover image existence
-        if (existingSop.getCoverUrl()== null && (coverImage == null || coverImage.isEmpty())) {
-            throw new BadInputRequest("Cover image is required.");
-        }
-
         if(coverImage != null && !coverImage.isEmpty()){
             String coverUrl = uploadFileToS3(coverImage);
             existingSop.setCoverUrl(coverUrl);
@@ -107,7 +101,7 @@ public class SopService {
         // prepare kafka transfer object to notify concerned users
         SOPDto sopDto = mapSOPToSOPDto(updatedSop);
 
-        if(SOPStatus.REVIEWAL.equals(updatedSop.getStatus())){
+        if(SOPStatus.UNDER_REVIEWAL.equals(updatedSop.getStatus())){
             kafkaTemplate.send("sop-reviewal-ready", sopDto);
         }else{
             kafkaTemplate.send("sop-drafted", sopDto);
