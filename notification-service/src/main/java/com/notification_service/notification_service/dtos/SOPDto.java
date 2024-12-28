@@ -1,5 +1,6 @@
 package com.notification_service.notification_service.dtos;
 
+import com.notification_service.notification_service.enums.SOPStatus;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
