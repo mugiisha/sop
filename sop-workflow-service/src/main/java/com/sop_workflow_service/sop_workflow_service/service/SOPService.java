@@ -305,7 +305,7 @@ public class SOPService {
         }
 
 
-        sop.setStatus(SOPStatus.REVIEWAL);
+        sop.setStatus(SOPStatus.UNDER_REVIEWAL);
         sopRepository.save(sop);
     }
 
