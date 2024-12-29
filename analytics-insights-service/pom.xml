@@ -38,6 +38,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
+			<version>3.3.5</version>
 			<scope>test</scope>
 		</dependency>
 		<dependency>
@@ -101,6 +102,49 @@
 			<groupId>net.devh</groupId>
 			<artifactId>grpc-spring-boot-starter</artifactId>
 			<version>3.1.0.RELEASE</version>
+		</dependency>
+
+		<!-- Jakarta Validation API -->
+		<dependency>
+			<groupId>jakarta.validation</groupId>
+			<artifactId>jakarta.validation-api</artifactId>
+			<version>3.0.2</version>
+		</dependency>
+
+		<!-- Hibernate Validator (Jakarta Bean Validation Implementation) -->
+		<dependency>
+			<groupId>org.hibernate.validator</groupId>
+			<artifactId>hibernate-validator</artifactId>
+			<version>8.0.0.Final</version>
+		</dependency>
+
+		<!-- Jakarta Expression Language for Hibernate Validator -->
+		<dependency>
+			<groupId>org.glassfish</groupId>
+			<artifactId>jakarta.el</artifactId>
+			<version>4.0.2</version>
+		</dependency>
+
+		<!-- JUnit 5 for testing -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter-engine</artifactId>
+			<version>5.10.5</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Mockito for mocking dependencies in tests -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-core</artifactId>
+			<version>3.6.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>3.6.0</version>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 	<dependencyManagement>
