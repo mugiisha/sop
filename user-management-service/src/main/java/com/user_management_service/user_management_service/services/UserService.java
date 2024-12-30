@@ -71,6 +71,11 @@ public class  UserService {
             throw new RoleServerException(response.getErrorMessage());
         }
 
+        GetRoleByUserIdResponse userRole = userRoleClientService.getUserRoles(savedUser.getId().toString());
+        if (!userRole.getSuccess()) {
+            throw new RoleServerException(userRole.getErrorMessage());
+        }
+
         CustomUserDto createdUserDto = new CustomUserDto(
                 user.getId(),
                 user.getEmail(),
@@ -83,7 +88,7 @@ public class  UserService {
 
         auditService.logUserCreation(savedUser.getId(), savedUser.getEmail());
 
-        return mapToUserResponseDTO(savedUser, "");
+        return mapToUserResponseDTO(savedUser, userRole);
     }
 
     public UserResponseDTO getUserById(UUID id) {
@@ -99,7 +104,7 @@ public class  UserService {
             throw new RoleServerException(userRole.getErrorMessage());
         }
 
-        return mapToUserResponseDTO(user, userRole.getRoleName());
+        return mapToUserResponseDTO(user, userRole);
     }
 
     @Transactional
@@ -122,9 +127,17 @@ public class  UserService {
 
         user.setUpdatedAt(LocalDateTime.now());
         User updatedUser = userRepository.save(user);
+
+        GetRoleByUserIdResponse userRole = userRoleClientService
+                .getUserRoles(updatedUser.getId().toString());
+
+        if (!userRole.getSuccess()) {
+            throw new RoleServerException(userRole.getErrorMessage());
+        }
+
         auditService.logUserUpdate(user.getId(), user.getEmail());
 
-        return mapToUserResponseDTO(updatedUser, "");
+        return mapToUserResponseDTO(updatedUser, userRole);
     }
 
     @Transactional
@@ -250,7 +263,7 @@ public class  UserService {
                     if (!userRole.getSuccess()) {
                         throw new RoleServerException(userRole.getErrorMessage());
                     }
-                    return mapToUserResponseDTO(user, userRole.getRoleName());
+                    return mapToUserResponseDTO(user, userRole);
                 })
                 .toList();
     }
@@ -263,7 +276,7 @@ public class  UserService {
                     if (!userRole.getSuccess()) {
                         throw new RoleServerException(userRole.getErrorMessage());
                     }
-                    return mapToUserResponseDTO(user, userRole.getRoleName());
+                    return mapToUserResponseDTO(user, userRole);
                 })
                 .toList();
     }
@@ -271,7 +284,14 @@ public class  UserService {
     public List<UserResponseDTO> getUnverifiedUsers() {
         log.debug("Fetching all unverified users");
         return userRepository.findByEmailVerifiedFalse().stream()
-                .map(user -> mapToUserResponseDTO(user, ""))
+                .map(user -> {
+                    GetRoleByUserIdResponse userRole = userRoleClientService
+                            .getUserRoles(user.getId().toString());
+                    if (!userRole.getSuccess()) {
+                        throw new RoleServerException(userRole.getErrorMessage());
+                    }
+                    return mapToUserResponseDTO(user, userRole);
+                })
                 .toList();
     }
 
@@ -284,7 +304,14 @@ public class  UserService {
 
         LocalDateTime cutoffDate = LocalDateTime.now().minusDays(days);
         return userRepository.findByLastLoginBeforeOrLastLoginIsNull(cutoffDate).stream()
-                .map(user -> mapToUserResponseDTO(user, ""))
+                .map(user -> {
+                    GetRoleByUserIdResponse userRole = userRoleClientService
+                            .getUserRoles(user.getId().toString());
+                    if (!userRole.getSuccess()) {
+                        throw new RoleServerException(userRole.getErrorMessage());
+                    }
+                    return mapToUserResponseDTO(user, userRole);
+                })
                 .toList();
     }
 
@@ -335,7 +362,7 @@ public class  UserService {
         notificationPreferenceRepository.save(preferences);
     }
 
-    private UserResponseDTO mapToUserResponseDTO(User user, String roleName) {
+    private UserResponseDTO mapToUserResponseDTO(User user, GetRoleByUserIdResponse userRole) {
         UserResponseDTO dto = new UserResponseDTO();
         dto.setId(user.getId());
         dto.setName(user.getName());
@@ -345,7 +372,8 @@ public class  UserService {
         dto.setProfilePictureUrl(user.getProfilePictureUrl());
         dto.setActive(user.isActive());
         dto.setEmailVerified(user.isEmailVerified());
-        dto.setRoleName(roleName);
+        dto.setRoleId(userRole.getRoleId());
+        dto.setRoleName(userRole.getRoleName());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
         return dto;

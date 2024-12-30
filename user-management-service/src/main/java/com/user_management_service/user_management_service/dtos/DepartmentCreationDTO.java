@@ -7,6 +7,5 @@ import lombok.Data;
 public class DepartmentCreationDTO {
     @NotBlank(message = "Department name is required")
     private String name;
-
     private String description;
 }

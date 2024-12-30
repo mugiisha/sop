@@ -19,6 +19,7 @@ public class UserResponseDTO {
     private String profilePictureUrl;
     private boolean active;
     private boolean emailVerified;
+    private String roleId;
     private String roleName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
