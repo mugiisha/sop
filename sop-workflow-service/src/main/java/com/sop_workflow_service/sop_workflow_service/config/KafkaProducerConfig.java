@@ -1,7 +1,6 @@
 package com.sop_workflow_service.sop_workflow_service.config;
 
 import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
-import com.sop_workflow_service.sop_workflow_service.dto.SOPResponseDto;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
 import org.springframework.beans.factory.annotation.Value;

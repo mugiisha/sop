@@ -8,6 +8,10 @@ import com.user_management_service.user_management_service.utils.PasswordGenerat
 import com.user_management_service.user_management_service.validation.PasswordValidator;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,13 +29,13 @@ import java.util.UUID;
 public class  UserService {
     private final UserRepository userRepository;
     private final DepartmentRepository departmentRepository;
-    private final NotificationPreferenceRepository notificationPreferenceRepository;
     private final PasswordEncoder passwordEncoder;
     private final AuditService auditService;
     private final UserRoleClientService userRoleClientService;
     private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
 
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public UserResponseDTO registerUser(UserRegistrationDTO registrationDTO) {
         log.info("Registering new user with email: {}", registrationDTO.getEmail());
 
@@ -108,6 +112,7 @@ public class  UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "users", allEntries = true)
     public UserResponseDTO updateUser(UUID id, UserUpdateDTO updateDTO) {
         log.info("Updating user with ID: {}", id);
 
@@ -202,6 +207,7 @@ public class  UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "{users,inactiveUsers}", allEntries = true)
     public void deactivateUser(UUID id) {
         log.info("Deactivating user with ID: {}", id);
 
@@ -226,6 +232,7 @@ public class  UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "{users,inactiveUsers}", allEntries = true)
     public void activateUser(UUID id) {
         log.info("activating user with ID: {}", id);
 
@@ -249,6 +256,7 @@ public class  UserService {
         auditService.logUserDeactivation(user.getId(), user.getEmail());
     }
 
+    @Cacheable(value = "users", key = "#departmentId")
     public List<UserResponseDTO> getUsersByDepartment(UUID departmentId) {
         log.debug("Fetching users for department ID: {}", departmentId);
 
@@ -268,6 +276,7 @@ public class  UserService {
                 .toList();
     }
 
+    @Cacheable(value = "users")
     public List<UserResponseDTO> getUsers() {
         return userRepository.findAll().stream()
                 .map(user -> {
@@ -281,6 +290,7 @@ public class  UserService {
                 .toList();
     }
 
+    @Cacheable(value = "unverifiedUsers")
     public List<UserResponseDTO> getUnverifiedUsers() {
         log.debug("Fetching all unverified users");
         return userRepository.findByEmailVerifiedFalse().stream()
@@ -295,6 +305,7 @@ public class  UserService {
                 .toList();
     }
 
+    @Cacheable(value = "inactiveUsers")
     public List<UserResponseDTO> getInactiveUsers(int days) {
         log.debug("Fetching users inactive for {} days", days);
 
@@ -315,52 +326,6 @@ public class  UserService {
                 .toList();
     }
 
-    public NotificationPreferenceDTO getNotificationPreferences(UUID userId) {
-        log.debug("Fetching notification preferences for user ID: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        NotificationPreference preferences = notificationPreferenceRepository
-                .findByUserId(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Notification preferences not found"));
-
-        return mapToNotificationPreferenceDTO(preferences);
-    }
-
-    @Transactional
-    public NotificationPreferenceDTO updateNotificationPreferences(
-            UUID userId,
-            NotificationPreferenceDTO preferencesDTO) {
-        log.info("Updating notification preferences for user ID: {}", userId);
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-
-        NotificationPreference preferences = notificationPreferenceRepository
-                .findByUserId(userId)
-                .orElseGet(() -> {
-                    NotificationPreference newPref = new NotificationPreference();
-                    newPref.setUser(user);
-                    return newPref;
-                });
-
-        preferences.setEmailEnabled(preferencesDTO.isEmailEnabled());
-        preferences.setInAppEnabled(preferencesDTO.isInAppEnabled());
-
-        NotificationPreference savedPreferences = notificationPreferenceRepository.save(preferences);
-        auditService.logNotificationPreferenceUpdate(user.getId(), user.getEmail());
-
-        return mapToNotificationPreferenceDTO(savedPreferences);
-    }
-
-    private void createDefaultNotificationPreferences(User user) {
-        NotificationPreference preferences = new NotificationPreference();
-        preferences.setUser(user);
-        preferences.setEmailEnabled(true);
-        preferences.setInAppEnabled(true);
-        notificationPreferenceRepository.save(preferences);
-    }
 
     private UserResponseDTO mapToUserResponseDTO(User user, GetRoleByUserIdResponse userRole) {
         UserResponseDTO dto = new UserResponseDTO();
@@ -376,14 +341,6 @@ public class  UserService {
         dto.setRoleName(userRole.getRoleName());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setUpdatedAt(user.getUpdatedAt());
-        return dto;
-    }
-
-    private NotificationPreferenceDTO mapToNotificationPreferenceDTO(NotificationPreference preferences) {
-        NotificationPreferenceDTO dto = new NotificationPreferenceDTO();
-        dto.setUserId(preferences.getUser().getId());
-        dto.setEmailEnabled(preferences.isEmailEnabled());
-        dto.setInAppEnabled(preferences.isInAppEnabled());
         return dto;
     }
 }
