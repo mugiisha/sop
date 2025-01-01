@@ -142,25 +142,6 @@ public class UserController {
         return ResponseEntity.ok(userService.getInactiveUsers(days));
     }
 
-    @GetMapping("/{userId}/notification-preferences")
-    @Operation(summary = "Get user notification preferences")
-    @ApiResponse(responseCode = "200", description = "Preferences retrieved successfully")
-    @ApiResponse(responseCode = "404", description = "User or preferences not found")
-    public ResponseEntity<NotificationPreferenceDTO> getNotificationPreferences(
-            @PathVariable UUID userId) {
-        return ResponseEntity.ok(userService.getNotificationPreferences(userId));
-    }
-
-    @PutMapping("/{userId}/notification-preferences")
-    @Operation(summary = "Update user notification preferences")
-    @ApiResponse(responseCode = "200", description = "Preferences updated successfully")
-    @ApiResponse(responseCode = "404", description = "User not found")
-    public ResponseEntity<NotificationPreferenceDTO> updateNotificationPreferences(
-            @PathVariable UUID userId,
-            @Valid @RequestBody NotificationPreferenceDTO preferencesDTO) {
-        return ResponseEntity.ok(userService.updateNotificationPreferences(userId, preferencesDTO));
-    }
-
     @GetMapping("/me")
     @Operation(summary = "Get current user information")
     @ApiResponse(responseCode = "200", description = "Current user information retrieved")
@@ -180,22 +161,4 @@ public class UserController {
         return ResponseEntity.ok(userService.updateUser(userId, updateDTO));
     }
 
-    @GetMapping("/me/notification-preferences")
-    @Operation(summary = "Get current user notification preferences")
-    @ApiResponse(responseCode = "200", description = "Current user preferences retrieved")
-    public ResponseEntity<NotificationPreferenceDTO> getCurrentUserNotificationPreferences(
-            @Parameter(hidden = true)
-            @RequestAttribute("userId") UUID userId) {
-        return ResponseEntity.ok(userService.getNotificationPreferences(userId));
-    }
-
-    @PutMapping("/me/notification-preferences")
-    @Operation(summary = "Update current user notification preferences")
-    @ApiResponse(responseCode = "200", description = "Current user preferences updated")
-    public ResponseEntity<NotificationPreferenceDTO> updateCurrentUserNotificationPreferences(
-            @Parameter(hidden = true)
-            @RequestAttribute("userId") UUID userId,
-            @Valid @RequestBody NotificationPreferenceDTO preferencesDTO) {
-        return ResponseEntity.ok(userService.updateNotificationPreferences(userId, preferencesDTO));
-    }
 }

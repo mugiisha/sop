@@ -1,16 +1,22 @@
 package com.user_management_service.user_management_service.dtos;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.Data;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
+import java.io.Serial;
+import java.io.Serializable;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.UUID;
 
 @Data
-public class UserResponseDTO {
+public class UserResponseDTO implements Serializable {
+    @Serial
+    private static final long serialVersionUID = 1L;
+
     private UUID id;
     private String name;
     private String email;
@@ -24,6 +30,7 @@ public class UserResponseDTO {
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
+    @JsonIgnore
     public Collection<? extends GrantedAuthority> getAuthorities() {
         // Convert the Role enum to a Spring Security GrantedAuthority
         if (roleName != null) {

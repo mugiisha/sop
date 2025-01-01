@@ -1,7 +1,6 @@
 package com.sop_workflow_service.sop_workflow_service.controller;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
 import com.sop_workflow_service.sop_workflow_service.dto.ReviewSOPDto;
-import com.sop_workflow_service.sop_workflow_service.dto.SOPResponseDto;
 import com.sop_workflow_service.sop_workflow_service.model.SOP;
 import com.sop_workflow_service.sop_workflow_service.service.SOPService;
 import com.sop_workflow_service.sop_workflow_service.utils.Response;
@@ -33,24 +32,24 @@ public class SOPController {
 
     // Get SOP by ID
     @GetMapping("/{id}")
-    public Response<SOPResponseDto> getSOP(@PathVariable String id) {
-        SOPResponseDto sop = sopService.getSOP(id);
+    public Response<SOP> getSOP(@PathVariable String id) {
+        SOP sop = sopService.getSOP(id);
         return new Response<>(true, "SOP retrieved successfully", sop);
     }
 
     // Get  SOPs
     @GetMapping
-    public Response<List<SOPResponseDto>> getSOPs(HttpServletRequest request) {
+    public Response<List<SOP>> getSOPs(HttpServletRequest request) {
         String departmentId = request.getHeader("X-Department-Id");
-        List<SOPResponseDto> sops = sopService.getSops(UUID.fromString(departmentId));
+        List<SOP> sops = sopService.getSops(UUID.fromString(departmentId));
 
         return new Response<>(true, "SOPs retrieved successfully", sops);
     }
 
     // Get all SOPs by admin
     @GetMapping("/all")
-    public Response<List<SOPResponseDto>> getAllSOPs() {
-        List<SOPResponseDto> sops = sopService.getAllSops();
+    public Response<List<SOP>> getAllSOPs() {
+        List<SOP> sops = sopService.getAllSops();
         return new Response<>(true, "SOPs retrieved successfully", sops);
     }
 
