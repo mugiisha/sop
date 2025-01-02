@@ -62,6 +62,7 @@ public class SopService {
         this.versionClientService = versionClientService;
     }
 
+    @CacheEvict(value = "sops", allEntries = true)
     public Sop addSopContent(String sopId,
                              List<MultipartFile> documents,
                              MultipartFile coverImage,
