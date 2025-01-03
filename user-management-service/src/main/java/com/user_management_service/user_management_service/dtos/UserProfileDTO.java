@@ -1,10 +1,15 @@
 package com.user_management_service.user_management_service.dtos;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class UserProfileDTO {
     private UUID id;
     private String name;
