@@ -10,6 +10,10 @@ import com.role_access_control_service.role_access_control_service.utils.excepti
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -33,12 +37,19 @@ public class RoleAssignmentService {
                 this.roleRepository = roleRepository;
         }
 
+        @CacheEvict(value = "roleAssignments", allEntries = true)
         public RoleAssignment assignRole(AssignRoleDto assignRoleDto) {
                         log.info("Assigning role to user");
                         RoleAssignment roleAssignment = formatValidRoleAssignment(assignRoleDto);
                         return roleAssignmentRepository.save(roleAssignment);
         }
 
+        @Caching(
+                put = {
+                        @CachePut(value = "roleAssignments", key = "#assignRoleDto.userId"),
+                        @CachePut(value = "roleAssignments", key = "{#assignRoleDto.roleId, #assignRoleDto.departmentId}")
+                }
+        )
         public RoleAssignment updateRoleAssignment(AssignRoleDto assignRoleDto) throws NotFoundException, AlreadyExistsException {
 
                         log.info("Updating role assignment");
@@ -58,7 +69,7 @@ public class RoleAssignmentService {
                         return roleAssignmentRepository.save(roleAssignment);
         }
 
-
+        @Cacheable(value = "roleAssignments", key = "#userId")
         public RoleAssignment getUserRoles(UUID userId) throws NotFoundException {
 
             log.info("Retrieving role by user id");
@@ -66,6 +77,7 @@ public class RoleAssignmentService {
                     .findByUserId(userId).orElseThrow(() -> new NotFoundException(ASSIGNMENT_NOT_FOUND));
         }
 
+        @CacheEvict(value = "roleAssignments", allEntries = true)
         public void deleteRoleAssignment(UUID userId) {
             log.info("Deleting user role");
             RoleAssignment roleAssignment = getUserRoles(userId);
@@ -73,6 +85,7 @@ public class RoleAssignmentService {
             roleAssignmentRepository.delete(roleAssignment);
         }
 
+        @Cacheable(value = "roleAssignments",  key = "{#roleId, #departmentId}")
         public List<RoleAssignment> getRoleAssignmentsByRoleIdAndDepartmentId(UUID roleId, UUID departmentId) throws NotFoundException {
                   log.info("getting user roles by role id and department id");
                    roleRepository.findById(roleId)

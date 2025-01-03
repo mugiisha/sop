@@ -12,6 +12,7 @@ import java.util.UUID;
 @NoArgsConstructor
 @AllArgsConstructor
 public class StageDto {
+    private UUID userId;
     private String name;
     private String profilePictureUrl;
     private ApprovalStatus status;

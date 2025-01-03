@@ -8,6 +8,9 @@ import com.role_access_control_service.role_access_control_service.utils.excepti
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.CachePut;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,6 +32,7 @@ public class RoleService {
         this.roleRepository = roleRepository;
     }
 
+    @CacheEvict(value = "roles", allEntries = true)
     public Role createRole(CreateRoleDto createRoleDto) throws AlreadyExistsException {
 
             log.info("Creating role");
@@ -47,6 +51,7 @@ public class RoleService {
 
     }
 
+    @Cacheable(value = "roles", key = "#roleId")
     public Role getRoleById(UUID roleId) throws NotFoundException {
 
         log.info("Retrieving role with id");
@@ -58,6 +63,7 @@ public class RoleService {
                 });
     }
 
+    @CacheEvict(value = "roles", allEntries = true)
     public Role updateRole(UUID roleId, CreateRoleDto createRoleDto) throws NotFoundException {
 
         log.info("Updating role");
@@ -73,6 +79,7 @@ public class RoleService {
 
     }
 
+    @CacheEvict(value = "roles", allEntries = true)
     public void deleteRole(UUID roleId) throws NotFoundException {
 
         log.info("Deleting role");
@@ -86,11 +93,13 @@ public class RoleService {
             roleRepository.deleteById(roleId);
     }
 
+    @Cacheable(value = "roles")
     public List<Role> getAllRoles() {
              log.info("Retrieving all roles");
             return roleRepository.findAll();
     }
 
+    @Cacheable(value = "roles", key = "#roleName")
     public Role getRoleByRoleName(String roleName) throws NotFoundException {
 
             log.info("Retrieving role with name");

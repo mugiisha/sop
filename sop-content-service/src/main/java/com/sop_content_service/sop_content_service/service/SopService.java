@@ -111,8 +111,6 @@ public class SopService {
     }
 
 
-//      @return List of SOPs
-
     // public get sops getting
     public List<SOPResponseDto>  getSops(UUID departmentId){
         log.info("Getting SOPs with departmentId: {}", departmentId);
@@ -129,7 +127,6 @@ public class SopService {
     }
 
     //      @return List of SOPs for admin
-
     public List<SOPResponseDto> getAllSops() {
         log.info("Fetching all SOPs");
         List<Sop> sops =  sopRepository.findAllByOrderByCreatedAtDesc();
@@ -144,7 +141,6 @@ public class SopService {
     }
 
 
-    //    @throws SopNotFoundException if the SOP is not found
     public SOPResponseDto getSopById(String sopId) {
         log.info("Fetching SOP with ID: {}", sopId);
         Sop sop = sopRepository.findById(sopId)
@@ -153,8 +149,7 @@ public class SopService {
         return mapSOPToSOPResponseDto(sop);
     }
 
-
-    public Sop publishSop(String sopId) {
+    public SOPResponseDto publishSop(String sopId) {
         Optional<Sop> sop = sopRepository.findById(sopId);
         if (sop.isEmpty()) {
             throw new SopNotFoundException("SOP with id " + sopId + " not found.");
@@ -182,7 +177,7 @@ public class SopService {
         PublishedSopDto publishedSopDto = mapSopTopublishedSopDto(updatedSop);
         kafkaTemplate.send("sop-published", publishedSopDto);
 
-        return updatedSop;
+        return mapSOPToSOPResponseDto(updatedSop);
     }
 
     private String uploadFileToS3(MultipartFile file) {
@@ -324,6 +319,7 @@ public class SopService {
         }
 
         StageDto stageDto = new StageDto();
+        stageDto.setUserId(userId);
         stageDto.setName(userInfo.getName());
         stageDto.setProfilePictureUrl(userInfo.getProfilePictureUrl());
         stageDto.setStatus(ApprovalStatus.valueOf(stageInfo.getStatus()));

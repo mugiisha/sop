@@ -48,9 +48,9 @@ public class SopCreationController {
     }
 
     @PutMapping("/{sopId}/publish")
-    public ResponseEntity<ApiResponse<Sop>> publishSop(@PathVariable String sopId) {
-        Sop sop = sopService.publishSop(sopId);
-        ApiResponse<Sop> response = new ApiResponse<>("SOP published successfully.", sop);
+    public ResponseEntity<ApiResponse<SOPResponseDto>> publishSop(@PathVariable String sopId) {
+        SOPResponseDto sop = sopService.publishSop(sopId);
+        ApiResponse<SOPResponseDto> response = new ApiResponse<>("SOP published successfully.", sop);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
 

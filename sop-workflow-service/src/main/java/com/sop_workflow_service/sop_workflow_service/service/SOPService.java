@@ -2,8 +2,6 @@ package com.sop_workflow_service.sop_workflow_service.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.sop_workflow_service.sop_workflow_service.dto.PublishedSopDto;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
-import com.sop_workflow_service.sop_workflow_service.dto.SOPResponseDto;
-import com.sop_workflow_service.sop_workflow_service.dto.StageDto;
 import com.sop_workflow_service.sop_workflow_service.enums.ApprovalStatus;
 import com.sop_workflow_service.sop_workflow_service.enums.Roles;
 import com.sop_workflow_service.sop_workflow_service.enums.SOPStatus;
@@ -20,6 +18,9 @@ import com.sop_workflow_service.sop_workflow_service.utils.exception.BadRequestE
 import com.sop_workflow_service.sop_workflow_service.utils.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -38,7 +39,6 @@ public class SOPService {
     private final SOPRepository sopRepository;
     private final WorkflowStageRepository workflowStageRepository;
     private final CategoryService categoryService;
-    private final UserInfoClientService userInfoClientService;
     private final KafkaTemplate<String, SOPDto> kafkaTemplate;
     private final CommentRepository commentRepository;
 
@@ -95,46 +95,34 @@ public class SOPService {
     }
 
     // Get SOP by ID with updated Workflow Stages
-    public SOPResponseDto getSOP(String id) {
+    @Cacheable(value = "sop", key = "#id")
+    public SOP getSOP(String id) {
         log.info("Getting SOP with id: {}", id);
 
-        SOP sop = sopRepository.findById(id)
+       return sopRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
-
-        return mapSOPToSOPResponseDto(sop);
-
     }
 
     // public get sops getting
-    public List<SOPResponseDto>  getSops(UUID departmentId){
+    @Cacheable(value = "sops", key = "#departmentId")
+    public List<SOP>  getSops(UUID departmentId){
         log.info("Getting SOPs with departmentId: {}", departmentId);
 
-        List<SOP> sops = sopRepository.findByDepartmentIdOrVisibilityOrderByCreatedAtDesc(departmentId, Visibility.PUBLIC);
-
-        List<SOPResponseDto> formattedSops = new ArrayList<>();
-
-        for(SOP sop: sops){
-            formattedSops.add(mapSOPToSOPResponseDto(sop));
-        }
-
-        return formattedSops;
+        return sopRepository.findByDepartmentIdOrVisibilityOrderByCreatedAtDesc(departmentId, Visibility.PUBLIC);
     }
 
     // Get All SOPs
-    public List<SOPResponseDto> getAllSops() {
+    public List<SOP> getAllSops() {
         log.info("Fetching all SOPs");
-        List<SOP> sops =  sopRepository.findAllByOrderByCreatedAtDesc();
-
-        List<SOPResponseDto> formattedSops = new ArrayList<>();
-
-        for(SOP sop: sops){
-            formattedSops.add(mapSOPToSOPResponseDto(sop));
-        }
-
-        return formattedSops;
+       return sopRepository.findAllByOrderByCreatedAtDesc();
     }
 
     // Delete SOP
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void deleteSOP(String id) {
         SOP sop = sopRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
@@ -145,6 +133,7 @@ public class SOPService {
         kafkaTemplate.send("sop-deleted", sopDto);
     }
 
+    @Cacheable(value = "stages", key = "{#userId, #sopId}")
     public WorkflowStage getStageByUserIdAndSopId(UUID userId, String sopId) {
         return workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId)
                 .orElseThrow(() -> new NotFoundException("Stage not found"));
@@ -152,13 +141,18 @@ public class SOPService {
 
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public SOP reviewSOP(String sopId, UUID userId, String comment, ApprovalStatus approvalStatus) {
 
         SOP sop = sopRepository.findById(sopId)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
 
-        if(sop.getStatus() == SOPStatus.DRAFTED){
-            throw new BadRequestException("SOP is not yet ready for review");
+        if(sop.getStatus() != SOPStatus.UNDER_REVIEWAL ){
+            throw new BadRequestException("SOP is not under reviewal stage");
         }
 
         Optional<WorkflowStage> optionalStage = workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId);
@@ -211,6 +205,11 @@ public class SOPService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public SOP approveSOP(String sopId, UUID userId, String comment, ApprovalStatus approvalStatus) {
 
         SOP sop = sopRepository.findById(sopId)
@@ -272,6 +271,11 @@ public class SOPService {
 
 
     @KafkaListener(topics = "sop-drafted")
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void sopDraftedListener(String data) throws JsonProcessingException {
 
         SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
@@ -286,6 +290,11 @@ public class SOPService {
     }
 
     @KafkaListener(topics = "sop-reviewal-ready")
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void sopReviewalReadyListener(String data) throws JsonProcessingException {
 
         SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
@@ -310,6 +319,11 @@ public class SOPService {
     }
 
     @KafkaListener(topics = "sop-published")
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void sopPublishedListener(String data) throws JsonProcessingException {
 
         PublishedSopDto publishedSopDto = DtoConverter.publishedSopDtoFromJson(data);
@@ -333,62 +347,6 @@ public class SOPService {
         stage.setUpdatedAt(LocalDateTime.now());
         return stage;
     }
-
-    private StageDto createStageDto(WorkflowStage stage) {
-        if (stage == null) {
-            return null;
-        }
-        getUserInfoResponse userInfo = userInfoClientService.getUserInfo(stage.getUserId().toString());
-
-        if(!userInfo.getSuccess()){
-            log.error("Error fetching user info: {}", userInfo.getErrorMessage());
-        }
-
-        StageDto stageDto = new StageDto();
-        stageDto.setUserId(stage.getUserId());
-        stageDto.setName(userInfo.getName());
-        stageDto.setProfilePictureUrl(userInfo.getProfilePictureUrl());
-        stageDto.setRoleRequired(stage.getRoleRequired());
-        stageDto.setStatus(stage.getApprovalStatus().name());
-
-        if(stage.getComments() != null){
-            stageDto.setComments(stage.getComments().stream().map(Comment::getContent).collect(Collectors.toList()));
-        }
-        return stageDto;
-    }
-
-
-    // map sop to an object including assigned users profiles
-    public SOPResponseDto mapSOPToSOPResponseDto(SOP sop) {
-        List<WorkflowStage> stages = workflowStageRepository.findBySopId(sop.getId());
-
-        SOPResponseDto response = new SOPResponseDto();
-        response.setId(sop.getId());
-        response.setTitle(sop.getTitle());
-        response.setStatus(sop.getStatus());
-        response.setCategory(sop.getCategory().getName());
-        response.setCreatedAt(sop.getCreatedAt());
-        response.setUpdatedAt(sop.getUpdatedAt());
-
-        List<StageDto> reviewers = new ArrayList<>();
-
-
-        for (WorkflowStage stage : stages) {
-            StageDto stageDto = createStageDto(stage);
-            if (stage.getRoleRequired() == Roles.AUTHOR) {
-                response.setAuthor(stageDto);
-            } else if (stage.getRoleRequired() == Roles.REVIEWER) {
-                reviewers.add(stageDto);
-            } else if (stage.getRoleRequired() == Roles.APPROVER) {
-                response.setApprover(stageDto);
-            }
-        }
-
-        response.setReviewers(reviewers);
-
-        return response;
-    }
-
 
     public SOPDto mapSOPToSOPDto(SOP sop) {
         SOPDto sopDto = new SOPDto();
