@@ -80,40 +80,33 @@ public class FeedbackService {
      * Create feedback based on sopId
      */
     public ResponseEntity<ApiResponse<FeedbackModel>> createFeedback(String sopId, FeedbackModel feedbackModel, HttpServletRequest request) {
-        // Extract userId, userRole, and department from the request header
         String userId = request.getHeader("X-User-Id");
         String userRole = request.getHeader("X-User-Role");
         String departmentId = request.getHeader("X-Department-Id");
         log.info("departmentId: {}", departmentId);
 
-        // Check if the user ID header is missing
         if (userId == null || userId.isEmpty()) {
             ApiResponse<FeedbackModel> response = new ApiResponse<>("User ID header is missing", null);
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
         try {
-            // Check if feedback with the same sopId exists
             boolean sopExists = feedbackRepository.existsBySopId(sopId);
             if (sopExists) {
-                // Fetch user information
                 getUserInfoResponse userInfoResponse = fetchUserInfo(userId);
                 log.info("User Info Response: {}", userInfoResponse);
                 String userName = userInfoResponse.getName();
                 String profilePic = userInfoResponse.getProfilePictureUrl();
                 String departmentName = userInfoResponse.getDepartmentName();
 
-                // Find all feedbacks by sopId
                 List<FeedbackModel> existingFeedbacks = feedbackRepository.findBySopId(sopId);
 
-                // Check if a feedback by the same username exists
                 boolean userFeedbackExists = existingFeedbacks.stream()
-                        .anyMatch(feedback -> feedback.getUserName().equals(userName));
+                        .anyMatch(feedback -> userName != null && userName.equals(feedback.getUserName()));
 
                 if (userFeedbackExists) {
-                    // Update the existing feedback
                     Optional<FeedbackModel> existingFeedbackOptional = existingFeedbacks.stream()
-                            .filter(feedback -> feedback.getUserName().equals(userName))
+                            .filter(feedback -> userName != null && userName.equals(feedback.getUserName()))
                             .findFirst();
 
                     if (existingFeedbackOptional.isPresent()) {
@@ -123,19 +116,20 @@ public class FeedbackService {
                         existingFeedback.setProfilePic(profilePic);
                         existingFeedback.setDepartmentName(departmentName);
                         existingFeedback.setContent(feedbackModel.getContent());
-                        existingFeedback.setTimestamp(new Date()); // Update the timestamp
-                        existingFeedback.setResponse(null); // Set response to null
+                        existingFeedback.setTimestamp(new Date());
+                        existingFeedback.setResponse(null);
 
                         FeedbackModel updatedFeedback = feedbackRepository.save(existingFeedback);
+                        deleteNullFeedbacks(sopId);
                         ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback updated successfully", updatedFeedback);
                         return new ResponseEntity<>(response, HttpStatus.OK);
                     }
                 } else {
-                    log.info("feedbackModel.getTitle())",feedbackModel.getTitle());
-                    // Create new feedback for the same sopId but different username
                     FeedbackModel newFeedback = new FeedbackModel();
                     newFeedback.setSopId(sopId);
-                    newFeedback.setTitle(feedbackModel.getTitle());
+                    newFeedback.setTitle(
+                            !existingFeedbacks.isEmpty() ? existingFeedbacks.get(0).getTitle() : feedbackModel.getTitle()
+                    );
                     newFeedback.setUserName(userName);
                     newFeedback.setRole(userRole);
                     newFeedback.setProfilePic(profilePic);
@@ -144,6 +138,7 @@ public class FeedbackService {
                     newFeedback.setTimestamp(new Date());
 
                     FeedbackModel savedFeedback = feedbackRepository.save(newFeedback);
+                    deleteNullFeedbacks(sopId);
                     ApiResponse<FeedbackModel> response = new ApiResponse<>("New feedback created successfully", savedFeedback);
                     return new ResponseEntity<>(response, HttpStatus.CREATED);
                 }
@@ -152,14 +147,26 @@ public class FeedbackService {
                 return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
             }
         } catch (Exception e) {
+            log.error("Error creating feedback: ", e);
             ApiResponse<FeedbackModel> response = new ApiResponse<>("Failed to create feedback: " + e.getMessage(), null);
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
 
-        // Default return to handle unexpected cases
+        // Add a default return statement as a fallback
         ApiResponse<FeedbackModel> response = new ApiResponse<>("Unexpected error occurred", null);
         return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
     }
+
+    /**
+     * Delete feedbacks with null content
+     */
+    private void deleteNullFeedbacks(String sopId) {
+        List<FeedbackModel> feedbacks = feedbackRepository.findBySopId(sopId);
+        feedbacks.stream()
+                .filter(feedback -> feedback.getContent() == null || feedback.getContent().isEmpty())
+                .forEach(feedbackRepository::delete);
+    }
+
 
 
     /**
