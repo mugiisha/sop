@@ -1,6 +1,7 @@
 package com.version_control_service.version_control_service.controller;
 
 import com.version_control_service.version_control_service.dto.RevertVersionDto;
+import com.version_control_service.version_control_service.dto.SopVersionDto;
 import com.version_control_service.version_control_service.model.Version;
 import com.version_control_service.version_control_service.service.SopVersionService;
 import com.version_control_service.version_control_service.utils.Response;
@@ -28,8 +29,8 @@ public class VersionController {
     }
 
     @GetMapping("/{sopId}")
-    public Response<List<Version>> getVersionsBySopId(@PathVariable String sopId) {
-        List<Version> versions = sopVersionService.getSopVersionsById(sopId);
+    public Response<List<SopVersionDto>> getVersionsBySopId(@PathVariable String sopId) {
+        List<SopVersionDto> versions = sopVersionService.getSopVersions(sopId);
         return new Response<>(true, "Versions fetched successfully", versions);
     }
 
