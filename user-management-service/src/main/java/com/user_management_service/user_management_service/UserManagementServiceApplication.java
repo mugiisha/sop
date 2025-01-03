@@ -6,6 +6,8 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
+import java.util.TimeZone;
+
 @EnableScheduling
 @SpringBootApplication
 @ConfigurationPropertiesScan
@@ -13,6 +15,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 public class UserManagementServiceApplication {
 
 	public static void main(String[] args) {
+		TimeZone.setDefault(TimeZone.getTimeZone("Africa/Harare"));
 		SpringApplication.run(UserManagementServiceApplication.class, args);
 	}
 

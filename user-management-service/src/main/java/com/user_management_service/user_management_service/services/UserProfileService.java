@@ -27,7 +27,7 @@ public class UserProfileService {
     private final AuditService auditService;
     private final S3Service s3Service;
 
-    @Cacheable(value = "userProfiles", key = "#id")
+    @Cacheable(value = "userProfiles", key = "#userId")
     public UserProfileDTO getUserProfile(UUID userId) {
         log.debug("Fetching user profile for ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -36,7 +36,7 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CachePut(value = "userProfiles", key = "#id")
+    @CachePut(value = "userProfiles", key = "#userId")
     public UserProfileDTO updateProfile(UUID userId, UserProfileUpdateDTO updateDTO) {
         log.info("Updating profile for user ID: {}", userId);
         User user = userRepository.findById(userId)
@@ -60,7 +60,7 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CachePut(value = "userProfiles", key = "#id")
+    @CachePut(value = "userProfiles", key = "#userId")
     public UserProfileDTO updateProfilePicture(UUID userId, MultipartFile file) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -83,7 +83,7 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CachePut(value = "userProfiles", key = "#id")
+    @CachePut(value = "userProfiles", key = "#userId")
     public UserProfileDTO removeProfilePicture(UUID userId) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -99,7 +99,7 @@ public class UserProfileService {
     }
 
     @Transactional
-    @CachePut(value = "userProfiles", key = "#id")
+    @CachePut(value = "userProfiles", key = "#userId")
     public void updatePassword(UUID userId, PasswordUpdateDTO passwordUpdateDTO) {
         log.info("Updating password for user ID: {}", userId);
         User user = userRepository.findById(userId)
