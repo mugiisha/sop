@@ -135,7 +135,7 @@ public class FeedbackService {
                     // Create new feedback for the same sopId but different username
                     FeedbackModel newFeedback = new FeedbackModel();
                     newFeedback.setSopId(sopId);
-                    newFeedback.setTitle();
+                    newFeedback.setTitle(feedbackModel.getTitle());
                     newFeedback.setUserName(userName);
                     newFeedback.setRole(userRole);
                     newFeedback.setProfilePic(profilePic);
