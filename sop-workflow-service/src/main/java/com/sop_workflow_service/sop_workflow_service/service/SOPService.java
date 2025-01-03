@@ -18,6 +18,9 @@ import com.sop_workflow_service.sop_workflow_service.utils.exception.BadRequestE
 import com.sop_workflow_service.sop_workflow_service.utils.exception.NotFoundException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -92,6 +95,7 @@ public class SOPService {
     }
 
     // Get SOP by ID with updated Workflow Stages
+    @Cacheable(value = "sop", key = "#id")
     public SOP getSOP(String id) {
         log.info("Getting SOP with id: {}", id);
 
@@ -100,6 +104,7 @@ public class SOPService {
     }
 
     // public get sops getting
+    @Cacheable(value = "sops", key = "#departmentId")
     public List<SOP>  getSops(UUID departmentId){
         log.info("Getting SOPs with departmentId: {}", departmentId);
 
@@ -113,6 +118,11 @@ public class SOPService {
     }
 
     // Delete SOP
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void deleteSOP(String id) {
         SOP sop = sopRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
@@ -123,6 +133,7 @@ public class SOPService {
         kafkaTemplate.send("sop-deleted", sopDto);
     }
 
+    @Cacheable(value = "stages", key = "{#userId, #sopId}")
     public WorkflowStage getStageByUserIdAndSopId(UUID userId, String sopId) {
         return workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId)
                 .orElseThrow(() -> new NotFoundException("Stage not found"));
@@ -130,13 +141,18 @@ public class SOPService {
 
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public SOP reviewSOP(String sopId, UUID userId, String comment, ApprovalStatus approvalStatus) {
 
         SOP sop = sopRepository.findById(sopId)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
 
-        if(sop.getStatus() == SOPStatus.DRAFTED || sop.getStatus() == SOPStatus.INITIALIZED  ){
-            throw new BadRequestException("SOP is not yet ready for review");
+        if(sop.getStatus() != SOPStatus.UNDER_REVIEWAL ){
+            throw new BadRequestException("SOP is not under reviewal stage");
         }
 
         Optional<WorkflowStage> optionalStage = workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId);
@@ -189,6 +205,11 @@ public class SOPService {
     }
 
     @Transactional
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public SOP approveSOP(String sopId, UUID userId, String comment, ApprovalStatus approvalStatus) {
 
         SOP sop = sopRepository.findById(sopId)
@@ -250,6 +271,11 @@ public class SOPService {
 
 
     @KafkaListener(topics = "sop-drafted")
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void sopDraftedListener(String data) throws JsonProcessingException {
 
         SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
@@ -264,6 +290,11 @@ public class SOPService {
     }
 
     @KafkaListener(topics = "sop-reviewal-ready")
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void sopReviewalReadyListener(String data) throws JsonProcessingException {
 
         SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
@@ -288,6 +319,11 @@ public class SOPService {
     }
 
     @KafkaListener(topics = "sop-published")
+    @Caching(evict = {
+            @CacheEvict(value = "sop", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true),
+            @CacheEvict(value = "stages", allEntries = true)
+    })
     public void sopPublishedListener(String data) throws JsonProcessingException {
 
         PublishedSopDto publishedSopDto = DtoConverter.publishedSopDtoFromJson(data);

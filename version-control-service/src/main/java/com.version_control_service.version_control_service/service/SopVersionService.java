@@ -13,6 +13,8 @@ import com.version_control_service.version_control_service.utils.DtoConverter;
 import com.version_control_service.version_control_service.utils.exception.NotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class SopVersionService {
 
     @KafkaListener(topics = "sop-published")
     @Transactional
+    @CacheEvict(value = "sop-versions", allEntries = true)
     public void updateSopVersion(String data) throws JsonProcessingException {
 
         PublishedSopDto publishedSopDto = DtoConverter.publishedSopDtoFromJson(data);
@@ -52,7 +55,7 @@ public class SopVersionService {
 
         //save first version if it's a newly published SOP
         if (existingVersionedSop != null){
-            Version version = versionRepository.findBySopIdAndCurrentVersion(publishedSopDto.getId(), true);
+            Version version = versionRepository.findFirstBySopIdAndCurrentVersion(publishedSopDto.getId(), true);
             version.setCurrentVersion(false);
             versionRepository.save(version);
 
@@ -68,9 +71,10 @@ public class SopVersionService {
     }
 
     @Transactional
+    @CacheEvict(value = "sop-versions", allEntries = true)
     public Version revertSopVersion(String sopId, Float versionNumber){
-        Version currentVersion = versionRepository.findBySopIdAndCurrentVersion(sopId,true);
-        Version version = versionRepository.findByVersionNumber(versionNumber);
+        Version currentVersion = versionRepository.findFirstBySopIdAndCurrentVersion(sopId,true);
+        Version version = versionRepository.findFirstBySopIdAndVersionNumber(sopId,versionNumber);
 
         if(version == null){
             throw new NotFoundException("Can't revert to a not found version "+ versionNumber);
@@ -110,11 +114,7 @@ public class SopVersionService {
         return version;
     }
 
-
-    public List<Version> getSopVersionsById(String id) {
-        return versionRepository.findAllBySopId(id);
-    }
-
+    @Cacheable(value = "sop-versions", key ="#id")
     public List<SopVersionDto> getSopVersions(String id) {
         List<Version> versions = versionRepository.findAllBySopId(id);
         List<SopVersionDto> sopVersionDtos = new ArrayList<>();

@@ -1,4 +1,4 @@
-package com.sop_content_service.sop_content_service.config;
+package com.sop_workflow_service.sop_workflow_service.config;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;

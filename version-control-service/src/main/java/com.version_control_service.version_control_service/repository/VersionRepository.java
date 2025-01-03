@@ -8,8 +8,8 @@ import java.util.List;
 
 @Repository
 public interface VersionRepository extends MongoRepository<Version, String> {
-    Version findBySopIdAndCurrentVersion(String sopId, boolean isCurrentVersion);
-    Version findByVersionNumber(Float versionNumber);
+    Version findFirstBySopIdAndCurrentVersion(String sopId, boolean isCurrentVersion);
+    Version findFirstBySopIdAndVersionNumber(String sopId,Float versionNumber);
     Version findTopBySopIdOrderByVersionNumberDesc(String sopId);
     List<Version> findAllBySopIdAndVersionNumberIn(String sopId,List<Float> versionNumbers);
     List<Version> findAllBySopId(String sopId);

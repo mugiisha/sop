@@ -18,9 +18,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.CachePut;
-import org.springframework.cache.annotation.Cacheable;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
@@ -62,7 +59,6 @@ public class SopService {
         this.versionClientService = versionClientService;
     }
 
-    @CacheEvict(value = "sops", allEntries = true)
     public Sop addSopContent(String sopId,
                              List<MultipartFile> documents,
                              MultipartFile coverImage,
@@ -116,7 +112,6 @@ public class SopService {
 
 
     // public get sops getting
-    @Cacheable(value = "sops")
     public List<SOPResponseDto>  getSops(UUID departmentId){
         log.info("Getting SOPs with departmentId: {}", departmentId);
 
@@ -146,7 +141,6 @@ public class SopService {
     }
 
 
-    @Cacheable(value = "sops", key = "#sopId")
     public SOPResponseDto getSopById(String sopId) {
         log.info("Fetching SOP with ID: {}", sopId);
         Sop sop = sopRepository.findById(sopId)
@@ -155,7 +149,6 @@ public class SopService {
         return mapSOPToSOPResponseDto(sop);
     }
 
-    @CacheEvict(value = "sops", allEntries = true)
     public SOPResponseDto publishSop(String sopId) {
         Optional<Sop> sop = sopRepository.findById(sopId);
         if (sop.isEmpty()) {
@@ -209,7 +202,6 @@ public class SopService {
 
 
     @KafkaListener(topics = "sop-created")
-    @CacheEvict(value = "sops", allEntries = true)
     public void sopCreatedListener(String data) throws JsonProcessingException {
         log.info("Received sop initiated event: {}", data);
 
@@ -236,7 +228,6 @@ public class SopService {
     }
 
     @KafkaListener(topics = "sop-version-reverted")
-    @CacheEvict(value = "sops", allEntries = true)
     public void sopVersionRevertedListener(String data) throws JsonProcessingException {
         log.info("Received sop version reverted event: {}", data);
 
@@ -267,7 +258,6 @@ public class SopService {
     }
 
     @KafkaListener(topics = "sop-deleted")
-    @CacheEvict(value = "sops", allEntries = true)
     public void sopDeletedListener(String data) throws JsonProcessingException{
         log.info("Received sop deleted event: {}", data);
         // Convert JSON string to DTO

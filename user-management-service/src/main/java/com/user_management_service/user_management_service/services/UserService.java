@@ -35,7 +35,7 @@ public class  UserService {
     private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
 
     @Transactional
-    @CacheEvict(value = "users", allEntries = true)
+    @CacheEvict(value = "user", allEntries = true)
     public UserResponseDTO registerUser(UserRegistrationDTO registrationDTO) {
         log.info("Registering new user with email: {}", registrationDTO.getEmail());
 
@@ -95,6 +95,7 @@ public class  UserService {
         return mapToUserResponseDTO(savedUser, userRole);
     }
 
+    @Cacheable(value = "user", key = "#id")
     public UserResponseDTO getUserById(UUID id) {
         log.debug("Fetching user by ID: {}", id);
 
@@ -112,7 +113,7 @@ public class  UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "users", allEntries = true)
+    @CachePut(value = "user", key = "#id")
     public UserResponseDTO updateUser(UUID id, UserUpdateDTO updateDTO) {
         log.info("Updating user with ID: {}", id);
 
@@ -181,6 +182,7 @@ public class  UserService {
     }
 
     @Transactional
+    @CacheEvict(value = "user", allEntries = true)
     public void changePassword(UUID userId, PasswordChangeDTO dto) {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -207,7 +209,7 @@ public class  UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "{users,inactiveUsers}", allEntries = true)
+    @CacheEvict(value = "user", allEntries = true)
     public void deactivateUser(UUID id) {
         log.info("Deactivating user with ID: {}", id);
 
@@ -232,7 +234,7 @@ public class  UserService {
     }
 
     @Transactional
-    @CacheEvict(value = "{users,inactiveUsers}", allEntries = true)
+    @CacheEvict(value = "user", allEntries = true)
     public void activateUser(UUID id) {
         log.info("activating user with ID: {}", id);
 
@@ -256,7 +258,6 @@ public class  UserService {
         auditService.logUserDeactivation(user.getId(), user.getEmail());
     }
 
-    @Cacheable(value = "users", key = "#departmentId")
     public List<UserResponseDTO> getUsersByDepartment(UUID departmentId) {
         log.debug("Fetching users for department ID: {}", departmentId);
 
@@ -276,7 +277,6 @@ public class  UserService {
                 .toList();
     }
 
-    @Cacheable(value = "users")
     public List<UserResponseDTO> getUsers() {
         return userRepository.findAll().stream()
                 .map(user -> {
@@ -290,7 +290,6 @@ public class  UserService {
                 .toList();
     }
 
-    @Cacheable(value = "unverifiedUsers")
     public List<UserResponseDTO> getUnverifiedUsers() {
         log.debug("Fetching all unverified users");
         return userRepository.findByEmailVerifiedFalse().stream()
@@ -305,7 +304,6 @@ public class  UserService {
                 .toList();
     }
 
-    @Cacheable(value = "inactiveUsers")
     public List<UserResponseDTO> getInactiveUsers(int days) {
         log.debug("Fetching users inactive for {} days", days);
 
