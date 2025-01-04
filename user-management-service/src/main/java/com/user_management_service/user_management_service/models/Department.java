@@ -1,5 +1,5 @@
 package com.user_management_service.user_management_service.models;
-
+//import com.user_management_service.user_management_service.models.User;
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;

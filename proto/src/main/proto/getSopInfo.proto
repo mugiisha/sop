@@ -10,29 +10,66 @@ service SopService {
 }
 
 message GetSopDetailsRequest {
-  string sopId = 1; // Fetch details of a single SOP by ID
+  string sopId = 1;
 }
 
 message GetSopDetailsResponse {
-  string title = 1;
-  string visibility = 2;
-  string initiationDate = 3;  // Maps to `createdAt` in the model
-  string completionDate = 4; // Maps to `updatedAt` in the model
+  string id = 1;
+  repeated string documentUrls = 2;
+  string coverUrl = 3;
+  string title = 4;
+  string description = 5;
+  string body = 6;
+  string category = 7;
+  string departmentId = 8;
+  string visibility = 9;
+  string status = 10;
+  repeated SopVersion versions = 11;
+  repeated Stage reviewers = 12;
+  Stage approver = 13;
+  Stage author = 14;
+  string createdAt = 15;
+  string updatedAt = 16;
+}
+
+message SopVersion {
+  float versionNumber = 1;  // Changed from int32 to float
+  bool currentVersion = 2;
+}
+
+message Stage {
+  string name = 1;
+  string profilePictureUrl = 2;
+  string status = 3;
+  repeated Comment comments = 4;
+}
+
+message Comment {
+  string commentId = 1;
+  string comment = 2;
+  string createdAt = 3;
 }
 
 message GetAllSopDetailsRequest {
-  string filter = 1; // Optional: Use for filtering SOPs (e.g., by visibility or date range)
+  string filter = 1;
+}
+
+message GetAllSopDetailsResponse {
+  repeated SopDetails sopDetails = 1;
 }
 
 message SopDetails {
   string sopId = 1;
   string title = 2;
-  string initiatedBy = 3;   // Matches the "Initiated By" column
-  string visibility = 4;    // Matches the "Visibility" column
-  string initiationDate = 5; // Matches the "Initiation" column
-  string completionDate = 6; // Matches the "Completion" column
-}
-
-message GetAllSopDetailsResponse {
-  repeated SopDetails sopDetails = 1; // List of SOP details for populating the table
+  string description = 3;
+  string body = 4;
+  string category = 5;
+  string departmentId = 6;
+  string visibility = 7;
+  string status = 8;
+  repeated string documentUrls = 9;
+  string coverUrl = 10;
+  string initiatedBy = 11;
+  string createdAt = 12;
+  string updatedAt = 13;
 }
