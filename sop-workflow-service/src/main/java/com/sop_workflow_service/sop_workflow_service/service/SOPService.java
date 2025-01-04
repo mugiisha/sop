@@ -40,7 +40,7 @@ public class SOPService {
     private final WorkflowStageRepository workflowStageRepository;
     private final CategoryService categoryService;
     private final KafkaTemplate<String, SOPDto> kafkaTemplate;
-    private final CommentRepository commentRepository;
+    private final CommentService commentService;
 
 
     @Transactional
@@ -172,21 +172,20 @@ public class SOPService {
         stage.setUpdatedAt(LocalDateTime.now());
 
         if (comment != null) {
-            Comment newComment = new Comment();
-            newComment.setUserId(userId);
-            newComment.setStageId(stage.getId());
-            newComment.setContent(comment);
-            newComment.setCreatedAt(LocalDateTime.now());
-            newComment.setUpdatedAt(LocalDateTime.now());
-            Comment savedComment = commentRepository.save(newComment);
+            Comment newComment = commentService.saveComment(userId, stage.getId(), comment);
             // Ensure comments list is initialized if no comment is present
             if (stage.getComments() == null) {
                 stage.setComments(new ArrayList<>());
             }
-            stage.getComments().add(savedComment);
+            stage.getComments().add(newComment);
         }
 
         workflowStageRepository.save(stage);
+        SOPDto sopDto = mapSOPToSOPDto(sop);
+
+        if(approvalStatus == ApprovalStatus.REVISION){
+            kafkaTemplate.send("sop-revision", sopDto);
+        }
 
         List<WorkflowStage> stages = workflowStageRepository.findBySopId(sopId);
 
@@ -197,7 +196,6 @@ public class SOPService {
 
         if(allReviewersReviewed){
             //notify approver
-            SOPDto sopDto = mapSOPToSOPDto(sop);
             kafkaTemplate.send("sop-reviewed", sopDto);
         }
 
@@ -242,23 +240,23 @@ public class SOPService {
         stage.setUpdatedAt(LocalDateTime.now());
 
         if (comment != null) {
-            Comment newComment = new Comment();
-            newComment.setUserId(userId);
-            newComment.setContent(comment);
-            newComment.setCreatedAt(LocalDateTime.now());
-            newComment.setUpdatedAt(LocalDateTime.now());
-            Comment savedComment = commentRepository.save(newComment);
+            Comment newComment = commentService.saveComment(userId, stage.getId(), comment);
             // Ensure comments list is initialized if no comment is present
             if (stage.getComments() == null) {
                 stage.setComments(new ArrayList<>());
             }
 
-            stage.getComments().add(savedComment);
+            stage.getComments().add(newComment);
         }
 
         workflowStageRepository.save(stage);
 
         SOPDto sopDto = mapSOPToSOPDto(sop);
+
+        if(approvalStatus == ApprovalStatus.REVISION){
+            kafkaTemplate.send("sop-revision", sopDto);
+        }
+
         kafkaTemplate.send("sop-approved", sopDto);
 
         return sop;
