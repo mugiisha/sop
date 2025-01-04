@@ -18,6 +18,7 @@ import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -42,7 +43,7 @@ public class NotificationService {
         notification.setType(createNotificationDto.getType());
         notification.setSopId(createNotificationDto.getSopId());
         notification.setSopTitle(createNotificationDto.getSopTitle());
-        notification.setCreatedAt(LocalDateTime.now().toString());
+        notification.setCreatedAt(new Date());
 
         notificationRepository.save(notification);
 
@@ -396,6 +397,43 @@ public class NotificationService {
                         sopDto.getTitle(),
                         sopDto.getId(),
                         "sop-approved-approver"
+                );
+            }
+
+        } catch (Exception e) {
+            log.error("Failed to create and send notification for sop: {}", data, e);
+        }
+    }
+
+    @KafkaListener(topics = "sop-revision")
+    void sopRevisionListener(String data) {
+        try {
+            log.info("Received sop revision event: {}", data);
+
+            SOPDto sopDto = DtoConverter.sopDtoFromJson(data);
+            UUID authorId = sopDto.getAuthorId();
+
+            // Check author's preferences before we create and send notification for the author
+            NotificationPreferences authorPreferences = notificationPreferencesService.getUserNotificationPreferences(authorId);
+
+            if (authorPreferences.isAllSOPAlertsEnabled() || authorPreferences.isAuthorAlertsEnabled()) {
+                CreateNotificationDto authorNotificationDto = prepareNotificationDto(
+                        authorId,
+                        NotificationType.SOP_CHANGES_REQUESTED,
+                        "An author/approver has requested changes on the sop  " + sopDto.getTitle() +"  you wrote.",
+                        sopDto.getId(),
+                        sopDto.getTitle()
+                );
+
+                createAndSendNotification(authorNotificationDto);
+                emailService.sendSOPWorkflowEmail(
+                        authorPreferences.getEmail(),
+                        "Author",
+                        "Author",
+                        "SOP changes requested",
+                        sopDto.getTitle(),
+                        sopDto.getId(),
+                        "sop-changes-requested"
                 );
             }
 
