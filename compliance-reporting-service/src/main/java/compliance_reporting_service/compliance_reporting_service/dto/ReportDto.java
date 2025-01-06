@@ -20,4 +20,8 @@ public class ReportDto {
 
     private Date createdAt;
     private Date updatedAt;
+
+    private String authorId;
+    private List<String> reviewerIds;
+    private String approverId;
 }

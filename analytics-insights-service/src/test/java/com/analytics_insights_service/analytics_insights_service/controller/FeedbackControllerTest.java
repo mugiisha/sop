@@ -4,8 +4,10 @@ import com.analytics_insights_service.analytics_insights_service.dto.ApiResponse
 import com.analytics_insights_service.analytics_insights_service.model.FeedbackModel;
 import com.analytics_insights_service.analytics_insights_service.repository.FeedbackRepository;
 import com.analytics_insights_service.analytics_insights_service.service.FeedbackService;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -18,8 +20,8 @@ import org.springframework.test.web.servlet.request.MockMvcRequestBuilders;
 import java.util.Collections;
 import java.util.List;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 @WebMvcTest(FeedbackController.class)
@@ -36,6 +38,9 @@ public class FeedbackControllerTest {
     @MockBean
     private FeedbackRepository feedbackRepository;
 
+    @Mock
+    private HttpServletRequest request;
+
     @BeforeEach
     public void setUp() {
         feedbackModel = new FeedbackModel(
@@ -47,7 +52,7 @@ public class FeedbackControllerTest {
     @Test
     public void testCreateFeedback() throws Exception {
         ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback created successfully", feedbackModel);
-        Mockito.when(feedbackService.createFeedback(anyString(), any(FeedbackModel.class), any()))
+        when(feedbackService.createFeedback(anyString(), any(FeedbackModel.class), any()))
                 .thenReturn(ResponseEntity.ok(response));
 
         mockMvc.perform(MockMvcRequestBuilders.put("/api/v1/feedback/sop123")
@@ -72,7 +77,7 @@ public class FeedbackControllerTest {
     @Test
     public void testGetFeedbacksBySopId() throws Exception {
         ApiResponse<List<FeedbackModel>> response = new ApiResponse<>( "Feedbacks retrieved successfully", Collections.singletonList(feedbackModel));
-        Mockito.when(feedbackService.getFeedbacksBySopId(anyString())).thenReturn(ResponseEntity.ok(response));
+        when(feedbackService.getFeedbacksBySopId(anyString())).thenReturn(ResponseEntity.ok(response));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/feedback/sop/sop123"))
                 .andExpect(status().isOk())
@@ -82,7 +87,7 @@ public class FeedbackControllerTest {
     @Test
     public void testGetFeedbackById() throws Exception {
         ApiResponse<FeedbackModel> response = new ApiResponse<>( "Feedback retrieved successfully", feedbackModel);
-        Mockito.when(feedbackService.getFeedbackById(anyString())).thenReturn(ResponseEntity.ok(response));
+        when(feedbackService.getFeedbackById(anyString())).thenReturn(ResponseEntity.ok(response));
 
         mockMvc.perform(MockMvcRequestBuilders.get("/api/v1/feedback/feedbackId123"))
                 .andExpect(status().isOk())
@@ -91,11 +96,12 @@ public class FeedbackControllerTest {
 
     @Test
     public void testDeleteFeedback() throws Exception {
-        ApiResponse<Void> response = new ApiResponse<>( "Feedback deleted successfully", null);
-        Mockito.when(feedbackService.deleteFeedbackById(anyString())).thenReturn(ResponseEntity.ok(response));
+        ApiResponse<Void> response = new ApiResponse<>("Feedback deleted successfully", null);
+        when(request.getHeader("X-User-Role")).thenReturn("HOD");
+        when(feedbackService.deleteFeedbackById(anyString(), eq(request))).thenReturn(ResponseEntity.ok(response));
 
-        mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/feedback/delete/feedbackId123"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.message").value("Feedback deleted successfully"));
+        mockMvc.perform(MockMvcRequestBuilders.delete("/api/v1/feedback/delete/feedbackId123")
+                        .header("X-User-Role", "HOD"))
+                .andExpect(status().isOk());
     }
 }

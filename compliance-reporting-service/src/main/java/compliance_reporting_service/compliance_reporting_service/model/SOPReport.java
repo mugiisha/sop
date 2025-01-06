@@ -8,6 +8,8 @@ import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDate;
 import java.util.Date;
+import java.util.List;
+import java.util.UUID;
 
 @Data
 @Document(collection = "sop_reports")
@@ -16,11 +18,16 @@ public class SOPReport {
     private String id;
     private String SopId;
     private String title;
-    private String initiatedBy;
     private String visibility;
     private int reads;
     private Date createdAt;
-    private Date updateAt;
+    private Date updatedAt;
+
+
+    private UUID authorId;
+    private List<UUID> reviewers;
+    private UUID approverId;
+
 
 
 }
