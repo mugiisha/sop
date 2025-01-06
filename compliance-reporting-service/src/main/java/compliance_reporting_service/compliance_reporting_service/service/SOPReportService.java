@@ -4,10 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import compliance_reporting_service.compliance_reporting_service.dto.ReportDto;
 import compliance_reporting_service.compliance_reporting_service.dto.ReportResponseDto;
-
-
 import compliance_reporting_service.compliance_reporting_service.dto.SOPDto;
 import compliance_reporting_service.compliance_reporting_service.model.SOPReport;
 import compliance_reporting_service.compliance_reporting_service.repository.SOPReportRepository;
@@ -45,19 +42,14 @@ public class SOPReportService {
             topics = "sop-created",
             groupId = "compliance-reporting-service"
     )
-    /**
-     * Consumer method for the Kafka topic sop-created
-     */
     public void ReportCreatedListener(String data) throws JsonProcessingException {
         log.info("Received SOP created event: {}", data);
         try {
             ObjectMapper objectMapper = new ObjectMapper();
             objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
 
-            // Convert the incoming data to a ReportDto using the ObjectMapper
             SOPDto sopDto = objectMapper.readValue(data, SOPDto.class);
 
-            // Create a new ReportModel and set its fields from the DTO
             SOPReport sopReport = new SOPReport();
             sopReport.setId(new ObjectId().toString());
             sopReport.setSopId(sopDto.getId());
@@ -69,66 +61,68 @@ public class SOPReportService {
             sopReport.setReviewers(sopDto.getReviewers());
             sopReport.setApproverId(sopDto.getApproverId());
 
-
-
-
-            // Save the model to the database
             repository.save(sopReport);
-            log.info("Saved Feedback model: {}", sopReport);
+            log.info("Saved SOPReport model: {}", sopReport);
         } catch (Exception e) {
             log.error("Error processing SOP created event: {}", e.getMessage(), e);
         }
     }
 
-    // Read All
     public List<ReportResponseDto> findAll() {
-        List<SOPReport> sopReport = repository.findAll();
+        List<SOPReport> sopReports = repository.findAll();
         List<ReportResponseDto> reportResponseDtos = new ArrayList<>();
 
-        for (SOPReport report : sopReport) {
+        for (SOPReport report : sopReports) {
             reportResponseDtos.add(mapReportToReportResponseDTO(report));
         }
 
         return reportResponseDtos;
     }
-    // Fetch a report by its ID
+
     public SOPReport findReportById(String reportId) {
-        return repository.findById(reportId).orElse(null); // Fetch the report by ID using repository
+        return repository.findById(reportId).orElse(null);
     }
 
-    // Mapping SOPReport to ReportResponseDto
-
     public ReportResponseDto mapReportToReportResponseDTO(SOPReport sopReport) {
-        // Fetch versions response
         GetSopVersionsResponse versionsResponse = versionClientService.GetSopVersions(sopReport.getSopId());
         if (!versionsResponse.getSuccess()) {
-            log.error("Error fetching versions for sop with id: {}", sopReport.getSopId());
+            log.error("Error fetching versions for SOP with id: {}", sopReport.getSopId());
         }
 
-        // Fetch user information (assuming you have access to userId from sopReport or elsewhere)
-
-        getUserInfoResponse authorInfo = userInfoClientService.getUserInfo(sopReport.getAuthorId().toString());
-        if (!authorInfo.getSuccess()) {
-            log.error("Error fetching user info: {}", authorInfo.getErrorMessage());
+        String authorName = "Unknown";
+        if (sopReport.getAuthorId() != null) {
+            getUserInfoResponse authorInfo = userInfoClientService.getUserInfo(sopReport.getAuthorId().toString());
+            if (authorInfo.getSuccess()) {
+                authorName = authorInfo.getName();
+            } else {
+                log.error("Error fetching author info: {}", authorInfo.getErrorMessage());
+            }
         }
 
-        getUserInfoResponse approverInfo = userInfoClientService.getUserInfo(sopReport.getApproverId().toString());
-        if (!approverInfo.getSuccess()) {
-            log.error("Error fetching user info: {}", approverInfo.getErrorMessage());
+        String approverName = "Unknown";
+        if (sopReport.getApproverId() != null) {
+            getUserInfoResponse approverInfo = userInfoClientService.getUserInfo(sopReport.getApproverId().toString());
+            if (approverInfo.getSuccess()) {
+                approverName = approverInfo.getName();
+            } else {
+                log.error("Error fetching approver info: {}", approverInfo.getErrorMessage());
+            }
         }
 
         List<String> reviewersInfo = new ArrayList<>();
-
-        for(UUID reviewerId : sopReport.getReviewers()){
-            getUserInfoResponse reviewerInfo = userInfoClientService.getUserInfo(reviewerId.toString());
-            if (!reviewerInfo.getSuccess()) {
-                log.error("Error fetching user info: {}", reviewerInfo.getErrorMessage());
+        if (sopReport.getReviewers() != null) {
+            for (UUID reviewerId : sopReport.getReviewers()) {
+                if (reviewerId != null) {
+                    getUserInfoResponse reviewerInfo = userInfoClientService.getUserInfo(reviewerId.toString());
+                    if (reviewerInfo.getSuccess()) {
+                        reviewersInfo.add(reviewerInfo.getName());
+                    } else {
+                        log.error("Error fetching reviewer info: {}", reviewerInfo.getErrorMessage());
+                    }
+                }
             }
-            reviewersInfo.add(reviewerInfo.getName());
         }
 
-
-        // Map to DTO
         return ReportResponseDto
                 .builder()
                 .reportId(sopReport.getId())
@@ -138,10 +132,9 @@ public class SOPReportService {
                 .updatedAt(sopReport.getUpdatedAt())
                 .reads(sopReport.getReads())
                 .visibility(sopReport.getVisibility())
-                .author(authorInfo.getName()) // Add userId to the response
-                .approver(approverInfo.getName())
+                .author(authorName)
+                .approver(approverName)
                 .reviewers(reviewersInfo)
                 .build();
     }
-
 }
