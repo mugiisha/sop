@@ -1,4 +1,4 @@
-package com.sop_recommendation_service.sop_recommendation_service.dtos;
+package com.sop_content_service.sop_content_service.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

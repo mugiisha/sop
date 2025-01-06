@@ -3,8 +3,7 @@ package com.sop_recommendation_service.sop_recommendation_service.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.sop_recommendation_service.sop_recommendation_service.dtos.RecommendationDTO;
-import com.sop_recommendation_service.sop_recommendation_service.dtos.SimilarSopDTO;
+import com.sop_recommendation_service.sop_recommendation_service.dtos.*;
 import com.sop_recommendation_service.sop_recommendation_service.exceptions.RecommendationException;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -13,10 +12,9 @@ import reactor.core.publisher.Mono;
 import reactor.util.function.Tuples;
 import sopFromWorkflow.GetAllSopDetailsResponse;
 import sopFromWorkflow.SopDetails;
+import userService.getUserInfoResponse;
 
-import java.util.Base64;
-import java.util.Collections;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -29,7 +27,7 @@ public class RecommendationService {
     private final UserInfoClientService userClientService;
     private final ObjectMapper objectMapper;
 
-    public Mono<List<?>> getPersonalizedRecommendations(String authToken) {
+    public Mono<RecommendationResponse> getPersonalizedRecommendations(String authToken) {
         return extractTokenPayload(authToken)
                 .flatMap(tokenData -> Mono.zip(
                         Mono.just(tokenData),
@@ -38,12 +36,12 @@ public class RecommendationService {
                 ))
                 .flatMap(tuple -> {
                     JsonNode tokenData = tuple.getT1();
+                    getUserInfoResponse userInfo = tuple.getT2();
                     GetAllSopDetailsResponse sopDetails = tuple.getT3();
 
                     if (sopDetails == null || sopDetails.getSopDetailsList() == null ||
                             sopDetails.getSopDetailsList().isEmpty()) {
-                        log.warn("No SOPs found for recommendation generation");
-                        return Mono.just(Collections.emptyList());
+                        return createEmptyResponse("No SOPs found for recommendation generation");
                     }
 
                     String prompt = geminiClientService.buildPersonalizedPrompt(
@@ -52,18 +50,20 @@ public class RecommendationService {
                             sopDetails.getSopDetailsList()
                     );
                     return geminiClientService.generateRecommendations(prompt)
-                            .map(this::parseRecommendations)
-                            .doOnNext(recommendations ->
-                                    log.debug("Generated {} personalized recommendations",
-                                            recommendations.size()));
+                            .map(response -> parseRecommendations(response, sopDetails.getSopDetailsList()))
+                            .map(recommendations -> createSuccessResponse(
+                                    recommendations,
+                                    "personalized",
+                                    "Successfully generated recommendations"
+                            ));
                 })
                 .onErrorResume(e -> {
                     log.error("Error generating personalized recommendations", e);
-                    return Mono.error(new RecommendationException("Failed to generate personalized recommendations", e));
+                    return createErrorResponse("Failed to generate personalized recommendations");
                 });
     }
 
-    public Mono<List<?>> getSimilarSOPs(String sopId, String authToken) {
+    public Mono<RecommendationResponse> getSimilarSOPs(String sopId, String authToken) {
         return extractTokenPayload(authToken)
                 .flatMap(tokenData -> Mono.fromCallable(() -> sopClientService.getAllSopDetails())
                         .map(allSops -> Tuples.of(tokenData, allSops)))
@@ -72,7 +72,7 @@ public class RecommendationService {
 
                     if (allSops == null || allSops.getSopDetailsList() == null ||
                             allSops.getSopDetailsList().isEmpty()) {
-                        return Mono.just(Collections.emptyList());
+                        return createEmptyResponse("No SOPs found for similarity comparison");
                     }
 
                     SopDetails sourceSop = findSourceSop(allSops, sopId);
@@ -81,24 +81,26 @@ public class RecommendationService {
                             allSops.getSopDetailsList()
                     );
                     return geminiClientService.generateRecommendations(prompt)
-                            .map(this::parseSimilarSops)
-                            .doOnNext(recommendations ->
-                                    log.debug("Found {} similar SOPs",
-                                            recommendations.size()));
+                            .map(response -> parseSimilarSops(response, allSops.getSopDetailsList()))
+                            .map(recommendations -> createSuccessResponse(
+                                    recommendations,
+                                    "similar",
+                                    "Successfully found similar SOPs"
+                            ));
                 })
                 .onErrorResume(e -> {
                     log.error("Error finding similar SOPs", e);
-                    return Mono.error(new RecommendationException("Failed to find similar SOPs", e));
+                    return createErrorResponse("Failed to find similar SOPs");
                 });
     }
 
-    public Mono<List<?>> getDepartmentRecommendations(String departmentId, String authToken) {
+    public Mono<RecommendationResponse> getDepartmentRecommendations(String departmentId, String authToken) {
         return extractTokenPayload(authToken)
                 .flatMap(tokenData -> Mono.fromCallable(() -> sopClientService.getAllSopDetails()))
                 .flatMap(allSops -> {
                     if (allSops == null || allSops.getSopDetailsList() == null ||
                             allSops.getSopDetailsList().isEmpty()) {
-                        return Mono.just(Collections.emptyList());
+                        return createEmptyResponse("No SOPs found for department recommendations");
                     }
 
                     List<SopDetails> departmentSops = allSops.getSopDetailsList().stream()
@@ -106,41 +108,45 @@ public class RecommendationService {
                             .collect(Collectors.toList());
 
                     if (departmentSops.isEmpty()) {
-                        return Mono.just(Collections.emptyList());
+                        return createEmptyResponse("No SOPs found for the specified department");
                     }
 
                     String prompt = geminiClientService.buildDepartmentPrompt(departmentId, departmentSops);
                     return geminiClientService.generateRecommendations(prompt)
-                            .map(this::parseRecommendations)
-                            .doOnNext(recommendations ->
-                                    log.debug("Generated {} department recommendations",
-                                            recommendations.size()));
+                            .map(response -> parseRecommendations(response, departmentSops))
+                            .map(recommendations -> createSuccessResponse(
+                                    recommendations,
+                                    "department",
+                                    "Successfully generated department recommendations"
+                            ));
                 })
                 .onErrorResume(e -> {
                     log.error("Error generating department recommendations", e);
-                    return Mono.error(new RecommendationException("Failed to generate department recommendations", e));
+                    return createErrorResponse("Failed to generate department recommendations");
                 });
     }
 
-    public Mono<List<?>> getTrendingSOPs(String authToken) {
+    public Mono<RecommendationResponse> getTrendingSOPs(String authToken) {
         return extractTokenPayload(authToken)
                 .flatMap(tokenData -> Mono.fromCallable(() -> sopClientService.getAllSopDetails()))
                 .flatMap(allSops -> {
                     if (allSops == null || allSops.getSopDetailsList() == null ||
                             allSops.getSopDetailsList().isEmpty()) {
-                        return Mono.just(Collections.emptyList());
+                        return createEmptyResponse("No SOPs found for trending recommendations");
                     }
 
                     String prompt = geminiClientService.buildTrendingPrompt(allSops.getSopDetailsList());
                     return geminiClientService.generateRecommendations(prompt)
-                            .map(this::parseRecommendations)
-                            .doOnNext(recommendations ->
-                                    log.debug("Generated {} trending recommendations",
-                                            recommendations.size()));
+                            .map(response -> parseRecommendations(response, allSops.getSopDetailsList()))
+                            .map(recommendations -> createSuccessResponse(
+                                    recommendations,
+                                    "trending",
+                                    "Successfully generated trending recommendations"
+                            ));
                 })
                 .onErrorResume(e -> {
                     log.error("Error generating trending SOPs", e);
-                    return Mono.error(new RecommendationException("Failed to generate trending SOPs", e));
+                    return createErrorResponse("Failed to generate trending SOPs");
                 });
     }
 
@@ -165,106 +171,266 @@ public class RecommendationService {
         }
     }
 
-    private List<RecommendationDTO> parseRecommendations(String response) {
+    private List<RecommendationDTO> parseRecommendations(String response, List<SopDetails> existingSops) {
         try {
-            JsonNode root;
-            try {
-                root = objectMapper.readTree(response);
-            } catch (JsonProcessingException e) {
-                int jsonStart = response.indexOf("{");
-                int jsonEnd = response.lastIndexOf("}");
-                if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                    String jsonPart = response.substring(jsonStart, jsonEnd + 1);
-                    root = objectMapper.readTree(jsonPart);
-                } else {
-                    log.error("Failed to find valid JSON in response: {}", response);
-                    return Collections.emptyList();
-                }
-            }
-
+            JsonNode root = parseJsonResponse(response);
             JsonNode recommendationsNode = root.path("recommendations");
+
             if (!recommendationsNode.isArray()) {
                 log.error("No recommendations array found in response: {}", response);
                 return Collections.emptyList();
             }
 
+            Map<String, SopDetails> sopsByTitle = existingSops.stream()
+                    .collect(Collectors.toMap(
+                            SopDetails::getTitle,
+                            sop -> sop,
+                            (sop1, sop2) -> sop1  // In case of duplicate titles, keep the first one
+                    ));
+
             return StreamSupport.stream(recommendationsNode.spliterator(), false)
                     .map(node -> {
-                        String title = node.path("title").asText("");
-                        double score = node.path("score").asDouble(0.0);
-                        String reason = node.path("reason").asText("No reason provided");
+                        try {
+                            String title = extractTitle(node);
+                            if (title.isEmpty()) {
+                                log.warn("Missing title in recommendation node: {}", node);
+                                return null;
+                            }
 
-                        if (title.isEmpty()) {
-                            log.warn("Empty title in recommendation");
+                            // Find matching existing SOP
+                            SopDetails matchingSop = sopsByTitle.get(title);
+                            if (matchingSop == null) {
+                                log.warn("No matching SOP found for title: {}", title);
+                                return null;
+                            }
+
+                            return RecommendationDTO.builder()
+                                    .sopId(matchingSop.getSopId())  // Use real SOP ID
+                                    .title(matchingSop.getTitle())
+                                    .description(matchingSop.getDescription())
+                                    .body(matchingSop.getBody())
+                                    .documentUrls(matchingSop.getDocumentUrlsList())
+                                    .category(matchingSop.getCategory())
+                                    .departmentId(matchingSop.getDepartmentId())
+                                    .status(matchingSop.getStatus())
+                                    .visibility(matchingSop.getVisibility())
+                                    .coverUrl(matchingSop.getCoverUrl())
+//                                    .versions(parseVersions(matchingSop.getVersionsList()))
+//                                    .reviewers(parseStages(matchingSop.getReviewersList()))
+//                                    .approver(parseStage(matchingSop.getApprover()))
+//                                    .author(parseStage(matchingSop.getAuthor()))
+                                    .score(node.path("score").asDouble(0.75))
+                                    .reason(node.path("reason").asText("No reason provided"))
+                                    .createdAt(matchingSop.getCreatedAt())
+                                    .updatedAt(matchingSop.getUpdatedAt())
+                                    .build();
+                        } catch (Exception e) {
+                            log.error("Error processing recommendation node: {}", node, e);
                             return null;
                         }
-                        if (score < 0 || score > 1) {
-                            log.warn("Invalid score {} for recommendation {}", score, title);
-                            return null;
-                        }
-
-                        return new RecommendationDTO(title, score, reason);
                     })
-                    .filter(rec -> rec != null && rec.getScore() > 0.5)
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse recommendations. Raw response: {}", response, e);
+        } catch (Exception e) {
+            log.error("Failed to parse recommendations", e);
             return Collections.emptyList();
         }
     }
 
-    private List<SimilarSopDTO> parseSimilarSops(String response) {
+    private List<RecommendationDTO> parseSimilarSops(String response, List<SopDetails> existingSops) {
         try {
-            JsonNode root;
-            try {
-                root = objectMapper.readTree(response);
-            } catch (JsonProcessingException e) {
-                int jsonStart = response.indexOf("{");
-                int jsonEnd = response.lastIndexOf("}");
-                if (jsonStart >= 0 && jsonEnd > jsonStart) {
-                    String jsonPart = response.substring(jsonStart, jsonEnd + 1);
-                    root = objectMapper.readTree(jsonPart);
-                } else {
-                    log.error("Failed to find valid JSON in response: {}", response);
-                    return Collections.emptyList();
-                }
-            }
-
+            JsonNode root = parseJsonResponse(response);
             JsonNode similarSopsNode = root.path("similarSops");
+
             if (!similarSopsNode.isArray()) {
                 log.error("No similarSops array found in response: {}", response);
                 return Collections.emptyList();
             }
 
+            Map<String, SopDetails> sopsByTitle = existingSops.stream()
+                    .collect(Collectors.toMap(
+                            SopDetails::getTitle,
+                            sop -> sop,
+                            (sop1, sop2) -> sop1
+                    ));
+
             return StreamSupport.stream(similarSopsNode.spliterator(), false)
                     .map(node -> {
-                        String title = node.path("title").asText("");
-                        double score = node.path("similarityScore").asDouble(0.0);
-                        String reason = node.path("reason").asText("No reason provided");
+                        try {
+                            String title = extractTitle(node);
+                            if (title.isEmpty()) {
+                                log.warn("Missing title in similar SOP node: {}", node);
+                                return null;
+                            }
 
-                        if (title.isEmpty()) {
-                            log.warn("Empty title in similar SOP");
+                            SopDetails matchingSop = sopsByTitle.get(title);
+                            if (matchingSop == null) {
+                                log.warn("No matching SOP found for title: {}", title);
+                                return null;
+                            }
+
+                            return RecommendationDTO.builder()
+                                    .sopId(matchingSop.getSopId())
+                                    .title(matchingSop.getTitle())
+                                    .description(matchingSop.getDescription())
+                                    .body(matchingSop.getBody())
+                                    .documentUrls(matchingSop.getDocumentUrlsList())
+                                    .category(matchingSop.getCategory())
+                                    .departmentId(matchingSop.getDepartmentId())
+                                    .status(matchingSop.getStatus())
+                                    .visibility(matchingSop.getVisibility())
+                                    .coverUrl(matchingSop.getCoverUrl())
+//                                    .versions(parseVersions(matchingSop.getVersionsList()))
+//                                    .reviewers(parseStages(matchingSop.getReviewersList()))
+//                                    .approver(parseStage(matchingSop.getApprover()))
+//                                    .author(parseStage(matchingSop.getAuthor()))
+                                    .score(node.path("similarityScore").asDouble(0.75))
+                                    .reason(node.path("reason").asText("No reason provided"))
+                                    .createdAt(matchingSop.getCreatedAt())
+                                    .updatedAt(matchingSop.getUpdatedAt())
+                                    .build();
+                        } catch (Exception e) {
+                            log.error("Error processing similar SOP node: {}", node, e);
                             return null;
                         }
-                        if (score < 0 || score > 1) {
-                            log.warn("Invalid score {} for similar SOP {}", score, title);
-                            return null;
-                        }
-
-                        return new SimilarSopDTO(title, score, reason);
                     })
-                    .filter(sop -> sop != null && sop.getSimilarityScore() > 0.5)
+                    .filter(Objects::nonNull)
                     .collect(Collectors.toList());
-        } catch (JsonProcessingException e) {
-            log.error("Failed to parse similar SOPs. Raw response: {}", response, e);
+        } catch (Exception e) {
+            log.error("Failed to parse similar SOPs", e);
             return Collections.emptyList();
         }
+    }
+
+    private List<String> parseDocumentUrls(JsonNode node) {
+        JsonNode urlsNode = node.path("documentUrls");
+        if (urlsNode.isArray()) {
+            return StreamSupport.stream(urlsNode.spliterator(), false)
+                    .map(JsonNode::asText)
+                    .collect(Collectors.toList());
+        }
+        return Collections.emptyList();
+    }
+
+    private List<SopVersion> parseVersions(List<sopFromWorkflow.SopVersion> versions) {
+        return versions.stream()
+                .map(version -> SopVersion.builder()
+                        .versionNumber(version.getVersionNumber())
+                        .currentVersion(version.getCurrentVersion())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private List<Stage> parseStages(List<sopFromWorkflow.Stage> stages) {
+        return stages.stream()
+                .map(this::parseStage)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+    }
+
+    private Stage parseStage(sopFromWorkflow.Stage stage) {
+        if (stage == null) {
+            return null;
+        }
+        return Stage.builder()
+                .name(stage.getName())
+                .profilePictureUrl(stage.getProfilePictureUrl())
+                .status(stage.getStatus())
+//                .comments(parseComments(stage.getComments()))
+                .build();
+    }
+
+    private List<Comment> parseComments(List<sopFromWorkflow.Comment> comments) {
+        if (comments == null) {
+            return Collections.emptyList();
+        }
+        return comments.stream()
+                .map(comment -> Comment.builder()
+                        .commentId(comment.getCommentId())
+                        .comment(comment.getComment())
+                        .createdAt(comment.getCreatedAt())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private JsonNode parseJsonResponse(String response) throws JsonProcessingException {
+        try {
+            return objectMapper.readTree(response);
+        } catch (JsonProcessingException e) {
+            // Try to extract JSON from text that might contain additional content
+            int jsonStart = response.indexOf("{");
+            int jsonEnd = response.lastIndexOf("}");
+            if (jsonStart >= 0 && jsonEnd > jsonStart) {
+                String jsonPart = response.substring(jsonStart, jsonEnd + 1);
+                return objectMapper.readTree(jsonPart);
+            }
+            throw e;
+        }
+    }
+
+    private String extractTitle(JsonNode node) {
+        String title = node.path("title").asText("");
+        if (title.isEmpty()) {
+            title = node.path("name").asText("");
+            if (title.isEmpty()) {
+                title = node.path("sop_title").asText("");
+            }
+        }
+        return title;
     }
 
     private SopDetails findSourceSop(GetAllSopDetailsResponse allSops, String sopId) {
         return allSops.getSopDetailsList().stream()
                 .filter(sop -> sop.getSopId().equals(sopId))
                 .findFirst()
-                .orElseThrow(() -> new RecommendationException("Source SOP not found: " + sopId, null));
+                .orElseThrow(() -> {
+                    log.error("Source SOP not found with ID: {}", sopId);
+                    return new RecommendationException("Source SOP not found: " + sopId, null);
+                });
+    }
+
+    private Mono<RecommendationResponse> createEmptyResponse(String message) {
+        return Mono.just(RecommendationResponse.builder()
+                .message(message)
+                .data(RecommendationData.builder()
+                        .recommendations(Collections.emptyList())
+                        .metadata(RecommendationMetadata.builder()
+                                .requestType("empty")
+                                .timestamp(System.currentTimeMillis())
+                                .resultCount(0)
+                                .build())
+                        .build())
+                .build());
+    }
+
+    private RecommendationResponse createSuccessResponse(
+            List<RecommendationDTO> recommendations,
+            String requestType,
+            String message) {
+        return RecommendationResponse.builder()
+                .message(message)
+                .data(RecommendationData.builder()
+                        .recommendations(recommendations)
+                        .metadata(RecommendationMetadata.builder()
+                                .requestType(requestType)
+                                .timestamp(System.currentTimeMillis())
+                                .resultCount(recommendations.size())
+                                .build())
+                        .build())
+                .build();
+    }
+
+    private Mono<RecommendationResponse> createErrorResponse(String errorMessage) {
+        return Mono.just(RecommendationResponse.builder()
+                .message(errorMessage)
+                .data(RecommendationData.builder()
+                        .recommendations(Collections.emptyList())
+                        .metadata(RecommendationMetadata.builder()
+                                .requestType("error")
+                                .timestamp(System.currentTimeMillis())
+                                .resultCount(0)
+                                .build())
+                        .build())
+                .build());
     }
 }

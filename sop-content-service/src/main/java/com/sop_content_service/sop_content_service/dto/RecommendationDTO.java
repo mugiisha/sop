@@ -1,15 +1,14 @@
-package com.sop_recommendation_service.sop_recommendation_service.dtos;
+package com.sop_content_service.sop_content_service.dto;
 
 import lombok.AllArgsConstructor;
-import lombok.Builder;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
+import lombok.Builder;
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
-public class SimilarSopDTO {
+public class RecommendationDTO {
     private String sopId;
     private String title;
     private String description;
@@ -18,7 +17,7 @@ public class SimilarSopDTO {
     private String status;
     private String visibility;
     private String coverUrl;
-    private double similarityScore;
+    private double score;
     private String reason;
     private String createdAt;
     private String updatedAt;

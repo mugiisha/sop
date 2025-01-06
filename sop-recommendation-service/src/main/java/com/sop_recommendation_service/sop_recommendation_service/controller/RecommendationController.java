@@ -1,6 +1,7 @@
 package com.sop_recommendation_service.sop_recommendation_service.controller;
 
 import com.sop_recommendation_service.sop_recommendation_service.dtos.ApiResponse;
+import com.sop_recommendation_service.sop_recommendation_service.dtos.RecommendationResponse;
 import com.sop_recommendation_service.sop_recommendation_service.service.RecommendationService;
 import com.sop_recommendation_service.sop_recommendation_service.service.RequestValidator;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,7 +23,7 @@ public class RecommendationController {
 
     @Operation(summary = "Get personalized SOP recommendations")
     @GetMapping("/personalized")
-    public Mono<ResponseEntity<ApiResponse<List<?>>>> getPersonalizedRecommendations(
+    public Mono<ResponseEntity<ApiResponse<RecommendationResponse>>> getPersonalizedRecommendations(
             @RequestHeader("Authorization") String token) {
         return requestValidator.validateToken(token)
                 .flatMap(recommendationService::getPersonalizedRecommendations)
@@ -33,7 +34,7 @@ public class RecommendationController {
 
     @Operation(summary = "Get similar SOPs based on a reference SOP")
     @GetMapping("/similar/{sopId}")
-    public Mono<ResponseEntity<ApiResponse<List<?>>>> getSimilarSOPs(
+    public Mono<ResponseEntity<ApiResponse<RecommendationResponse>>> getSimilarSOPs(
             @PathVariable String sopId,
             @RequestHeader("Authorization") String token) {
         return Mono.zip(
@@ -48,7 +49,7 @@ public class RecommendationController {
 
     @Operation(summary = "Get recommendations by department")
     @GetMapping("/department/{departmentId}")
-    public Mono<ResponseEntity<ApiResponse<List<?>>>> getDepartmentRecommendations(
+    public Mono<ResponseEntity<ApiResponse<RecommendationResponse>>> getDepartmentRecommendations(
             @PathVariable String departmentId,
             @RequestHeader("Authorization") String token) {
         return requestValidator.validateToken(token)
@@ -60,7 +61,7 @@ public class RecommendationController {
 
     @Operation(summary = "Get trending SOPs")
     @GetMapping("/trending")
-    public Mono<ResponseEntity<ApiResponse<List<?>>>> getTrendingSOPs(
+    public Mono<ResponseEntity<ApiResponse<RecommendationResponse>>> getTrendingSOPs(
             @RequestHeader("Authorization") String token) {
         return requestValidator.validateToken(token)
                 .flatMap(recommendationService::getTrendingSOPs)
