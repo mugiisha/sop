@@ -10,8 +10,7 @@ import java.util.List;
 
 @Repository
 public interface SOPReportRepository extends MongoRepository<SOPReport, String> {
-    List<SOPReport> findByVisibility(String visibility);
-//    List<SOPReport> findByCompletionDateBetween(LocalDate startDate, LocalDate endDate);
+
 }
 
 
