@@ -90,6 +90,12 @@ public class FeedbackService {
             return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
         }
 
+        // Check if the user role is HOD and return a response if it is
+        if ("HOD".equalsIgnoreCase(userRole)) {
+            ApiResponse<FeedbackModel> response = new ApiResponse<>("HoD cannot add feedback", null);
+            return new ResponseEntity<>(response, HttpStatus.FORBIDDEN);
+        }
+
         try {
             boolean sopExists = feedbackRepository.existsBySopId(sopId);
             if (sopExists) {
@@ -110,19 +116,9 @@ public class FeedbackService {
                             .findFirst();
 
                     if (existingFeedbackOptional.isPresent()) {
-                        FeedbackModel existingFeedback = existingFeedbackOptional.get();
-                        existingFeedback.setUserName(userName);
-                        existingFeedback.setRole(userRole);
-                        existingFeedback.setProfilePic(profilePic);
-                        existingFeedback.setDepartmentName(departmentName);
-                        existingFeedback.setContent(feedbackModel.getContent());
-                        existingFeedback.setTimestamp(new Date());
-                        existingFeedback.setResponse(null);
-
-                        FeedbackModel updatedFeedback = feedbackRepository.save(existingFeedback);
-                        deleteNullFeedbacks(sopId);
-                        ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback updated successfully", updatedFeedback);
-                        return new ResponseEntity<>(response, HttpStatus.OK);
+                        // User has already added feedback for this SOP
+                        ApiResponse<FeedbackModel> response = new ApiResponse<>("You cannot add feedback twice on this SOP. Please update your existing feedback.", null);
+                        return new ResponseEntity<>(response, HttpStatus.BAD_REQUEST);
                     }
                 } else {
                     FeedbackModel newFeedback = new FeedbackModel();
@@ -218,12 +214,19 @@ public class FeedbackService {
         }
     }
 
-
     /**
      * Add response to feedback
      */
-    public ResponseEntity<ApiResponse<FeedbackModel>> addResponse(String feedbackId, String response) {
+    public ResponseEntity<ApiResponse<FeedbackModel>> addResponse(String feedbackId, String response, HttpServletRequest request) {
         try {
+            String userRole = request.getHeader("X-User-Role");
+
+            // Check if the user role is not HOD
+            if (!"HOD".equalsIgnoreCase(userRole)) {
+                ApiResponse<FeedbackModel> apiResponse = new ApiResponse<>("Only HOD can add a response to this feedback", null);
+                return new ResponseEntity<>(apiResponse, HttpStatus.FORBIDDEN);
+            }
+
             // Fetch feedback by ID
             FeedbackModel feedback = feedbackRepository.findById(feedbackId)
                     .orElse(null);
@@ -253,8 +256,17 @@ public class FeedbackService {
     /**
      * Delete feedback by ID
      */
-    public ResponseEntity<ApiResponse<Void>> deleteFeedbackById(String feedbackId) {
+    public ResponseEntity<ApiResponse<Void>> deleteFeedbackById(String feedbackId, HttpServletRequest request) {
         try {
+            String userRole = request.getHeader("X-User-Role");
+            log.info("User role: {}", userRole);
+
+            // Check if the user role is not HOD
+            if (!"HOD".equalsIgnoreCase(userRole)) {
+                ApiResponse<Void> apiResponse = new ApiResponse<>("Only HOD can delete this feedback", null);
+                return new ResponseEntity<>(apiResponse, HttpStatus.FORBIDDEN);
+            }
+
             // Check if feedback exists
             FeedbackModel feedback = feedbackRepository.findById(feedbackId)
                     .orElse(null);
@@ -276,7 +288,38 @@ public class FeedbackService {
         }
     }
 
+    /**
+     * Update feedback by ID
+     */
+    public ResponseEntity<ApiResponse<FeedbackModel>> updateFeedbackById(String feedbackId, FeedbackModel feedbackModel) {
+        try {
+            log.info("Updating feedback with ID: {}", feedbackId);
+            log.info("Incoming feedback content: {}", feedbackModel.getContent());
+            // Check if feedback exists
+            FeedbackModel feedback = feedbackRepository.findById(feedbackId)
+                    .orElse(null);
+
+            if (feedback == null) {
+                ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback with ID " + feedbackId + " does not exist", null);
+                return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+            }
+
+            // Update feedback
+            feedback.setContent(feedbackModel.getContent());
+            feedback.setTimestamp(new Date());
+
+            FeedbackModel updatedFeedback = feedbackRepository.save(feedback);
+
+            ApiResponse<FeedbackModel> response = new ApiResponse<>("Feedback updated successfully", updatedFeedback);
+            return new ResponseEntity<>(response, HttpStatus.OK);
+
+        } catch (Exception e) {
+            ApiResponse<FeedbackModel> response = new ApiResponse<>("Failed to update feedback: " + e.getMessage(), null);
+            return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
 
 
 
+
+    }
 }
