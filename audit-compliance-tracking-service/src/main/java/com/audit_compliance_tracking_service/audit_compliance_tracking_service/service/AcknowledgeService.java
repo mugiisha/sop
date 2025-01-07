@@ -18,10 +18,7 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.stereotype.Service;
 import userService.getUserInfoResponse;
 
-import java.util.ArrayList;
-import java.util.Date;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 @Service
 public class AcknowledgeService {
@@ -104,11 +101,14 @@ public class AcknowledgeService {
 
         if (acknowledgeModelOptional.isPresent()) {
             AcknowledgeModel acknowledgeModel = acknowledgeModelOptional.get();
-            // Fetch the actual name for initiatedBy
+
+            // Only set the initiatedBy name if it is a valid UUID
             String initiatedBy = acknowledgeModel.getInitiatedBy();
-            getUserInfoResponse initiatedByUserInfoResponse = fetchUserInfo(initiatedBy);
-            String initiatedByName = initiatedByUserInfoResponse.getName();
-            acknowledgeModel.setInitiatedBy(initiatedByName);
+            if (isValidUUID(initiatedBy)) {
+                getUserInfoResponse initiatedByUserInfoResponse = fetchUserInfo(initiatedBy);
+                String initiatedByName = initiatedByUserInfoResponse.getName();
+                acknowledgeModel.setInitiatedBy(initiatedByName);
+            }
 
             List<String> acknowledgedBy = acknowledgeModel.getAcknowledgedBy();
             if (!acknowledgedBy.contains(userName)) {
@@ -136,6 +136,19 @@ public class AcknowledgeService {
             log.error("Error retrieving all acknowledgements: {}", e.getMessage(), e);
             ApiResponse<List<AcknowledgeModel>> response = new ApiResponse<>("Failed to retrieve all acknowledgements: " + e.getMessage(), null);
             return new ResponseEntity<>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
+
+
+    /**
+     * Check if a string is a valid UUID.
+     */
+    private boolean isValidUUID(String str) {
+        try {
+            UUID.fromString(str);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
         }
     }
 
