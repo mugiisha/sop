@@ -2,10 +2,12 @@ package com.user_management_service.user_management_service.models;
 
 import jakarta.persistence.*;
 import lombok.*;
+
 import java.time.LocalDateTime;
 import java.util.UUID;
-
-@Getter @Setter @Data
+ @Getter
+ @Setter
+@Data
 @Entity
 @Table(name = "users")
 @NoArgsConstructor
