@@ -9,6 +9,6 @@
  FROM eclipse-temurin:21
  WORKDIR /app
  COPY --from=builder /build/target/*.jar /app/app.jar
- ENV AUDIT_COMPLIANCE_TRACKING_PORT=8089
- EXPOSE 8089
+ ENV AUDIT_COMPLIANCE_TRACKING_PORT=8088
+ EXPOSE 8088
  ENTRYPOINT ["java", "-jar", "app.jar"]
