@@ -29,7 +29,7 @@ public class GeminiClientService {
     @Value("${gemini.api.key}")
     private String apiKey;
 
-    @Value("${gemini.max.prompt.length:80000}")
+    @Value("${gemini.max.prompt.length:800000000}")
     private int maxPromptLength;
 
     public GeminiClientService(@Value("${gemini.api.url}") String baseUrl) {
