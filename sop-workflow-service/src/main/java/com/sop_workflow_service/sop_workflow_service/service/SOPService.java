@@ -95,7 +95,7 @@ public class SOPService {
     public SOP getSOP(String id) {
         log.info("Getting SOP with id: {}", id);
 
-       return sopRepository.findById(id)
+        return sopRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
     }
 
@@ -110,7 +110,7 @@ public class SOPService {
     // Get All SOPs
     public List<SOP> getAllSops() {
         log.info("Fetching all SOPs");
-       return sopRepository.findAllByOrderByCreatedAtDesc();
+        return sopRepository.findAllByOrderByCreatedAtDesc();
     }
 
     // Delete SOP
@@ -188,7 +188,7 @@ public class SOPService {
                 .allMatch(s -> s.getApprovalStatus() == ApprovalStatus.APPROVED);
 
         if(approvalStatus== ApprovalStatus.APPROVED && !allReviewersReviewed){
-           throw new BadRequestException("Approving not allowed before all reviewers review the SOP");
+            throw new BadRequestException("Approving not allowed before all reviewers review the SOP");
         }
 
         UpdateStageDto updateStageDto = UpdateStageDto.builder()
@@ -196,7 +196,7 @@ public class SOPService {
                 .comment(comment)
                 .build();
 
-       workflowStageService.updateStage(userId, sopId, updateStageDto);
+        workflowStageService.updateStage(userId, sopId, updateStageDto);
 
 
         SOPDto sopDto = mapSOPToSOPDto(sop);
@@ -321,5 +321,5 @@ public class SOPService {
                 .findFirst().get()
         );
         return sopDto;
-    }
+}
 }
