@@ -97,9 +97,9 @@ public class RoleAssignmentService {
                    return roleAssignmentRepository.findByRoleIdAndDepartmentId(roleId, departmentId);
         }
 
-    public List<RoleAssignment> getRoleAssignmentsByDepartmentId(UUID departmentId) {
-        log.info("getting user roles by department id");
-        return roleAssignmentRepository.findByDepartmentId( departmentId);
+    public boolean checkAssignmentExistsByRoleId(UUID roleId) {
+        log.info("Check if role assignments exist by role id");
+        return roleAssignmentRepository.existsByRoleId(roleId);
     }
 
 

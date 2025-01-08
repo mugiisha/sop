@@ -7,6 +7,9 @@ import com.user_management_service.user_management_service.dtos.DepartmentDTO;
 import com.user_management_service.user_management_service.dtos.DepartmentUpdateDTO;
 import com.user_management_service.user_management_service.exceptions.DepartmentAlreadyExistsException;
 import com.user_management_service.user_management_service.repositories.DepartmentRepository;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +53,7 @@ public class DepartmentService {
         return convertToDTO(savedDepartment);
     }
 
+    @Cacheable(value = "department", key = "#id")
     public DepartmentDTO getDepartmentById(UUID id) {
         log.info("Fetching department with ID: {}", id);
         Department department = departmentRepository.findById(id)
@@ -57,6 +61,7 @@ public class DepartmentService {
         return convertToDTO(department);
     }
 
+    @Cacheable(value = "departments")
     public List<DepartmentDTO> getAllDepartments() {
         log.info("Fetching all departments");
         List<Department> departments = departmentRepository.findAll();
@@ -66,6 +71,10 @@ public class DepartmentService {
                 .collect(Collectors.toList());
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "department", allEntries = true),
+            @CacheEvict(value = "departments", allEntries = true)
+    })
     public DepartmentDTO updateDepartment(UUID id, DepartmentUpdateDTO updateDTO) {
         log.info("Updating department with ID: {}", id);
 
@@ -89,6 +98,10 @@ public class DepartmentService {
         return convertToDTO(updatedDepartment);
     }
 
+    @Caching(evict = {
+            @CacheEvict(value = "department", allEntries = true),
+            @CacheEvict(value = "departments", allEntries = true)
+    })
     public void deleteDepartment(UUID id) {
         log.info("Deleting department with ID: {}", id);
         Department department = departmentRepository.findById(id)

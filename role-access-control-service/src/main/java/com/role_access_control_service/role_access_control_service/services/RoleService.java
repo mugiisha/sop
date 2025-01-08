@@ -4,6 +4,7 @@ import com.role_access_control_service.role_access_control_service.dtos.CreateRo
 import com.role_access_control_service.role_access_control_service.models.Role;
 import com.role_access_control_service.role_access_control_service.repositories.RoleRepository;
 import com.role_access_control_service.role_access_control_service.utils.exception.AlreadyExistsException;
+import com.role_access_control_service.role_access_control_service.utils.exception.BadRequestException;
 import com.role_access_control_service.role_access_control_service.utils.exception.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,12 +25,14 @@ public class RoleService {
 
 
     private final RoleRepository roleRepository;
+    private final RoleAssignmentService roleAssignmentService;
 
     private static final String ROLE_NOT_FOUND = "Role not found";
 
     @Autowired
-    public RoleService(RoleRepository roleRepository) {
+    public RoleService(RoleRepository roleRepository, RoleAssignmentService roleAssignmentService) {
         this.roleRepository = roleRepository;
+        this.roleAssignmentService = roleAssignmentService;
     }
 
     @CacheEvict(value = "roles", allEntries = true)
@@ -84,11 +87,15 @@ public class RoleService {
 
         log.info("Deleting role");
 
-            roleRepository.findById(roleId).orElseThrow(
-                    () -> {
-                        log.error("Error deleting role not found");
-                        return new NotFoundException(ROLE_NOT_FOUND);
-                    });
+        roleRepository.findById(roleId).orElseThrow(
+                () -> {
+                    log.error("Error deleting role not found");
+                    return new NotFoundException(ROLE_NOT_FOUND);
+                });
+
+        if (roleAssignmentService.checkAssignmentExistsByRoleId(roleId)) {
+            throw new BadRequestException("Cannot delete role while it has active assignments");
+        }
 
             roleRepository.deleteById(roleId);
     }

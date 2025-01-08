@@ -12,6 +12,8 @@ import java.util.UUID;
 public interface RoleAssignmentRepository extends JpaRepository<RoleAssignment, UUID> {
     Optional<RoleAssignment> findByUserId(UUID userId);
 
+    boolean existsByRoleId(UUID roleId);
+
     List<RoleAssignment> findByRoleIdAndDepartmentId(UUID roleId, UUID departmentId);
 
     List<RoleAssignment> findByDepartmentId(UUID departmentId);

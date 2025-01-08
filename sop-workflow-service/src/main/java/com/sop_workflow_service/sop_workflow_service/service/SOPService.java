@@ -2,17 +2,15 @@ package com.sop_workflow_service.sop_workflow_service.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.sop_workflow_service.sop_workflow_service.dto.PublishedSopDto;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
+import com.sop_workflow_service.sop_workflow_service.dto.UpdateStageDto;
 import com.sop_workflow_service.sop_workflow_service.enums.ApprovalStatus;
 import com.sop_workflow_service.sop_workflow_service.enums.Roles;
 import com.sop_workflow_service.sop_workflow_service.enums.SOPStatus;
 import com.sop_workflow_service.sop_workflow_service.enums.Visibility;
 import com.sop_workflow_service.sop_workflow_service.model.Category;
-import com.sop_workflow_service.sop_workflow_service.model.Comment;
 import com.sop_workflow_service.sop_workflow_service.model.SOP;
 import com.sop_workflow_service.sop_workflow_service.model.WorkflowStage;
-import com.sop_workflow_service.sop_workflow_service.repository.CommentRepository;
 import com.sop_workflow_service.sop_workflow_service.repository.SOPRepository;
-import com.sop_workflow_service.sop_workflow_service.repository.WorkflowStageRepository;
 import com.sop_workflow_service.sop_workflow_service.utils.DtoConverter;
 import com.sop_workflow_service.sop_workflow_service.utils.exception.BadRequestException;
 import com.sop_workflow_service.sop_workflow_service.utils.exception.NotFoundException;
@@ -25,7 +23,6 @@ import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import userService.*;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -37,13 +34,12 @@ import java.util.stream.Collectors;
 public class SOPService {
 
     private final SOPRepository sopRepository;
-    private final WorkflowStageRepository workflowStageRepository;
+    private final WorkflowStageService workflowStageService;
     private final CategoryService categoryService;
     private final KafkaTemplate<String, SOPDto> kafkaTemplate;
-    private final CommentService commentService;
-
 
     @Transactional
+    @CacheEvict(value = "sops", allEntries = true)
     public SOP createSOP(SOPDto createSOPDto, UUID departmentId) {
 
         log.info("Creating SOP: {}", createSOPDto);
@@ -77,7 +73,7 @@ public class SOPService {
         stages.add(createWorkflowStage(createdSop.getId(), Roles.APPROVER, createSOPDto.getApproverId()));
 
         // Save workflow stages
-        workflowStageRepository.saveAll(stages);
+        workflowStageService.saveStages(stages);
 
         // Set workflow stages to SOP
         createdSop.setWorkflowStages(stages);
@@ -120,8 +116,7 @@ public class SOPService {
     // Delete SOP
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true)
     })
     public void deleteSOP(String id) {
         SOP sop = sopRepository.findById(id)
@@ -133,18 +128,11 @@ public class SOPService {
         kafkaTemplate.send("sop-deleted", sopDto);
     }
 
-    @Cacheable(value = "stages", key = "{#userId, #sopId}")
-    public WorkflowStage getStageByUserIdAndSopId(UUID userId, String sopId) {
-        return workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId)
-                .orElseThrow(() -> new NotFoundException("Stage not found"));
-    }
-
 
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true)
     })
     public SOP reviewSOP(String sopId, UUID userId, String comment, ApprovalStatus approvalStatus) {
 
@@ -155,39 +143,20 @@ public class SOPService {
             throw new BadRequestException("SOP is not under reviewal stage");
         }
 
-        Optional<WorkflowStage> optionalStage = workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId);
+        UpdateStageDto updateStageDto = UpdateStageDto.builder()
+                .approvalStatus(approvalStatus)
+                .comment(comment)
+                .build();
 
-        if (optionalStage.isEmpty()) {
-            throw new NotFoundException("User not assigned on sop");
-        }
+        workflowStageService.updateStage(userId, sopId, updateStageDto);
 
-        WorkflowStage stage = optionalStage.get();
-
-        // A comment is required for Rejected status
-        if (approvalStatus == ApprovalStatus.REVISION && comment == null) {
-            throw new IllegalArgumentException("Comment is required for Rejecting an SOP");
-        }
-
-        stage.setApprovalStatus(approvalStatus);
-        stage.setUpdatedAt(LocalDateTime.now());
-
-        if (comment != null) {
-            Comment newComment = commentService.saveComment(userId, stage.getId(), comment);
-            // Ensure comments list is initialized if no comment is present
-            if (stage.getComments() == null) {
-                stage.setComments(new ArrayList<>());
-            }
-            stage.getComments().add(newComment);
-        }
-
-        workflowStageRepository.save(stage);
         SOPDto sopDto = mapSOPToSOPDto(sop);
 
         if(approvalStatus == ApprovalStatus.REVISION){
             kafkaTemplate.send("sop-revision", sopDto);
         }
 
-        List<WorkflowStage> stages = workflowStageRepository.findBySopId(sopId);
+        List<WorkflowStage> stages = workflowStageService.getStagesBySopId(sopId);
 
         // Check if all reviewers have reviewed to notify the approver
         boolean allReviewersReviewed = stages.stream()
@@ -205,51 +174,30 @@ public class SOPService {
     @Transactional
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true)
     })
     public SOP approveSOP(String sopId, UUID userId, String comment, ApprovalStatus approvalStatus) {
 
         SOP sop = sopRepository.findById(sopId)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
 
-        Optional<WorkflowStage> optionalStage = workflowStageRepository.findFirstBySopIdAndUserId(sopId, userId);
-
-        if (optionalStage.isEmpty()) {
-            throw new NotFoundException("user not assigned on sop");
-        }
-
-        WorkflowStage stage = optionalStage.get();
-
-        List<WorkflowStage> stages = workflowStageRepository.findBySopId(sopId);
+        List<WorkflowStage> stages = workflowStageService.getStagesBySopId(sopId);
         // Check if all reviewers have reviewed to allow approval
         boolean allReviewersReviewed = stages.stream()
                 .filter(s -> s.getRoleRequired() == Roles.REVIEWER)
                 .allMatch(s -> s.getApprovalStatus() == ApprovalStatus.APPROVED);
 
         if(approvalStatus== ApprovalStatus.APPROVED && !allReviewersReviewed){
-           throw new IllegalArgumentException("Approving not allowed before all reviewers review the SOP");
+           throw new BadRequestException("Approving not allowed before all reviewers review the SOP");
         }
 
-        // require comment for rejected status
-        if (approvalStatus == ApprovalStatus.REVISION && comment == null) {
-            throw new IllegalArgumentException("Comment is required for Rejecting an SOP");
-        }
+        UpdateStageDto updateStageDto = UpdateStageDto.builder()
+                .approvalStatus(approvalStatus)
+                .comment(comment)
+                .build();
 
-        stage.setApprovalStatus(approvalStatus);
-        stage.setUpdatedAt(LocalDateTime.now());
+       workflowStageService.updateStage(userId, sopId, updateStageDto);
 
-        if (comment != null) {
-            Comment newComment = commentService.saveComment(userId, stage.getId(), comment);
-            // Ensure comments list is initialized if no comment is present
-            if (stage.getComments() == null) {
-                stage.setComments(new ArrayList<>());
-            }
-
-            stage.getComments().add(newComment);
-        }
-
-        workflowStageRepository.save(stage);
 
         SOPDto sopDto = mapSOPToSOPDto(sop);
 
@@ -262,17 +210,12 @@ public class SOPService {
         return sop;
     }
 
-    public boolean isSopApproved(String sopId) {
-        List<WorkflowStage> stages = workflowStageRepository.findBySopId(sopId);
-        return stages.stream().allMatch(stage -> stage.getApprovalStatus() == ApprovalStatus.APPROVED);
-    }
 
 
     @KafkaListener(topics = "sop-drafted")
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true)
     })
     public void sopDraftedListener(String data) throws JsonProcessingException {
 
@@ -290,8 +233,7 @@ public class SOPService {
     @KafkaListener(topics = "sop-reviewal-ready")
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true)
     })
     public void sopReviewalReadyListener(String data) throws JsonProcessingException {
 
@@ -302,13 +244,26 @@ public class SOPService {
         SOP sop = sopRepository.findById(sopDto.getId())
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
 
-        WorkflowStage authorWorkflowStage =
-                workflowStageRepository.findFirstBySopIdAndUserId(sopDto.getId(),sopDto.getAuthorId())
-                        .orElse(null);
+        // Set author workflow stage to approved
+        WorkflowStage authorWorkflowStage = workflowStageService.getStageBySopIdAndUserId(sopDto.getId(),sopDto.getAuthorId());
+        authorWorkflowStage.setApprovalStatus(ApprovalStatus.APPROVED);
+        workflowStageService.saveStage(authorWorkflowStage);
 
-        if(authorWorkflowStage != null){
-            authorWorkflowStage.setApprovalStatus(ApprovalStatus.APPROVED);
-            workflowStageRepository.save(authorWorkflowStage);
+        // If the sop was published, set reviewers and approver stages to pending
+        if(sop.getStatus() == SOPStatus.PUBLISHED){
+            List<WorkflowStage> reviewersStages = new ArrayList<>();
+
+            for(UUID reviewerId : sopDto.getReviewers()){
+                WorkflowStage reviewerStage = workflowStageService.getStageBySopIdAndUserId(sopDto.getId(),reviewerId);
+                reviewerStage.setApprovalStatus(ApprovalStatus.PENDING);
+                reviewersStages.add(reviewerStage);
+            }
+
+            workflowStageService.saveStages(reviewersStages);
+
+            WorkflowStage approverWorkflowStage = workflowStageService.getStageBySopIdAndUserId(sopDto.getId(),sopDto.getApproverId());
+            approverWorkflowStage.setApprovalStatus(ApprovalStatus.PENDING);
+            workflowStageService.saveStage(approverWorkflowStage);
         }
 
 
@@ -319,8 +274,7 @@ public class SOPService {
     @KafkaListener(topics = "sop-published")
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true),
-            @CacheEvict(value = "stages", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true)
     })
     public void sopPublishedListener(String data) throws JsonProcessingException {
 

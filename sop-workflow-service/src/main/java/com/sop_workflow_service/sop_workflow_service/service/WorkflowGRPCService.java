@@ -17,10 +17,12 @@ import java.util.UUID;
 public class WorkflowGRPCService extends SopWorkflowServiceGrpc.SopWorkflowServiceImplBase {
 
     private final SOPService sopService;
+    private final WorkflowStageService workflowStageService;
 
     @Autowired
-    public WorkflowGRPCService(SOPService sopService) {
+    public WorkflowGRPCService(SOPService sopService, WorkflowStageService workflowStageService) {
         this.sopService = sopService;
+        this.workflowStageService = workflowStageService;
     }
 
     @Override
@@ -28,7 +30,7 @@ public class WorkflowGRPCService extends SopWorkflowServiceGrpc.SopWorkflowServi
         try {
             log.info("Checking if SOP is approved");
             String sopId = request.getId();
-            boolean isApproved = sopService.isSopApproved(sopId);
+            boolean isApproved = workflowStageService.isSopApproved(sopId);
 
             IsSOPApprovedResponse response = IsSOPApprovedResponse.newBuilder()
                     .setSuccess(true)
@@ -54,7 +56,7 @@ public class WorkflowGRPCService extends SopWorkflowServiceGrpc.SopWorkflowServi
         try{
             UUID userId = UUID.fromString(request.getUserId());
 
-            WorkflowStage stageInfo = sopService.getStageByUserIdAndSopId(userId, request.getSopId());
+            WorkflowStage stageInfo = workflowStageService.getStageBySopIdAndUserId( request.getSopId(),userId);
 
             List<Comments> comments = new ArrayList<>();
 

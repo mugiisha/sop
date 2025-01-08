@@ -2,9 +2,7 @@ package com.sop_content_service.sop_content_service.service;
 
 import net.devh.boot.grpc.client.inject.GrpcClient;
 import org.springframework.stereotype.Service;
-import userService.getUserInfoRequest;
-import userService.getUserInfoResponse;
-import userService.userServiceGrpc;
+import userService.*;
 
 @Service
 public class UserInfoClientService {
@@ -19,5 +17,13 @@ public class UserInfoClientService {
                 .build();
 
         return userInfoServiceBlockingStub.getUserInfo(request);
+    }
+
+    public getDepartmentNameResponse getDepartmentName(String departmentId) {
+        getDepartmentNameRequest request = getDepartmentNameRequest.newBuilder()
+                .setDepartmentId(departmentId)
+                .build();
+
+        return userInfoServiceBlockingStub.getDepartmentName(request);
     }
 }

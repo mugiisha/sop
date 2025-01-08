@@ -6,6 +6,7 @@ option java_multiple_files = true;
 
 service userService {
   rpc getUserInfo(getUserInfoRequest) returns (getUserInfoResponse) {}
+  rpc getDepartmentName(getDepartmentNameRequest) returns (getDepartmentNameResponse) {}
 }
 
 message getUserInfoRequest {
@@ -18,4 +19,14 @@ message getUserInfoResponse {
   string profilePictureUrl = 3;
   string errorMessage = 4;
   string departmentName = 5;
+}
+
+message getDepartmentNameRequest{
+  string departmentId = 1;
+}
+
+message getDepartmentNameResponse{
+  bool success = 1;
+  string departmentName = 2;
+  string errorMessage = 3;
 }

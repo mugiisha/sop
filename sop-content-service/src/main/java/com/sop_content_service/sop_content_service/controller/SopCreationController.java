@@ -39,10 +39,12 @@ public class SopCreationController {
             @PathVariable String sopId,
             @RequestPart(value = "documents", required = false) List<MultipartFile> documents,
             @RequestPart(value = "coverImage", required = false) MultipartFile coverImage,
-            @Valid @RequestPart("sopContent") SopContentDto sopContentDto) throws IOException {
+            @Valid @RequestPart("sopContent") SopContentDto sopContentDto,
+            HttpServletRequest request) throws IOException {
 
+        String userId = request.getHeader("X-User-Id");
 
-        Sop updatedSop = sopService.addSopContent(sopId, documents, coverImage, sopContentDto);
+        Sop updatedSop = sopService.addSopContent(sopId, documents, coverImage, sopContentDto, UUID.fromString(userId));
         ApiResponse<Sop> response = new ApiResponse<>("SOP content added successfully", updatedSop);
         return ResponseEntity.status(HttpStatus.OK).body(response);
     }
