@@ -361,6 +361,7 @@ public class SopService {
         response.setStatus(sop.getStatus());
         response.setCategory(sop.getCategory());
         response.setBody(sop.getBody());
+        response.setDepartmentId(sop.getDepartmentId());
         response.setDepartmentName(departmentNameResponse.getDepartmentName());
         response.setDocumentUrls(sop.getDocumentUrls());
         response.setCoverUrl(sop.getCoverUrl());
