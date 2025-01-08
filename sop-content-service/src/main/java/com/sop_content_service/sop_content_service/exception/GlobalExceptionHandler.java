@@ -79,6 +79,6 @@ public class GlobalExceptionHandler {
                 .map(x -> x.getDefaultMessage())
                 .collect(Collectors.joining(", "));
         ApiResponse<String> errorResponse = new ApiResponse<>(errors, null);
-        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);hotfix-
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(errorResponse);
     }
 }
