@@ -6,6 +6,7 @@ import lombok.*;
 
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 @Data
 @Getter
@@ -20,6 +21,7 @@ public class SOPResponseDto {
         private String description;
         private String body;
         private String category;
+        private UUID departmentId;
         private String departmentName;
         private Visibility visibility;
         private SOPStatus status;
