@@ -2,7 +2,9 @@ package com.sop_workflow_service.sop_workflow_service.model;
 import com.sop_workflow_service.sop_workflow_service.enums.SOPStatus;
 import com.sop_workflow_service.sop_workflow_service.enums.Visibility;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.Id;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
 
@@ -29,6 +31,8 @@ public class SOP {
     private Category category;
     @DBRef
     private List<WorkflowStage> workflowStages;
+    @CreatedDate
     private Date createdAt;
+    @LastModifiedDate
     private Date updatedAt;
 }

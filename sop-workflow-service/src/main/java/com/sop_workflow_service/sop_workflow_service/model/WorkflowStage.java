@@ -2,6 +2,8 @@ package com.sop_workflow_service.sop_workflow_service.model;
 import com.sop_workflow_service.sop_workflow_service.enums.Roles;
 import com.sop_workflow_service.sop_workflow_service.enums.ApprovalStatus;
 import lombok.*;
+import org.springframework.data.annotation.CreatedDate;
+import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.DBRef;
 import org.springframework.data.mongodb.core.mapping.Document;
@@ -26,6 +28,8 @@ public class WorkflowStage {
     private ApprovalStatus approvalStatus;
     @DBRef
     private List<Comment> comments;
+    @CreatedDate
     private LocalDateTime createdAt;
+    @LastModifiedDate
     private LocalDateTime updatedAt;
 }

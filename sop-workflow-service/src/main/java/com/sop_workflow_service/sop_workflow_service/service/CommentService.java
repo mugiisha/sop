@@ -8,6 +8,7 @@ import com.sop_workflow_service.sop_workflow_service.utils.exception.BadRequestE
 import com.sop_workflow_service.sop_workflow_service.utils.exception.NotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -26,7 +27,10 @@ public class CommentService {
         this.workflowStageRepository = workflowStageRepository;
    }
 
-    @CacheEvict(value = "stages", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "workflowStage", allEntries = true),
+            @CacheEvict(value = "workflowStagesList", allEntries = true)
+    })
     public Comment saveComment(UUID userId, String stageId, String comment){
         Comment newComment = Comment.builder()
                 .content(comment)
@@ -38,7 +42,10 @@ public class CommentService {
         return commentRepository.save(newComment);
     }
 
-    @CacheEvict(value = "stages", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "workflowStage", allEntries = true),
+            @CacheEvict(value = "workflowStagesList", allEntries = true)
+    })
     public void deleteCommentById(String commentId, UUID userId) {
         Comment comment = commentRepository.findByIdAndUserId(commentId, userId);
 
@@ -48,7 +55,10 @@ public class CommentService {
         commentRepository.deleteById(commentId);
     }
 
-    @CacheEvict(value = "stages", allEntries = true)
+    @Caching(evict = {
+            @CacheEvict(value = "workflowStage", allEntries = true),
+            @CacheEvict(value = "workflowStagesList", allEntries = true)
+    })
     public Comment updateComment(String commentId,UUID userId, String comment){
         Comment existingComment = commentRepository.findByIdAndUserId(commentId, userId);
 

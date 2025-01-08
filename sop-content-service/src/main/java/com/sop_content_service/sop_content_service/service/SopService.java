@@ -8,6 +8,7 @@ import com.sop_content_service.sop_content_service.enums.ApprovalStatus;
 import com.sop_content_service.sop_content_service.enums.SOPStatus;
 import com.sop_content_service.sop_content_service.enums.Visibility;
 import com.sop_content_service.sop_content_service.exception.BadInputRequest;
+import com.sop_content_service.sop_content_service.exception.BadRequestException;
 import com.sop_content_service.sop_content_service.exception.SopNotFoundException;
 import com.sop_content_service.sop_content_service.exception.WorkflowServerException;
 import com.sop_content_service.sop_content_service.model.Sop;
@@ -25,7 +26,7 @@ import org.springframework.web.multipart.MultipartFile;
 import sopVersionService.GetSopVersionsResponse;
 import sopWorkflowService.GetWorkflowStageInfoResponse;
 import sopWorkflowService.IsSOPApprovedResponse;
-import userService.getUserInfoResponse;
+import userService.*;
 
 import java.io.BufferedInputStream;
 import java.io.IOException;
@@ -62,7 +63,8 @@ public class SopService {
     public Sop addSopContent(String sopId,
                              List<MultipartFile> documents,
                              MultipartFile coverImage,
-                             @Valid SopContentDto sopContentDto) throws IOException {
+                             @Valid SopContentDto sopContentDto,
+                             UUID authorId) throws IOException {
 
         Optional<Sop> sop = sopRepository.findById(sopId);
         if (sop.isEmpty()) {
@@ -71,6 +73,10 @@ public class SopService {
 
 
         Sop existingSop = sop.get();
+
+        if(!existingSop.getAuthor().equals(authorId)){
+            throw new BadRequestException("You are not authorized to update this SOP.");
+        }
 
         existingSop.setDescription(sopContentDto.getDescription());
         existingSop.setBody(sopContentDto.getBody());
@@ -334,13 +340,19 @@ public class SopService {
     }
 
 
+
     // map sop to an object including assigned users profiles
     public SOPResponseDto mapSOPToSOPResponseDto(Sop sop) {
 
         GetSopVersionsResponse versionsResponse = versionClientService.GetSopVersions(sop.getId());
+        getDepartmentNameResponse departmentNameResponse = userInfoClientService.getDepartmentName(sop.getDepartmentId().toString());
 
         if(!versionsResponse.getSuccess()){
             log.error("Error fetching versions: {}", versionsResponse.getErrorMessage());
+        }
+
+        if(!departmentNameResponse.getSuccess()){
+            log.error("Error fetching department name: {}", departmentNameResponse.getErrorMessage());
         }
 
         SOPResponseDto response = new SOPResponseDto();
@@ -349,7 +361,7 @@ public class SopService {
         response.setStatus(sop.getStatus());
         response.setCategory(sop.getCategory());
         response.setBody(sop.getBody());
-        response.setDepartmentId(sop.getDepartmentId());
+        response.setDepartmentName(departmentNameResponse.getDepartmentName());
         response.setDocumentUrls(sop.getDocumentUrls());
         response.setCoverUrl(sop.getCoverUrl());
         response.setVisibility(sop.getVisibility());
