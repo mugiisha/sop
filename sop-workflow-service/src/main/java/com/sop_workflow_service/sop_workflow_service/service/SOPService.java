@@ -44,7 +44,7 @@ public class SOPService {
 
 
     @Transactional
-    public SOP createSOP(SOPDto createSOPDto, UUID departmentId, UUID userId) {
+    public SOP createSOP(SOPDto createSOPDto, UUID departmentId) {
 
         log.info("Creating SOP: {}", createSOPDto);
         //get provided Category
@@ -56,7 +56,6 @@ public class SOPService {
 
         SOP sop = new SOP();
         sop.setTitle(createSOPDto.getTitle());
-        sop.setInitiatedBy(userId);
         sop.setVisibility(Visibility.valueOf(createSOPDto.getVisibility().toUpperCase()));
         sop.setStatus(createSOPDto.getStatus());
         sop.setDepartmentId(departmentId);
@@ -86,8 +85,6 @@ public class SOPService {
         SOP createdSOP= sopRepository.save(createdSop);
         createSOPDto.setId(createdSOP.getId());
         createSOPDto.setDepartmentId(departmentId);
-        createSOPDto.setInitiatedBy(userId);
-
 
         //send SOPDto to notify services accordingly
         createSOPDto.setCreatedAt(createdSOP.getCreatedAt());
