@@ -25,8 +25,7 @@ public class SOPController {
     @PostMapping
     public Response<SOP> createSOP(HttpServletRequest request,@Valid @RequestBody SOPDto createSOPDto) {
         String departmentId = request.getHeader("X-Department-Id");
-        String userId = request.getHeader("X-User-Id");
-        SOP sop = sopService.createSOP(createSOPDto, UUID.fromString(departmentId), UUID.fromString(userId));
+        SOP sop = sopService.createSOP(createSOPDto, UUID.fromString(departmentId));
 
         return new Response<>(true,"SOP created successfully", sop);
     }
