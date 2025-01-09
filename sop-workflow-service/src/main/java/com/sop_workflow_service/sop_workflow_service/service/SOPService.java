@@ -40,7 +40,7 @@ public class SOPService {
 
     @Transactional
     @CacheEvict(value = "sops", allEntries = true)
-    public SOP createSOP(SOPDto createSOPDto, UUID departmentId) {
+    public SOP createSOP(SOPDto createSOPDto, UUID departmentId, UUID initiatedBy) {
 
         log.info("Creating SOP: {}", createSOPDto);
         //get provided Category
@@ -52,6 +52,7 @@ public class SOPService {
 
         SOP sop = new SOP();
         sop.setTitle(createSOPDto.getTitle());
+        sop.setInitiatedBy(initiatedBy);
         sop.setVisibility(Visibility.valueOf(createSOPDto.getVisibility().toUpperCase()));
         sop.setStatus(createSOPDto.getStatus());
         sop.setDepartmentId(departmentId);
@@ -81,6 +82,7 @@ public class SOPService {
         SOP createdSOP= sopRepository.save(createdSop);
         createSOPDto.setId(createdSOP.getId());
         createSOPDto.setDepartmentId(departmentId);
+        createSOPDto.setInitiatedBy(initiatedBy);
 
         //send SOPDto to notify services accordingly
         createSOPDto.setCreatedAt(createdSOP.getCreatedAt());
