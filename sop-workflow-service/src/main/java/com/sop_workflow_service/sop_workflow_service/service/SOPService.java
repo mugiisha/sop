@@ -40,7 +40,7 @@ public class SOPService {
 
     @Transactional
     @CacheEvict(value = "sops", allEntries = true)
-    public SOP createSOP(SOPDto createSOPDto, UUID departmentId) {
+    public SOP createSOP(SOPDto createSOPDto, UUID departmentId, UUID initiatedBy) {
 
         log.info("Creating SOP: {}", createSOPDto);
         //get provided Category
@@ -52,6 +52,7 @@ public class SOPService {
 
         SOP sop = new SOP();
         sop.setTitle(createSOPDto.getTitle());
+        sop.setInitiatedBy(initiatedBy);
         sop.setVisibility(Visibility.valueOf(createSOPDto.getVisibility().toUpperCase()));
         sop.setStatus(createSOPDto.getStatus());
         sop.setDepartmentId(departmentId);
@@ -81,6 +82,7 @@ public class SOPService {
         SOP createdSOP= sopRepository.save(createdSop);
         createSOPDto.setId(createdSOP.getId());
         createSOPDto.setDepartmentId(departmentId);
+        createSOPDto.setInitiatedBy(initiatedBy);
 
         //send SOPDto to notify services accordingly
         createSOPDto.setCreatedAt(createdSOP.getCreatedAt());
@@ -95,7 +97,7 @@ public class SOPService {
     public SOP getSOP(String id) {
         log.info("Getting SOP with id: {}", id);
 
-       return sopRepository.findById(id)
+        return sopRepository.findById(id)
                 .orElseThrow(() -> new NotFoundException("SOP not found"));
     }
 
@@ -110,7 +112,7 @@ public class SOPService {
     // Get All SOPs
     public List<SOP> getAllSops() {
         log.info("Fetching all SOPs");
-       return sopRepository.findAllByOrderByCreatedAtDesc();
+        return sopRepository.findAllByOrderByCreatedAtDesc();
     }
 
     // Delete SOP
@@ -188,7 +190,7 @@ public class SOPService {
                 .allMatch(s -> s.getApprovalStatus() == ApprovalStatus.APPROVED);
 
         if(approvalStatus== ApprovalStatus.APPROVED && !allReviewersReviewed){
-           throw new BadRequestException("Approving not allowed before all reviewers review the SOP");
+            throw new BadRequestException("Approving not allowed before all reviewers review the SOP");
         }
 
         UpdateStageDto updateStageDto = UpdateStageDto.builder()
@@ -196,7 +198,7 @@ public class SOPService {
                 .comment(comment)
                 .build();
 
-       workflowStageService.updateStage(userId, sopId, updateStageDto);
+        workflowStageService.updateStage(userId, sopId, updateStageDto);
 
 
         SOPDto sopDto = mapSOPToSOPDto(sop);
@@ -321,5 +323,5 @@ public class SOPService {
                 .findFirst().get()
         );
         return sopDto;
-    }
+}
 }

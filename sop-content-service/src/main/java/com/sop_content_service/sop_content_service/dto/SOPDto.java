@@ -26,6 +26,7 @@ public class SOPDto {
     @NotNull(message = "Author ID is required")
     private UUID authorId;
     private UUID departmentId;
+    private UUID initiatedBy;
 
     @NotEmpty(message = "Category is required")
     private String category;

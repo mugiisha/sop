@@ -24,6 +24,7 @@ public class SOP {
     @Id
     private String id;
     private String title;
+    private UUID initiatedBy;
     private SOPStatus status;
     private UUID departmentId;
     private Visibility visibility;
