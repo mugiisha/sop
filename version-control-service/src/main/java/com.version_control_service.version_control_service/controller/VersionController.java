@@ -1,11 +1,9 @@
 package com.version_control_service.version_control_service.controller;
 
-import com.version_control_service.version_control_service.dto.RevertVersionDto;
 import com.version_control_service.version_control_service.dto.SopVersionDto;
 import com.version_control_service.version_control_service.model.Version;
 import com.version_control_service.version_control_service.service.SopVersionService;
 import com.version_control_service.version_control_service.utils.Response;
-import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
@@ -23,8 +21,8 @@ public class VersionController {
 
     @PutMapping("/{sopId}")
     public Response<Version> revertVersionsBySopId(@PathVariable String sopId,
-                                                      @Valid @RequestBody RevertVersionDto revertVersionDto) {
-        Version version = sopVersionService.revertSopVersion(sopId, revertVersionDto.getVersionNumber());
+                                                   @RequestParam(name = "versionNumber") Float versionNumber) {
+        Version version = sopVersionService.revertSopVersion(sopId, versionNumber);
         return new Response<>(true, "Versions reverted successfully", version);
     }
 

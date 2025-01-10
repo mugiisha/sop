@@ -12,6 +12,7 @@ import org.springframework.cache.annotation.Caching;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,7 +37,7 @@ public class CommentService {
                 .content(comment)
                 .stageId(stageId)
                 .userId(userId)
-                .createdAt(LocalDateTime.now())
+                .createdAt(new Date())
                 .build();
 
         return commentRepository.save(newComment);

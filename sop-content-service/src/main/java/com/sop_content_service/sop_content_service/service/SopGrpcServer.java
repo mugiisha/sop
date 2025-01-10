@@ -25,7 +25,7 @@ public class SopGrpcServer extends SopServiceGrpc.SopServiceImplBase {
         try {
             log.info("Received gRPC request for SOP details. SOP ID: {}", request.getSopId());
 
-            SOPResponseDto sop = sopService.getSopById(request.getSopId());
+            SOPResponseDto sop = sopService.getSop(request.getSopId());
 
             GetSopDetailsResponse response = GetSopDetailsResponse.newBuilder()
                     .setId(sop.getId())

@@ -45,7 +45,7 @@ public class CategoryController {
     }
 
     @DeleteMapping("/{id}")
-    public Response<Object> deleteCategory(@PathVariable String id, @Valid @RequestBody CategoryDto categoryDto){
+    public Response<Object> deleteCategory(@PathVariable String id){
         categoryService.deleteCategory(id);
         return new Response<>(true, "Category deleted successfully", null);
     }
