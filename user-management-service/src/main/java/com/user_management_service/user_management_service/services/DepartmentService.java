@@ -14,7 +14,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-//import org.springframework.data.rest.webmvc.ResourceNotFoundException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -27,6 +26,7 @@ import java.util.stream.Collectors;
 @Transactional
 public class DepartmentService {
     private final DepartmentRepository departmentRepository;
+    private final UserService userService;
 
     public DepartmentDTO createDepartment(DepartmentCreationDTO creationDTO) {
         log.info("Creating new department with name: {}", creationDTO.getName());
@@ -116,9 +116,12 @@ public class DepartmentService {
             return null;
         }
 
+        long staff = userService.getDepartmentUsersCount(department.getId());
+
         DepartmentDTO dto = new DepartmentDTO();
         dto.setId(department.getId());
         dto.setName(department.getName());
+        dto.setStaff(staff);
         dto.setDescription(department.getDescription());
         dto.setCreatedAt(department.getCreatedAt());
         dto.setUpdatedAt(department.getUpdatedAt());

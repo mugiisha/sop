@@ -10,6 +10,7 @@ public class DepartmentDTO {
     private UUID id;
     private String name;
     private String description;
+    private long staff;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

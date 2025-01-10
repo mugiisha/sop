@@ -9,6 +9,7 @@ import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.Date;
 import java.util.UUID;
 
 @Data
@@ -23,7 +24,7 @@ public class Comment {
     private UUID userId;
     private String content;
     @CreatedDate
-    private LocalDateTime createdAt;
+    private Date createdAt;
     @LastModifiedDate
-    private LocalDateTime updatedAt;
+    private Date updatedAt;
 }

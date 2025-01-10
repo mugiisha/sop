@@ -258,6 +258,16 @@ public class  UserService {
         auditService.logUserDeactivation(user.getId(), user.getEmail());
     }
 
+    public long getDepartmentUsersCount(UUID departmentId) {
+        log.debug("Fetching user count for department ID: {}", departmentId);
+
+        if (!departmentRepository.existsById(departmentId)) {
+            throw new ResourceNotFoundException("Department not found");
+        }
+
+        return userRepository.countByDepartment(departmentId);
+    }
+
     public List<UserResponseDTO> getUsersByDepartment(UUID departmentId) {
         log.debug("Fetching users for department ID: {}", departmentId);
 

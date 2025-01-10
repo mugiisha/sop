@@ -152,6 +152,22 @@ public class SopService {
         Sop sop = sopRepository.findById(sopId)
                 .orElseThrow(() -> new SopNotFoundException("SOP with id " + sopId + " not found."));
 
+        SOPResponseDto sopResponse = mapSOPToSOPResponseDto(sop);
+
+        if(SOPStatus.PUBLISHED.equals(sop.getStatus())){
+            SOPDto sopDto = mapSOPToSOPDto(sop);
+            kafkaTemplate.send("sop-read", sopDto);
+        }
+
+        return sopResponse;
+    }
+
+    //get sop used by ai to prevent counting reads for getting sop by id in the recommendation service
+    public SOPResponseDto getSop(String sopId) {
+        log.info("Fetching SOP with ID: {}", sopId);
+        Sop sop = sopRepository.findById(sopId)
+                .orElseThrow(() -> new SopNotFoundException("SOP with id " + sopId + " not found."));
+
         return mapSOPToSOPResponseDto(sop);
     }
 

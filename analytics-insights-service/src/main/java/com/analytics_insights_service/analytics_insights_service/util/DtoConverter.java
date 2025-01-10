@@ -1,17 +1,19 @@
 package com.analytics_insights_service.analytics_insights_service.util;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.analytics_insights_service.analytics_insights_service.dto.SOPDto;
 import com.fasterxml.jackson.core.JsonProcessingException;
-
-import com.analytics_insights_service.analytics_insights_service.dto.FeedbackDto;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 public class DtoConverter {
 
     private static final ObjectMapper objectMapper = new ObjectMapper();
 
-    // Convert JSON to FeedbackDto
-    public static FeedbackDto sopDtoFromJson(String json) throws JsonProcessingException {
-        return objectMapper.readValue(json, FeedbackDto.class);
+    public static SOPDto sopDtoFromJson(String json) throws JsonProcessingException {
+        return objectMapper.readValue(json, SOPDto.class);
+    }
+
+    public static String sopDtoTojson(SOPDto sopDto) throws JsonProcessingException {
+        return objectMapper.writeValueAsString(sopDto);
     }
 
 }
