@@ -3,11 +3,8 @@ package compliance_reporting_service.compliance_reporting_service.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
-
 import compliance_reporting_service.compliance_reporting_service.dto.ReportDto;
 import compliance_reporting_service.compliance_reporting_service.dto.ReportResponseDto;
-
-
 import compliance_reporting_service.compliance_reporting_service.dto.SOPDto;
 import compliance_reporting_service.compliance_reporting_service.model.SOPReport;
 import compliance_reporting_service.compliance_reporting_service.repository.SOPReportRepository;
@@ -24,124 +21,172 @@ import userService.getUserInfoResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.retry.annotation.Backoff;
 
 @Service
 public class SOPReportService {
 
     private static final Logger log = LoggerFactory.getLogger(SOPReportService.class);
+    private static final int MAX_RETRY_ATTEMPTS = 3;
+    private static final long RETRY_DELAY_MS = 1000;
 
     private final SOPReportRepository repository;
     private final VersionClientService versionClientService;
     private final UserInfoClientService userInfoClientService;
+    private final ObjectMapper objectMapper;
 
     @Autowired
-    public SOPReportService(SOPReportRepository repository, VersionClientService versionClientService, UserInfoClientService userInfoClientService) {
+    public SOPReportService(SOPReportRepository repository,
+                            VersionClientService versionClientService,
+                            UserInfoClientService userInfoClientService) {
         this.repository = repository;
         this.versionClientService = versionClientService;
         this.userInfoClientService = userInfoClientService;
+        this.objectMapper = new ObjectMapper()
+                .configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     @KafkaListener(
             topics = "sop-created",
             groupId = "compliance-reporting-service"
     )
-    /**
-     * Consumer method for the Kafka topic sop-created
-     */
-    public void ReportCreatedListener(String data) throws JsonProcessingException {
+    public void ReportCreatedListener(String data) {
         log.info("Received SOP created event: {}", data);
         try {
-            ObjectMapper objectMapper = new ObjectMapper();
-            objectMapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-
-            // Convert the incoming data to a ReportDto using the ObjectMapper
             SOPDto sopDto = objectMapper.readValue(data, SOPDto.class);
 
-            // Create a new ReportModel and set its fields from the DTO
-            SOPReport sopReport = new SOPReport();
-            sopReport.setId(new ObjectId().toString());
-            sopReport.setSopId(sopDto.getId());
-            sopReport.setTitle(sopDto.getTitle());
-            sopReport.setVisibility(sopDto.getVisibility());
-            sopReport.setCreatedAt(sopDto.getCreatedAt());
-            sopReport.setUpdatedAt(sopDto.getUpdatedAt());
-            sopReport.setAuthorId(sopDto.getAuthorId());
-            sopReport.setReviewers(sopDto.getReviewers());
-            sopReport.setApproverId(sopDto.getApproverId());
+            // Validate required fields
+            if (!isValidSOPDto(sopDto)) {
+                log.error("Invalid SOP DTO received: {}", data);
+                return;
+            }
 
-
-
-
-            // Save the model to the database
+            SOPReport sopReport = createSOPReportFromDto(sopDto);
             repository.save(sopReport);
-            log.info("Saved Feedback model: {}", sopReport);
+            log.info("Successfully saved SOP report: {}", sopReport.getId());
+
+        } catch (JsonProcessingException e) {
+            log.error("Error parsing SOP created event: {}", e.getMessage(), e);
         } catch (Exception e) {
-            log.error("Error processing SOP created event: {}", e.getMessage(), e);
+            log.error("Unexpected error processing SOP created event: {}", e.getMessage(), e);
         }
     }
 
-    // Read All
+    private boolean isValidSOPDto(SOPDto sopDto) {
+        if (sopDto == null) return false;
+        if (sopDto.getId() == null) {
+            log.error("SOP DTO missing required field: id");
+            return false;
+        }
+        if (sopDto.getTitle() == null || sopDto.getTitle().trim().isEmpty()) {
+            log.warn("SOP DTO missing title, will use default");
+        }
+        return true;
+    }
+
+    private SOPReport createSOPReportFromDto(SOPDto sopDto) {
+        SOPReport sopReport = new SOPReport();
+        sopReport.setId(new ObjectId().toString());
+        sopReport.setSopId(sopDto.getId());
+        sopReport.setTitle(sopDto.getTitle() != null ? sopDto.getTitle().trim() : "Untitled SOP");
+        sopReport.setVisibility(sopDto.getVisibility());
+        sopReport.setCreatedAt(sopDto.getCreatedAt());
+        sopReport.setUpdatedAt(sopDto.getUpdatedAt());
+        sopReport.setAuthorId(sopDto.getAuthorId());
+        sopReport.setReviewers(sopDto.getReviewers() != null ? sopDto.getReviewers() : new ArrayList<>());
+        sopReport.setApproverId(sopDto.getApproverId());
+        return sopReport;
+    }
+
     public List<ReportResponseDto> findAll() {
-        List<SOPReport> sopReport = repository.findAll();
+        List<SOPReport> sopReports = repository.findAll();
         List<ReportResponseDto> reportResponseDtos = new ArrayList<>();
 
-        for (SOPReport report : sopReport) {
-            reportResponseDtos.add(mapReportToReportResponseDTO(report));
+        for (SOPReport report : sopReports) {
+            try {
+                reportResponseDtos.add(mapReportToReportResponseDTO(report));
+            } catch (Exception e) {
+                log.error("Error mapping report {}: {}", report.getId(), e.getMessage());
+            }
         }
 
         return reportResponseDtos;
     }
-    // Fetch a report by its ID
+
     public SOPReport findReportById(String reportId) {
-        return repository.findById(reportId).orElse(null); // Fetch the report by ID using repository
+        return repository.findById(reportId)
+                .orElseThrow(() -> new RuntimeException("Report not found with id: " + reportId));
     }
 
-    // Mapping SOPReport to ReportResponseDto
-
+    @Retryable(
+            value = { Exception.class },
+            maxAttempts = MAX_RETRY_ATTEMPTS,
+            backoff = @Backoff(delay = RETRY_DELAY_MS)
+    )
     public ReportResponseDto mapReportToReportResponseDTO(SOPReport sopReport) {
-        // Fetch versions response
-        GetSopVersionsResponse versionsResponse = versionClientService.GetSopVersions(sopReport.getSopId());
-        if (!versionsResponse.getSuccess()) {
-            log.error("Error fetching versions for sop with id: {}", sopReport.getSopId());
-        }
-
-        // Fetch user information (assuming you have access to userId from sopReport or elsewhere)
-
-        getUserInfoResponse authorInfo = userInfoClientService.getUserInfo(sopReport.getAuthorId().toString());
-        if (!authorInfo.getSuccess()) {
-            log.error("Error fetching user info: {}", authorInfo.getErrorMessage());
-        }
-
-        getUserInfoResponse approverInfo = userInfoClientService.getUserInfo(sopReport.getApproverId().toString());
-        if (!approverInfo.getSuccess()) {
-            log.error("Error fetching user info: {}", approverInfo.getErrorMessage());
-        }
-
+        // Default values
+        String authorName = "Unknown";
+        String approverName = "Unknown";
         List<String> reviewersInfo = new ArrayList<>();
+        int versionsCount = 0;
 
-        for(UUID reviewerId : sopReport.getReviewers()){
-            getUserInfoResponse reviewerInfo = userInfoClientService.getUserInfo(reviewerId.toString());
-            if (!reviewerInfo.getSuccess()) {
-                log.error("Error fetching user info: {}", reviewerInfo.getErrorMessage());
+        // Get versions info
+        if (sopReport.getSopId() != null) {
+            GetSopVersionsResponse versionsResponse = versionClientService.GetSopVersions(sopReport.getSopId());
+            if (versionsResponse != null && versionsResponse.getSuccess()) {
+                versionsCount = versionsResponse.getVersionsCount();
+            } else {
+                log.warn("Could not fetch versions for SOP: {}", sopReport.getSopId());
             }
-            reviewersInfo.add(reviewerInfo.getName());
         }
 
+        // Get author info
+        if (sopReport.getAuthorId() != null) {
+            getUserInfoResponse authorInfo = userInfoClientService.getUserInfo(sopReport.getAuthorId().toString());
+            if (authorInfo != null && authorInfo.getSuccess()) {
+                authorName = authorInfo.getName();
+            }
+        }
 
-        // Map to DTO
-        return ReportResponseDto
-                .builder()
+        // Get approver info
+        if (sopReport.getApproverId() != null) {
+            getUserInfoResponse approverInfo = userInfoClientService.getUserInfo(sopReport.getApproverId().toString());
+            if (approverInfo != null && approverInfo.getSuccess()) {
+                approverName = approverInfo.getName();
+            }
+        }
+
+        // Get reviewers info
+        if (sopReport.getReviewers() != null) {
+            for (UUID reviewerId : sopReport.getReviewers()) {
+                if (reviewerId != null) {
+                    try {
+                        getUserInfoResponse reviewerInfo = userInfoClientService.getUserInfo(reviewerId.toString());
+                        String reviewerName = (reviewerInfo != null && reviewerInfo.getSuccess())
+                                ? reviewerInfo.getName()
+                                : "Unknown Reviewer";
+                        reviewersInfo.add(reviewerName);
+                    } catch (Exception e) {
+                        log.error("Error fetching reviewer info for {}: {}", reviewerId, e.getMessage());
+                        reviewersInfo.add("Unknown Reviewer");
+                    }
+                }
+            }
+        }
+
+        // Build and return the DTO
+        return ReportResponseDto.builder()
                 .reportId(sopReport.getId())
                 .title(sopReport.getTitle())
-                .numberOfVersions(versionsResponse.getVersionsCount())
+                .numberOfVersions(versionsCount)
                 .createdAt(sopReport.getCreatedAt())
                 .updatedAt(sopReport.getUpdatedAt())
                 .reads(sopReport.getReads())
                 .visibility(sopReport.getVisibility())
-                .author(authorInfo.getName()) // Add userId to the response
-                .approver(approverInfo.getName())
+                .author(authorName)
+                .approver(approverName)
                 .reviewers(reviewersInfo)
                 .build();
     }
-
 }
