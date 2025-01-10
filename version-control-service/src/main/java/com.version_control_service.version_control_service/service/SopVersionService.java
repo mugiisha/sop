@@ -123,6 +123,8 @@ public class SopVersionService {
                     .builder()
                     .versionNumber(version.getVersionNumber())
                     .currentVersion(version.isCurrentVersion())
+                    .createdAt(version.getCreatedAt())
+                    .updatedAt(version.getUpdatedAt())
                     .build();
 
             sopVersionDtos.add(sopVersionDto);
@@ -165,6 +167,7 @@ public class SopVersionService {
                 .versionNumber(versionNumber + 1.0f)
                 .currentVersion(true)
                 .content(savedContent)
+                .createdAt(publishedSopDto.getCreatedAt())
                 .build();
 
         Version savedVersion = versionRepository.save(newVersion);
