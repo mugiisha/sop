@@ -3,8 +3,7 @@ package com.sop_content_service.sop_content_service.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-
-import java.time.LocalDateTime;
+import java.util.Date;
 
 @Data
 @NoArgsConstructor
@@ -12,5 +11,5 @@ import java.time.LocalDateTime;
 public class CommentDto {
     String commentId;
     String comment;
-    LocalDateTime createdAt;
+    Date createdAt;
 }
