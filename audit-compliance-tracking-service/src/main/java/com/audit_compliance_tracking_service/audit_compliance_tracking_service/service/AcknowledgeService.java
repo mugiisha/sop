@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import userService.getUserInfoResponse;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class AcknowledgeService {
@@ -130,7 +131,12 @@ public class AcknowledgeService {
     public ResponseEntity<ApiResponse<List<AcknowledgeModel>>> getAllAcknowledged() {
         try {
             List<AcknowledgeModel> acknowledgements = acknowledgeRepository.findAll();
-            ApiResponse<List<AcknowledgeModel>> response = new ApiResponse<>("All acknowledgements retrieved successfully", acknowledgements);
+
+            // Filter acknowledgements where acknowledgedBy is not empty or null
+            List<AcknowledgeModel> filteredAcknowledgements = acknowledgements.stream()
+                    .filter(ack -> ack.getAcknowledgedBy() != null && !ack.getAcknowledgedBy().isEmpty())
+                    .collect(Collectors.toList());
+            ApiResponse<List<AcknowledgeModel>> response = new ApiResponse<>("All acknowledgements retrieved successfully", filteredAcknowledgements);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
             log.error("Error retrieving all acknowledgements: {}", e.getMessage(), e);
