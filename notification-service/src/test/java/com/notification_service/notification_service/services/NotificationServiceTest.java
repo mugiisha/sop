@@ -1,4 +1,4 @@
 package com.notification_service.notification_service.services;
 
-public class NotificationPreferencesServiceTest {
+public class NotificationServiceTest {
 }
