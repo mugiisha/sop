@@ -136,6 +136,7 @@ public class AcknowledgeService {
             List<AcknowledgeModel> filteredAcknowledgements = acknowledgements.stream()
                     .filter(ack -> ack.getAcknowledgedBy() != null && !ack.getAcknowledgedBy().isEmpty())
                     .collect(Collectors.toList());
+            System.out.println("filteredAcknowledgements: " + filteredAcknowledgements);
             ApiResponse<List<AcknowledgeModel>> response = new ApiResponse<>("All acknowledgements retrieved successfully", filteredAcknowledgements);
             return new ResponseEntity<>(response, HttpStatus.OK);
         } catch (Exception e) {
