@@ -12,6 +12,6 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 public class SOPStatusOverviewResponseDto {
-    private Map<String, StatusCountDto> data;
+    private Map<String, StatusCountDto> counts;
     private List<String> periods;
 }

@@ -137,7 +137,7 @@ public class AnalyticsService {
         }
 
         return SOPStatusOverviewResponseDto.builder()
-                .data(monthlyCountsMap)
+                .counts(monthlyCountsMap)
                 .periods(periodLabels)
                 .build();
     }
