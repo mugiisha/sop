@@ -2,6 +2,7 @@ package com.sop_workflow_service.sop_workflow_service.service;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.sop_workflow_service.sop_workflow_service.dto.PublishedSopDto;
 import com.sop_workflow_service.sop_workflow_service.dto.SOPDto;
+import com.sop_workflow_service.sop_workflow_service.dto.SopByStatusDto;
 import com.sop_workflow_service.sop_workflow_service.dto.UpdateStageDto;
 import com.sop_workflow_service.sop_workflow_service.enums.ApprovalStatus;
 import com.sop_workflow_service.sop_workflow_service.enums.Roles;
@@ -115,10 +116,32 @@ public class SOPService {
         return sopRepository.findAllByOrderByCreatedAtDesc();
     }
 
+    // Get SOPs by departmentId and status
+    @Cacheable(value = "sopsByStatus", key = "#departmentId")
+    public List<SopByStatusDto> getSopsByDepartmentId(UUID departmentId) {
+        log.info("Fetching SOPs by departmentId: {}", departmentId);
+        return sopRepository.findAllByDepartmentId(departmentId)
+                .stream()
+                .map(this::mapSopToSopByStatusDto)
+                .collect(Collectors.toList());
+    }
+
+    // Get SOPs by status
+    @Cacheable(value = "allSopsByStatus")
+    public List<SopByStatusDto> getSops() {
+        log.info("Fetching SOPs");
+        return sopRepository.findAll()
+                .stream()
+                .map(this::mapSopToSopByStatusDto)
+                .collect(Collectors.toList());
+    }
+
     // Delete SOP
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "sops", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true),
+            @CacheEvict(value = "sopsByStatus", allEntries = true),
+            @CacheEvict(value = "allSopsByStatus", allEntries = true)
     })
     public void deleteSOP(String id) {
         SOP sop = sopRepository.findById(id)
@@ -217,7 +240,9 @@ public class SOPService {
     @KafkaListener(topics = "sop-drafted")
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "sops", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true),
+            @CacheEvict(value = "sopsByStatus", allEntries = true),
+            @CacheEvict(value = "allSopsByStatus", allEntries = true)
     })
     public void sopDraftedListener(String data) throws JsonProcessingException {
 
@@ -235,7 +260,9 @@ public class SOPService {
     @KafkaListener(topics = "sop-reviewal-ready")
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "sops", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true),
+            @CacheEvict(value = "sopsByStatus", allEntries = true),
+            @CacheEvict(value = "allSopsByStatus", allEntries = true)
     })
     public void sopReviewalReadyListener(String data) throws JsonProcessingException {
 
@@ -276,7 +303,9 @@ public class SOPService {
     @KafkaListener(topics = "sop-published")
     @Caching(evict = {
             @CacheEvict(value = "sop", allEntries = true),
-            @CacheEvict(value = "sops", allEntries = true)
+            @CacheEvict(value = "sops", allEntries = true),
+            @CacheEvict(value = "sopsByStatus", allEntries = true),
+            @CacheEvict(value = "allSopsByStatus", allEntries = true)
     })
     public void sopPublishedListener(String data) throws JsonProcessingException {
 
@@ -324,4 +353,15 @@ public class SOPService {
         );
         return sopDto;
 }
+
+public SopByStatusDto mapSopToSopByStatusDto(SOP sop) {
+        return SopByStatusDto
+                .builder()
+                .id(sop.getId())
+                .title(sop.getTitle())
+                .status(sop.getStatus())
+                .createdAt(sop.getCreatedAt())
+                .updatedAt(sop.getUpdatedAt())
+                .build();
+    }
 }

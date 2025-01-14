@@ -28,6 +28,7 @@ public class DepartmentService {
     private final DepartmentRepository departmentRepository;
     private final UserService userService;
 
+    @CacheEvict(value = "departments", allEntries = true)
     public DepartmentDTO createDepartment(DepartmentCreationDTO creationDTO) {
         log.info("Creating new department with name: {}", creationDTO.getName());
 
