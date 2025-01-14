@@ -8,6 +8,8 @@ option java_multiple_files = true;
 service SopWorkflowService {
     rpc IsSOPApproved(IsSOPApprovedRequest) returns (IsSOPApprovedResponse);
     rpc GetWorkflowStageInfo(GetWorkflowStageInfoRequest) returns (GetWorkflowStageInfoResponse);
+    rpc getDepartmentSopsByStatus(GetDepartmentSopsByStatusRequest) returns (GetDepartmentSopsByStatusResponse);
+    rpc getSopsByStatus(GetSopsStatusRequest) returns (GetDepartmentSopsByStatusResponse);
 }
 
 // Messages for requests and responses
@@ -39,4 +41,23 @@ message Comments{
     string createdAt=3;
 }
 
+message GetDepartmentSopsByStatusRequest{
+    string departmentId = 1;
+}
 
+message GetDepartmentSopsByStatusResponse{
+    bool success = 1;
+    repeated SopByStatus sops = 2;
+    string errorMessage = 3;
+}
+
+message SopByStatus {
+    string id=1;
+    string title=2;
+    string status=3;
+    string createdAt=4;
+    string updatedAt=5;
+}
+
+message GetSopsStatusRequest{
+}

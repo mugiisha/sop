@@ -349,22 +349,15 @@ public class SopService {
         stageDto.setStatus(ApprovalStatus.valueOf(stageInfo.getStatus()));
 
         stageDto.setComments(stageInfo.getCommentsList().stream()
-                .map(comment -> new CommentDto(
-                        comment.getCommentId(),
-                        comment.getComment(),
-                        parseDate(comment.getCreatedAt())))
-                .collect(Collectors.toList()));
+                    .map(comment -> new CommentDto(
+                            comment.getCommentId(),
+                            comment.getComment(),
+                            parseDate(comment.getCreatedAt())))
+                    .collect(Collectors.toList()));
         return stageDto;
     }
 
-    private Date parseDate(String dateStr) {
-        try {
-            return new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy").parse(dateStr);
-        } catch (ParseException e) {
-            // Handle the exception, e.g., log it or rethrow it as a runtime exception
-            throw new RuntimeException("Failed to parse date: " + dateStr, e);
-        }
-    }
+
 
     // map sop to an object including assigned users profiles
     public SOPResponseDto mapSOPToSOPResponseDto(Sop sop) {
@@ -416,6 +409,16 @@ public class SopService {
         response.setReviewers(reviewers);
 
         return response;
+    }
+
+
+    private Date parseDate(String dateStr) {
+        try {
+            return new SimpleDateFormat("EEE MMM dd HH:mm:ss zzz yyyy").parse(dateStr);
+        } catch (ParseException e) {
+            // Handle the exception, e.g., log it or rethrow it as a runtime exception
+            throw new RuntimeException("Failed to parse date: " + dateStr, e);
+        }
     }
 
 }

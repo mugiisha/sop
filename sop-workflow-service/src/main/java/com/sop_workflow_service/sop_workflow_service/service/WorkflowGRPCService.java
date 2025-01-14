@@ -1,5 +1,7 @@
 package com.sop_workflow_service.sop_workflow_service.service;
 
+import com.sop_workflow_service.sop_workflow_service.dto.SopByStatusDto;
+import com.sop_workflow_service.sop_workflow_service.enums.SOPStatus;
 import com.sop_workflow_service.sop_workflow_service.model.Comment;
 import com.sop_workflow_service.sop_workflow_service.model.WorkflowStage;
 import io.grpc.stub.StreamObserver;
@@ -87,6 +89,86 @@ public class WorkflowGRPCService extends SopWorkflowServiceGrpc.SopWorkflowServi
             GetWorkflowStageInfoResponse response = GetWorkflowStageInfoResponse.newBuilder()
                     .setSuccess(false)
                     .setErrorMessage("Failed to get workflow stage info: " + e.getMessage())
+                    .build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void getDepartmentSopsByStatus(GetDepartmentSopsByStatusRequest request, StreamObserver<GetDepartmentSopsByStatusResponse> responseObserver) {
+        log.info("Getting department SOPs by status");
+        try{
+            UUID departmentId = UUID.fromString(request.getDepartmentId());
+
+            List<SopByStatusDto> sopsByStatus = sopService.getSopsByDepartmentId( departmentId);
+
+            List<SopByStatus> sops = new ArrayList<>();
+
+            for(SopByStatusDto sop : sopsByStatus){
+                    if (sop != null) { // Add null check for sop
+                        SopByStatus sopByStatus = SopByStatus.newBuilder()
+                                .setId(sop.getId())
+                                .setTitle(sop.getTitle())
+                                .setStatus(sop.getStatus().toString())
+                                .setCreatedAt(sop.getCreatedAt().toString())
+                                .setUpdatedAt(sop.getUpdatedAt().toString())
+                                .build();
+                        sops.add(sopByStatus);
+                    }
+                }
+
+            GetDepartmentSopsByStatusResponse response = GetDepartmentSopsByStatusResponse.newBuilder()
+                    .setSuccess(true)
+                    .addAllSops(sops)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error("Error getting workflow stage info: ", e);
+            GetDepartmentSopsByStatusResponse response = GetDepartmentSopsByStatusResponse.newBuilder()
+                    .setSuccess(false)
+                    .setErrorMessage("Failed to get sops by department id and status: " + e.getMessage())
+                    .build();
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        }
+    }
+
+    @Override
+    public void getSopsByStatus(GetSopsStatusRequest request, StreamObserver<GetDepartmentSopsByStatusResponse> responseObserver) {
+        log.info("Getting SOPs by status");
+        try{
+            List<SopByStatusDto> sopsByStatus = sopService.getSops();
+
+            List<SopByStatus> sops = new ArrayList<>();
+
+            for(SopByStatusDto sop : sopsByStatus){
+                    if (sop != null) { // Add null check for sop
+                        SopByStatus sopByStatus = SopByStatus.newBuilder()
+                                .setId(sop.getId())
+                                .setTitle(sop.getTitle())
+                                .setStatus(sop.getStatus().toString())
+                                .setCreatedAt(sop.getCreatedAt().toString())
+                                .setUpdatedAt(sop.getUpdatedAt().toString())
+                                .build();
+                        sops.add(sopByStatus);
+                    }
+                }
+
+            GetDepartmentSopsByStatusResponse response = GetDepartmentSopsByStatusResponse.newBuilder()
+                    .setSuccess(true)
+                    .addAllSops(sops)
+                    .build();
+
+            responseObserver.onNext(response);
+            responseObserver.onCompleted();
+        } catch (Exception e) {
+            log.error("Error getting workflow stage info: ", e);
+            GetDepartmentSopsByStatusResponse response = GetDepartmentSopsByStatusResponse.newBuilder()
+                    .setSuccess(false)
+                    .setErrorMessage("Failed to get sops by status: " + e.getMessage())
                     .build();
             responseObserver.onNext(response);
             responseObserver.onCompleted();
