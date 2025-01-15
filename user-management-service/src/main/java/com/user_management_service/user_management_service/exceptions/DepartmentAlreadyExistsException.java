@@ -1,11 +1,7 @@
 package com.user_management_service.user_management_service.exceptions;
 
-import org.springframework.http.HttpStatus;
-import org.springframework.web.bind.annotation.ResponseStatus;
-
-@ResponseStatus(HttpStatus.CONFLICT)
-public class DepartmentAlreadyExistsException extends RuntimeException {
-    public DepartmentAlreadyExistsException(String message) {
-        super(message);
+public class DepartmentAlreadyExistsException extends DepartmentException {
+    public DepartmentAlreadyExistsException(String message, String errorCode) {
+        super(message, errorCode);
     }
 }

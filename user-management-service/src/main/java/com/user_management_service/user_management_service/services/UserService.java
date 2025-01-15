@@ -1,6 +1,7 @@
 package com.user_management_service.user_management_service.services;
 
 import com.user_management_service.user_management_service.dtos.*;
+import com.user_management_service.user_management_service.enums.ErrorCode;
 import com.user_management_service.user_management_service.exceptions.*;
 import com.user_management_service.user_management_service.models.*;
 import com.user_management_service.user_management_service.repositories.*;
@@ -11,7 +12,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
-import org.springframework.cache.annotation.Caching;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -44,7 +44,7 @@ public class  UserService {
         }
 
         Department department = departmentRepository.findById(registrationDTO.getDepartmentId())
-                .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("Department not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         String temporaryPassword = PasswordGenerator.generateRandomPassword();
         String verificationToken = UUID.randomUUID().toString();
@@ -100,7 +100,7 @@ public class  UserService {
         log.debug("Fetching user by ID: {}", id);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"+id));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"+id, ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         GetRoleByUserIdResponse userRole = userRoleClientService
                 .getUserRoles(user.getId().toString());
@@ -118,12 +118,12 @@ public class  UserService {
         log.info("Updating user with ID: {}", id);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (updateDTO.getDepartmentId() != null &&
                 !updateDTO.getDepartmentId().equals(user.getDepartment().getId())) {
             Department department = departmentRepository.findById(updateDTO.getDepartmentId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Department not found"));
+                    .orElseThrow(() -> new ResourceNotFoundException("Department not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
             user.setDepartment(department);
         }
 
@@ -149,7 +149,7 @@ public class  UserService {
     @Transactional
     public void verifyEmailAndSendCredentials(String token) {
         User user = userRepository.findByEmailVerificationToken(token)
-                .orElseThrow(() -> new ResourceNotFoundException("Invalid verification token"));
+                .orElseThrow(() -> new ResourceNotFoundException("Invalid verification token", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (user.getEmailVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
             throw new TokenExpiredException("Verification token has expired");
@@ -185,7 +185,7 @@ public class  UserService {
     @CacheEvict(value = "user", allEntries = true)
     public void changePassword(UUID userId, PasswordChangeDTO dto) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (!passwordEncoder.matches(dto.getCurrentPassword(), user.getPasswordHash())) {
             throw new InvalidCredentialsException("Current password is incorrect");
@@ -214,7 +214,7 @@ public class  UserService {
         log.info("Deactivating user with ID: {}", id);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (!user.isActive()) {
             throw new IllegalStateException("User is already deactivated");
@@ -239,7 +239,7 @@ public class  UserService {
         log.info("activating user with ID: {}", id);
 
         User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (user.isActive()) {
             throw new IllegalStateException("User is already active");
@@ -262,7 +262,7 @@ public class  UserService {
         log.debug("Fetching user count for department ID: {}", departmentId);
 
         if (!departmentRepository.existsById(departmentId)) {
-            throw new ResourceNotFoundException("Department not found");
+            throw new ResourceNotFoundException("Department not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode());
         }
 
         return userRepository.countByDepartment(departmentId);
@@ -272,7 +272,7 @@ public class  UserService {
         log.debug("Fetching users for department ID: {}", departmentId);
 
         if (!departmentRepository.existsById(departmentId)) {
-            throw new ResourceNotFoundException("Department not found");
+            throw new ResourceNotFoundException("Department not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode());
         }
 
         return userRepository.findActiveUsersByDepartment(departmentId).stream()

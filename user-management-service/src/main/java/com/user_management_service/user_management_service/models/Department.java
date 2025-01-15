@@ -1,5 +1,5 @@
 package com.user_management_service.user_management_service.models;
-//import com.user_management_service.user_management_service.models.User;
+
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -26,11 +26,14 @@ public class Department {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false, unique = true, length = 100)
     private String name;
 
-    @Column
+    @Column(length = 500)
     private String description;
+
+    @Column(nullable = false)
+    private boolean active = true;
 
     @ToString.Exclude
     @OneToMany(mappedBy = "department", cascade = {CascadeType.PERSIST, CascadeType.MERGE})
@@ -46,10 +49,28 @@ public class Department {
     @Temporal(TemporalType.TIMESTAMP)
     private LocalDateTime updatedAt;
 
+    @Version
+    @Column(name = "version")
+    private Long version;
+
+    @Column(name = "deleted_at")
+    private LocalDateTime deletedAt;
+
+    @Column(name = "created_by")
+    private UUID createdBy;
+
+    @Column(name = "updated_by")
+    private UUID updatedBy;
+
+    @Column(name = "deleted_by")
+    private UUID deletedBy;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        active = true;
+        version = 0L;
     }
 
     @PreUpdate
@@ -66,6 +87,21 @@ public class Department {
     public void removeUser(User user) {
         users.remove(user);
         user.setDepartment(null);
+    }
+
+    // Soft delete helper
+    public void softDelete(UUID deletedByUserId) {
+        this.active = false;
+        this.deletedAt = LocalDateTime.now();
+        this.deletedBy = deletedByUserId;
+    }
+
+    // Reactivate helper
+    public void reactivate(UUID updatedByUserId) {
+        this.active = true;
+        this.deletedAt = null;
+        this.deletedBy = null;
+        this.updatedBy = updatedByUserId;
     }
 
     // Custom equals and hashCode methods to prevent circular references
@@ -87,5 +123,6 @@ public class Department {
         this.name = name;
         this.description = description;
         this.users = new HashSet<>();
+        this.active = true;
     }
 }
