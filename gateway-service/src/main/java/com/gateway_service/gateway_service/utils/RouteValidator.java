@@ -21,7 +21,8 @@ public class RouteValidator {
             "/swagger-ui",
             "/v3/api-docs",
             "/api/v1/users/verify-email/**",
-            "/webjars"
+            "/webjars",
+            "/notifications/ws"
     );
 
     private final Map<String, String> routeRoles = Map.of(

@@ -25,6 +25,8 @@ import static org.springframework.http.MediaType.APPLICATION_JSON;
 public class WebsocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${frontend.url}")
     private String frontendUrl;
+    @Value("${frontend.local.url}")
+    private String frontendLocalUrl;
 
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
@@ -36,7 +38,7 @@ public class WebsocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
         registry.addEndpoint("/ws")
-                .setAllowedOrigins(frontendUrl)
+                .setAllowedOrigins(frontendUrl, frontendLocalUrl)
                 .withSockJS();
     }
 
