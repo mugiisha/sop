@@ -279,5 +279,3 @@ class UserRoleServiceTest {
         assertEquals(roleId.toString(), response.getRoleId());
     }
 }
-
-//vg

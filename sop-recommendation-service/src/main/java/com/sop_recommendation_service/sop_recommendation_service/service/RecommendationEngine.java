@@ -10,16 +10,4 @@ public interface RecommendationEngine {
             String departmentId,
             List<SopDetails> sops
     );
-
-    List<RecommendationResult> findSimilarSops(
-            SopDetails sourceSop,
-            List<SopDetails> allSops
-    );
-
-    List<RecommendationResult> generateDepartmentRecommendations(
-            String departmentId,
-            List<SopDetails> sops
-    );
-
-    List<RecommendationResult> getTrendingSops(List<SopDetails> sops);
 }
