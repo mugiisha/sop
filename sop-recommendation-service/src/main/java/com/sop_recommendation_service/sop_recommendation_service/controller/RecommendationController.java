@@ -35,7 +35,22 @@ public class RecommendationController {
                         )
                 ));
     }
-
+    @Operation(summary = "Get single SOP from recommendations by ID")
+    @GetMapping("/recommendations/sops/{sopId}")
+    public Mono<ResponseEntity<ApiResponse<RecommendationDTO>>> getRecommendedSop(
+            @RequestHeader("Authorization") String token,
+            @PathVariable String sopId) {
+        return requestValidator.validateToken(token)
+                .flatMap(tokenData -> recommendationService.getRecommendedSop(tokenData, sopId))
+                .map(recommendation -> ResponseEntity.ok(
+                        new ApiResponse<>("Successfully retrieved recommended SOP", recommendation)
+                ))
+                .onErrorResume(e -> Mono.just(
+                        ResponseEntity.internalServerError().body(
+                                new ApiResponse<>("Error retrieving recommended SOP: " + e.getMessage(), null)
+                        )
+                ));
+    }
     @Operation(summary = "Generate response using AI")
     @PostMapping("/ai/generate")
     public Mono<ResponseEntity<ApiResponse<AiResponse>>> generateAiResponse(
