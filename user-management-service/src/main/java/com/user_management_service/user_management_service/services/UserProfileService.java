@@ -1,6 +1,7 @@
 package com.user_management_service.user_management_service.services;
 
 import com.user_management_service.user_management_service.dtos.*;
+import com.user_management_service.user_management_service.enums.ErrorCode;
 import com.user_management_service.user_management_service.exceptions.*;
 import com.user_management_service.user_management_service.models.User;
 import com.user_management_service.user_management_service.repositories.UserRepository;
@@ -31,7 +32,7 @@ public class UserProfileService {
     public UserProfileDTO getUserProfile(UUID userId) {
         log.debug("Fetching user profile for ID: {}", userId);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
         return mapToUserProfileDTO(user);
     }
 
@@ -40,7 +41,7 @@ public class UserProfileService {
     public UserProfileDTO updateProfile(UUID userId, UserProfileUpdateDTO updateDTO) {
         log.info("Updating profile for user ID: {}", userId);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (updateDTO.getName() != null && !updateDTO.getName().isEmpty()) {
             user.setName(updateDTO.getName());
@@ -63,7 +64,7 @@ public class UserProfileService {
     @CachePut(value = "userProfiles", key = "#userId")
     public UserProfileDTO updateProfilePicture(UUID userId, MultipartFile file) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         try {
             if (user.getProfilePictureUrl() != null) {
@@ -86,7 +87,7 @@ public class UserProfileService {
     @CachePut(value = "userProfiles", key = "#userId")
     public UserProfileDTO removeProfilePicture(UUID userId) {
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (user.getProfilePictureUrl() != null) {
             s3Service.deleteFile(user.getProfilePictureUrl());
@@ -103,7 +104,7 @@ public class UserProfileService {
     public void updatePassword(UUID userId, PasswordUpdateDTO passwordUpdateDTO) {
         log.info("Updating password for user ID: {}", userId);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         if (!passwordEncoder.matches(passwordUpdateDTO.getCurrentPassword(), user.getPasswordHash())) {
             throw new InvalidPasswordException("Current password is incorrect");

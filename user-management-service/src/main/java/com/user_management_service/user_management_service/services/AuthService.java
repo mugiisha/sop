@@ -1,6 +1,7 @@
 package com.user_management_service.user_management_service.services;
 
 import com.user_management_service.user_management_service.dtos.*;
+import com.user_management_service.user_management_service.enums.ErrorCode;
 import com.user_management_service.user_management_service.exceptions.*;
 import com.user_management_service.user_management_service.models.User;
 import com.user_management_service.user_management_service.repositories.AuthRepository;
@@ -63,7 +64,7 @@ public class AuthService {
         User user = authRepository.findByEmail(requestDTO.getEmail())
                 .orElseThrow(() -> {
                     log.warn("Password reset requested for non-existent user: {}", requestDTO.getEmail());
-                    return new ResourceNotFoundException("User not found");
+                    return new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode());
                 });
 
         if (!user.isActive()) {
@@ -83,7 +84,7 @@ public class AuthService {
         User user = authRepository.findByEmail(verificationDTO.getEmail())
                 .orElseThrow(() -> {
                     log.warn("OTP verification attempted for non-existent user: {}", verificationDTO.getEmail());
-                    return new ResourceNotFoundException("User not found");
+                    return new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode());
                 });
 
         otpService.verifyOtp(verificationDTO.getEmail(), verificationDTO.getOtp());
@@ -99,7 +100,7 @@ public class AuthService {
 
         String email = jwtService.validatePasswordResetTokenAndGetEmail(resetToken);
         User user = authRepository.findByEmail(email)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+                .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         validateNewPassword(resetDTO.getNewPassword(), user);
         updateUserPassword(user, resetDTO.getNewPassword());

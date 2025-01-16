@@ -1,0 +1,97 @@
+
+
+
+<!DOCTYPE html>
+<html id="htmlId">
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"> 
+  <title>Coverage Report > RoleAssignmentRepository</title>
+  <style type="text/css">
+    @import "../../css/coverage.css";
+    @import "../../css/idea.min.css";
+  </style>
+  <script type="text/javascript" src="../../js/highlight.min.js"></script>
+  <script type="text/javascript" src="../../js/highlightjs-line-numbers.min.js"></script>
+</head>
+
+<body>
+<div class="content">
+<div class="breadCrumbs">
+Current scope:     <a href="../../index.html">all classes</a>
+    <span class="separator">|</span>
+    <a href="../index.html">com.role_access_control_service.role_access_control_service.repositories</a>
+</div>
+
+<h1>Coverage Summary for Class: RoleAssignmentRepository (com.role_access_control_service.role_access_control_service.repositories)</h1>
+
+<table class="coverageStats">
+
+<tr>
+  <th class="name">Class</th>
+</tr>
+  <tr>
+    <td class="name">RoleAssignmentRepository$MockitoMock$cJ19xyhA</td>
+  </tr>
+  <tr>
+    <td class="name">RoleAssignmentRepository$MockitoMock$cJ19xyhA$auxiliary$k6AkSW3V</td>
+  </tr>
+  <tr>
+    <td class="name">RoleAssignmentRepository$MockitoMock$cJ19xyhA$auxiliary$YEjE1Wvf</td>
+  </tr>
+<tr>
+  <td class="name"><strong>Total</strong></td>
+</tr>
+</table>
+
+<br/>
+<br/>
+
+
+<pre>
+<code class="sourceCode" id="sourceCode">&nbsp;package com.role_access_control_service.role_access_control_service.repositories;
+&nbsp;
+&nbsp;import com.role_access_control_service.role_access_control_service.models.RoleAssignment;
+&nbsp;import org.springframework.data.jpa.repository.JpaRepository;
+&nbsp;import org.springframework.stereotype.Repository;
+&nbsp;
+&nbsp;import java.util.List;
+&nbsp;import java.util.Optional;
+&nbsp;import java.util.UUID;
+&nbsp;
+&nbsp;@Repository
+&nbsp;public interface RoleAssignmentRepository extends JpaRepository&lt;RoleAssignment, UUID&gt; {
+&nbsp;    Optional&lt;RoleAssignment&gt; findByUserId(UUID userId);
+&nbsp;
+&nbsp;    boolean existsByRoleId(UUID roleId);
+&nbsp;
+&nbsp;    List&lt;RoleAssignment&gt; findByRoleIdAndDepartmentId(UUID roleId, UUID departmentId);
+&nbsp;
+&nbsp;    List&lt;RoleAssignment&gt; findByDepartmentId(UUID departmentId);
+&nbsp;}
+</code>
+</pre>
+</div>
+
+<script type="text/javascript">
+(function() {
+    var msie = false, msie9 = false;
+    /*@cc_on
+      msie = true;
+      @if (@_jscript_version >= 9)
+        msie9 = true;
+      @end
+    @*/
+
+    if (!msie || msie && msie9) {
+      hljs.highlightAll()
+      hljs.initLineNumbersOnLoad();
+    }
+})();
+</script>
+
+<div class="footer">
+    
+    <div style="float:right;">generated on 2025-01-15 19:00</div>
+</div>
+</body>
+</html>

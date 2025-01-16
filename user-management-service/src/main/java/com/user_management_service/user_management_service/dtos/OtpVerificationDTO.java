@@ -21,4 +21,6 @@ public class OtpVerificationDTO {
 
     public OtpVerificationDTO(String mail, String number) {
     }
+
+
 }
