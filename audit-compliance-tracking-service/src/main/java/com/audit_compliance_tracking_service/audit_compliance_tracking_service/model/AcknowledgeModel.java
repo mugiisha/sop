@@ -37,5 +37,5 @@ public class AcknowledgeModel {
     @CreatedDate
     private Date timestamp; // Automatically populated with the creation timestamp
 
-    private List<String> acknowledgedBy; // List of users who acknowledged the SOP
+    private List<AcknowledgedUser> acknowledgedBy; // List of users who acknowledged the SOP
 }
