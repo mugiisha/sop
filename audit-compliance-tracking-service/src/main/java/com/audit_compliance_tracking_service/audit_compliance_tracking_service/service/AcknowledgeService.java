@@ -3,6 +3,7 @@ package com.audit_compliance_tracking_service.audit_compliance_tracking_service.
 import com.audit_compliance_tracking_service.audit_compliance_tracking_service.dto.AcknowledgedDto;
 import com.audit_compliance_tracking_service.audit_compliance_tracking_service.dto.ApiResponse;
 import com.audit_compliance_tracking_service.audit_compliance_tracking_service.model.AcknowledgeModel;
+import com.audit_compliance_tracking_service.audit_compliance_tracking_service.model.AcknowledgedUser;
 import com.audit_compliance_tracking_service.audit_compliance_tracking_service.repository.AcknowledgeRepository;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
@@ -111,9 +112,10 @@ public class AcknowledgeService {
                 acknowledgeModel.setInitiatedBy(initiatedByName);
             }
 
-            List<String> acknowledgedBy = acknowledgeModel.getAcknowledgedBy();
-            if (!acknowledgedBy.contains(userName)) {
-                acknowledgedBy.add(userName);
+            List<AcknowledgedUser> acknowledgedBy = acknowledgeModel.getAcknowledgedBy();
+            boolean userAlreadyAcknowledged = acknowledgedBy.stream().anyMatch(user -> user.getUserId().equals(userId));
+            if (!userAlreadyAcknowledged) {
+                acknowledgedBy.add(new AcknowledgedUser(userId, userName));
                 acknowledgeModel.setAcknowledgedBy(acknowledgedBy);
                 acknowledgeRepository.save(acknowledgeModel);
             }
@@ -122,7 +124,8 @@ public class AcknowledgeService {
         } else {
             ApiResponse<AcknowledgeModel> response = new ApiResponse<>("SOP not found", null);
             return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
-        }}
+        }
+    }
 
 
     /**
