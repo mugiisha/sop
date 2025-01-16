@@ -10,11 +10,13 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Mono;
 import sopFromWorkflow.GetAllSopDetailsResponse;
+import sopFromWorkflow.GetSopDetailsResponse;
 import sopFromWorkflow.SopDetails;
 import userService.getUserInfoResponse;
 
 import java.time.Duration;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -37,6 +39,13 @@ public class RecommendationService {
                 .onErrorResume(this::handleRecommendationError);
     }
 
+    public Mono<RecommendationResponse> getKeywordBasedRecommendations(String authToken, String keywords) {
+        return extractTokenPayload(authToken)
+                .flatMap(tokenData -> getRecommendationContext(tokenData))
+                .flatMap(context -> generateKeywordRecommendations(context, keywords))
+                .onErrorResume(this::handleRecommendationError);
+    }
+
     private Mono<RecommendationContext> getRecommendationContext(JsonNode tokenData) {
         return Mono.zip(
                 Mono.just(tokenData),
@@ -52,19 +61,59 @@ public class RecommendationService {
         }
 
         try {
+            // Only get published SOPs
+            List<SopDetails> publishedSops = context.sopDetails().getSopDetailsList().stream()
+                    .filter(sop -> "PUBLISHED".equalsIgnoreCase(sop.getStatus()))
+                    .collect(Collectors.toList());
+
+            if (publishedSops.isEmpty()) {
+                return createEmptyResponse("No published SOPs found for recommendation generation");
+            }
+
             List<RecommendationResult> recommendations = recommendationEngine.generatePersonalizedRecommendations(
                     context.tokenData().get("role").asText(),
                     context.tokenData().get("departmentId").asText(),
-                    context.sopDetails().getSopDetailsList()
+                    publishedSops
             );
 
             return Mono.just(createSuccessResponse(
-                    convertToRecommendationDTOs(recommendations, context.sopDetails().getSopDetailsList()),
+                    convertToRecommendationDTOs(recommendations, publishedSops),
                     "Successfully generated AI-powered recommendations"
             ));
         } catch (Exception e) {
             log.error("Error generating recommendations with AI", e);
-            return Mono.error(new RecommendationException("Failed to generate AI recommendations", e));
+            return Mono.error(new RecommendationException("Failed to generate AI recommendations"));
+        }
+    }
+
+    private Mono<RecommendationResponse> generateKeywordRecommendations(RecommendationContext context, String keywords) {
+        if (context.sopDetails() == null || context.sopDetails().getSopDetailsList() == null ||
+                context.sopDetails().getSopDetailsList().isEmpty()) {
+            return createEmptyResponse("No SOPs found for keyword-based recommendation generation");
+        }
+
+        try {
+            // Only get published SOPs
+            List<SopDetails> publishedSops = context.sopDetails().getSopDetailsList().stream()
+                    .filter(sop -> "PUBLISHED".equalsIgnoreCase(sop.getStatus()))
+                    .collect(Collectors.toList());
+
+            if (publishedSops.isEmpty()) {
+                return createEmptyResponse("No published SOPs found for keyword-based recommendation generation");
+            }
+
+            List<RecommendationResult> recommendations = recommendationEngine.generateKeywordBasedRecommendations(
+                    keywords,
+                    publishedSops
+            );
+
+            return Mono.just(createSuccessResponse(
+                    convertToRecommendationDTOs(recommendations, publishedSops),
+                    "Successfully generated keyword-based recommendations"
+            ));
+        } catch (Exception e) {
+            log.error("Error generating keyword-based recommendations", e);
+            return Mono.error(new RecommendationException("Failed to generate keyword-based recommendations"));
         }
     }
 
@@ -115,7 +164,7 @@ public class RecommendationService {
         try {
             String[] chunks = authToken.replace("Bearer ", "").split("\\.");
             if (chunks.length != 3) {
-                return Mono.error(new RecommendationException("Invalid JWT token format", null));
+                return Mono.error(new RecommendationException("Invalid JWT token format"));
             }
 
             Base64.Decoder decoder = Base64.getUrlDecoder();
@@ -123,12 +172,12 @@ public class RecommendationService {
             JsonNode tokenData = objectMapper.readTree(payload);
 
             if (!tokenData.has("sub") || !tokenData.has("role") || !tokenData.has("departmentId")) {
-                return Mono.error(new RecommendationException("Missing required claims in token", null));
+                return Mono.error(new RecommendationException("Missing required claims in token"));
             }
 
             return Mono.just(tokenData);
         } catch (Exception e) {
-            return Mono.error(new RecommendationException("Error processing token", e));
+            return Mono.error(new RecommendationException("Error processing token"));
         }
     }
 
@@ -144,39 +193,75 @@ public class RecommendationService {
         for (RecommendationResult result : results) {
             SopDetails sop = sopsByTitle.get(result.getTitle());
             if (sop != null) {
-                dtos.add(RecommendationDTO.builder()
+                // Get full SOP details including versions, reviewers, etc.
+                GetSopDetailsResponse fullDetails = sopClientService.getSopDetails(sop.getSopId());
+
+                RecommendationDTO dto = RecommendationDTO.builder()
                         .sopId(sop.getSopId())
+                        .documentUrls(sop.getDocumentUrlsList())
+                        .coverUrl(sop.getCoverUrl())
                         .title(sop.getTitle())
                         .description(sop.getDescription())
                         .body(sop.getBody())
-                        .documentUrls(sop.getDocumentUrlsList())
                         .category(sop.getCategory())
                         .departmentId(sop.getDepartmentId())
-                        .status(sop.getStatus())
                         .visibility(sop.getVisibility())
-                        .coverUrl(sop.getCoverUrl())
+                        .status(sop.getStatus())
+                        .versions(convertVersions(fullDetails.getVersionsList()))
+                        .reviewers(convertStages(fullDetails.getReviewersList()))
+                        .approver(convertStage(fullDetails.getApprover()))
+                        .author(convertStage(fullDetails.getAuthor()))
                         .score(result.getScore())
                         .reason(result.getReason())
                         .createdAt(sop.getCreatedAt())
                         .updatedAt(sop.getUpdatedAt())
-                        .build());
+                        .build();
+                dtos.add(dto);
             }
         }
         return dtos;
     }
 
-    private record RecommendationContext(
-            JsonNode tokenData,
-            getUserInfoResponse userInfo,
-            GetAllSopDetailsResponse sopDetails
-    ) {}
+    private List<SopVersion> convertVersions(List<sopFromWorkflow.SopVersion> protoVersions) {
+        return protoVersions.stream()
+                .map(v -> SopVersion.builder()
+                        .versionNumber(v.getVersionNumber())
+                        .currentVersion(v.getCurrentVersion())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    private List<Stage> convertStages(List<sopFromWorkflow.Stage> protoStages) {
+        return protoStages.stream()
+                .map(this::convertStage)
+                .collect(Collectors.toList());
+    }
+
+    private Stage convertStage(sopFromWorkflow.Stage protoStage) {
+        if (protoStage == null) {
+            return null;
+        }
+
+        return Stage.builder()
+                .name(protoStage.getName())
+                .profilePictureUrl(protoStage.getProfilePictureUrl())
+                .status(protoStage.getStatus())
+                .comments(protoStage.getCommentsList().stream()
+                        .map(c -> Comment.builder()
+                                .commentId(c.getCommentId())
+                                .comment(c.getComment())
+                                .createdAt(c.getCreatedAt())
+                                .build())
+                        .collect(Collectors.toList()))
+                .build();
+    }
 
     private RecommendationResponse createSuccessResponse(
             List<RecommendationDTO> recommendations,
             String message) {
         return RecommendationResponse.builder()
                 .message(message)
-                .data(com.sop_recommendation_service.sop_recommendation_service.dtos.RecommendationData.builder()
+                .data(RecommendationData.builder()
                         .recommendations(recommendations)
                         .metadata(RecommendationMetadata.builder()
                                 .requestType("personalized")
@@ -190,7 +275,7 @@ public class RecommendationService {
     private Mono<RecommendationResponse> createEmptyResponse(String message) {
         return Mono.just(RecommendationResponse.builder()
                 .message(message)
-                .data(com.sop_recommendation_service.sop_recommendation_service.dtos.RecommendationData.builder()
+                .data(RecommendationData.builder()
                         .recommendations(Collections.emptyList())
                         .metadata(RecommendationMetadata.builder()
                                 .requestType("empty")
@@ -204,7 +289,7 @@ public class RecommendationService {
     private Mono<RecommendationResponse> createErrorResponse(String errorMessage) {
         return Mono.just(RecommendationResponse.builder()
                 .message(errorMessage)
-                .data(com.sop_recommendation_service.sop_recommendation_service.dtos.RecommendationData.builder()
+                .data(RecommendationData.builder()
                         .recommendations(Collections.emptyList())
                         .metadata(RecommendationMetadata.builder()
                                 .requestType("error")
@@ -214,4 +299,61 @@ public class RecommendationService {
                         .build())
                 .build());
     }
+    public Mono<RecommendationDTO> getRecommendedSop(String authToken, String sopId) {
+        return extractTokenPayload(authToken)  // First extract and parse the token
+                .flatMap(tokenData -> getRecommendationContext(tokenData))
+                .flatMap(context -> {
+                    try {
+                        // Get published SOPs
+                        List<SopDetails> publishedSops = context.sopDetails().getSopDetailsList().stream()
+                                .filter(sop -> "PUBLISHED".equalsIgnoreCase(sop.getStatus()))
+                                .collect(Collectors.toList());
+
+                        if (publishedSops.isEmpty()) {
+                            return Mono.error(new RecommendationException("No published SOPs found"));
+                        }
+
+                        // Find the specific SOP
+                        Optional<SopDetails> requestedSop = publishedSops.stream()
+                                .filter(sop -> sop.getSopId().equals(sopId))
+                                .findFirst();
+
+                        if (requestedSop.isEmpty()) {
+                            return Mono.error(new RecommendationException("SOP not found"));
+                        }
+
+                        // Generate recommendations to get the score and reason
+                        List<RecommendationResult> recommendations = recommendationEngine
+                                .generatePersonalizedRecommendations(
+                                        context.tokenData().get("role").asText(),
+                                        context.tokenData().get("departmentId").asText(),
+                                        Collections.singletonList(requestedSop.get())
+                                );
+
+                        if (recommendations.isEmpty()) {
+                            return Mono.error(new RecommendationException("Failed to generate recommendation for SOP"));
+                        }
+
+                        // Convert to DTO
+                        List<RecommendationDTO> dtos = convertToRecommendationDTOs(
+                                recommendations,
+                                Collections.singletonList(requestedSop.get())
+                        );
+
+                        if (dtos.isEmpty()) {
+                            return Mono.error(new RecommendationException("Failed to process recommendation"));
+                        }
+
+                        return Mono.just(dtos.get(0));
+                    } catch (Exception e) {
+                        return Mono.error(new RecommendationException("Error retrieving recommended SOP: "
+                                + e.getMessage()));
+                    }
+                });
+    }
+    private record RecommendationContext(
+            JsonNode tokenData,
+            getUserInfoResponse userInfo,
+            GetAllSopDetailsResponse sopDetails
+    ) {}
 }

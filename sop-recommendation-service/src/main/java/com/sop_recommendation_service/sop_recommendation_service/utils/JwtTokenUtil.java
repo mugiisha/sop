@@ -16,7 +16,7 @@ public class JwtTokenUtil {
             String payload = new String(decoder.decode(chunks[1]));
             return objectMapper.readValue(payload, Claims.class);
         } catch (Exception e) {
-            throw new RecommendationException("Invalid token", e);
+            throw new RecommendationException("Invalid token");
         }
     }
 }

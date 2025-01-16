@@ -1,4 +1,5 @@
 package com.sop_recommendation_service.sop_recommendation_service.service;
+
 import com.sop_recommendation_service.sop_recommendation_service.dtos.RecommendationResult;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -30,11 +31,33 @@ public class GeminiRecommendationEngine implements RecommendationEngine {
     public List<RecommendationResult> generatePersonalizedRecommendations(
             String userRole, String departmentId, List<SopDetails> sops) {
         try {
-            String prompt = buildPersonalizedPrompt(userRole, departmentId, sops);
+            // Filter for published SOPs
+            List<SopDetails> publishedSops = sops.stream()
+                    .filter(sop -> "PUBLISHED".equalsIgnoreCase(sop.getStatus()))
+                    .collect(Collectors.toList());
+
+            String prompt = buildPersonalizedPrompt(userRole, departmentId, publishedSops);
             String response = getGeminiResponse(prompt);
             return parseRecommendationResponse(response);
         } catch (Exception e) {
             log.error("Error generating personalized recommendations with Gemini", e);
+            throw new RuntimeException("Failed to generate recommendations", e);
+        }
+    }
+
+    public List<RecommendationResult> generateKeywordBasedRecommendations(
+            String keywords, List<SopDetails> sops) {
+        try {
+            // Filter for published SOPs
+            List<SopDetails> publishedSops = sops.stream()
+                    .filter(sop -> "PUBLISHED".equalsIgnoreCase(sop.getStatus()))
+                    .collect(Collectors.toList());
+
+            String prompt = buildKeywordPrompt(keywords, publishedSops);
+            String response = getGeminiResponse(prompt);
+            return parseRecommendationResponse(response);
+        } catch (Exception e) {
+            log.error("Error generating keyword-based recommendations with Gemini", e);
             throw new RuntimeException("Failed to generate recommendations", e);
         }
     }
@@ -53,7 +76,7 @@ public class GeminiRecommendationEngine implements RecommendationEngine {
             2. Department alignment: Whether the SOP is from the user's department
             3. Content accessibility: Whether the content matches the user's expertise level
             4. Recent updates: Prioritize recently updated SOPs
-            5. Status: Prioritize active SOPs
+            5. Status: Only consider published SOPs
             
             Available SOPs:
             %s
@@ -71,6 +94,38 @@ public class GeminiRecommendationEngine implements RecommendationEngine {
             """,
                 userRole,
                 departmentId,
+                formatSopsForPrompt(sops)
+        );
+    }
+
+    private String buildKeywordPrompt(String keywords, List<SopDetails> sops) {
+        return String.format("""
+            You are an AI recommendation system for Standard Operating Procedures (SOPs).
+            Based on the following keywords and available published SOPs, recommend the most relevant SOPs.
+            
+            Search Keywords: %s
+            
+            Consider these factors for recommendations:
+            1. Keyword relevance: How well the SOP matches the search keywords
+            2. Content matching: Whether the keywords appear in title, description, or body
+            3. Category alignment: If keywords match SOP category
+            4. Recent updates: Prioritize recently updated SOPs
+            
+            Available SOPs:
+            %s
+            
+            Return ONLY a JSON response with relevant recommendations in this format (no additional text):
+            {
+                "recommendations": [
+                    {
+                        "title": "SOP Title",
+                        "score": 0.95,
+                        "reason": "Clear explanation of why this SOP matches the keywords"
+                    }
+                ]
+            }
+            """,
+                keywords,
                 formatSopsForPrompt(sops)
         );
     }
