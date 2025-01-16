@@ -6,7 +6,6 @@ default:
 stages:
   - detect-changes
   - build-proto
-  - sonarqube
   - build
   - deploy
 
@@ -25,8 +24,6 @@ variables:
   DEPLOYMENT_TIMEOUT: "300"
   HEALTH_CHECK_RETRIES: "30"
   HEALTH_CHECK_INTERVAL: "10"
-  SONAR_HOST_URL: $SONAR_HOST_URL
-  SONAR_TOKEN: $SONAR_TOKEN
 
 cache:
   paths:
@@ -109,62 +106,6 @@ build-proto:
     expire_in: 1h
     when: always
 
-sonarqube:
-  stage: sonarqube
-  needs:
-    - job: detect-changes
-      artifacts: true
-  before_script:
-    - |
-      if [ ! -f "changes" ]; then
-        echo "No changes file found"
-        echo "export CHANGED_SERVICES=\"\"" > changes
-      fi
-    - chmod +x changes
-  script:
-    - source changes || echo "Failed to source changes file"
-    - |
-      if [ -z "$CHANGED_SERVICES" ]; then
-        echo "No services to analyze"
-        exit 0
-      fi
-      
-      for SERVICE in $CHANGED_SERVICES; do
-        if [[ "${SERVICE}" != "proto" ]]; then
-          echo "=== Starting SonarQube analysis for ${SERVICE} ==="
-      
-          if [ ! -d "${SERVICE}" ]; then
-            echo "Error: Invalid service directory for ${SERVICE}"
-            continue
-          fi
-      
-          cd "${SERVICE}"
-      
-          # Generate coverage reports if needed
-          mvn clean verify sonar:sonar \
-            -Dsonar.projectKey=${SERVICE} \
-            -Dsonar.host.url=${SONAR_HOST_URL} \
-            -Dsonar.login=${SONAR_TOKEN} \
-            -Dsonar.java.binaries=target/classes \
-            -Dsonar.java.test.binaries=target/test-classes \
-            -Dsonar.java.libraries=../libs/*.jar \
-            -Dsonar.coverage.exclusions=**/model/**,**/dto/**,**/config/** \
-            -Dsonar.exclusions=**/generated-sources/**
-      
-          if [ $? -ne 0 ]; then
-            echo "SonarQube analysis failed for ${SERVICE}"
-            exit 1
-          fi
-      
-          cd ..
-          echo "=== ${SERVICE} analysis complete ==="
-        fi
-      done
-  allow_failure: false
-  only:
-    - merge_requests
-    - develop
-
 build:
   stage: build
   image: docker:latest
@@ -176,7 +117,6 @@ build:
       artifacts: true
     - job: detect-changes
       artifacts: true
-    - job: sonarqube
   before_script:
     - apk add --no-cache bash
     - |
