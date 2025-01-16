@@ -1,7 +1,6 @@
 package com.user_management_service.user_management_service.dtos;
 
 import lombok.Data;
-
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -11,6 +10,7 @@ public class DepartmentDTO {
     private String name;
     private String description;
     private long staff;
+    private boolean active;  // Added this field
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

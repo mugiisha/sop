@@ -32,12 +32,4 @@ public class KafkaListenerService {
         this.notificationService = notificationService;
     }
 
-
-
-
-
-
-
-
-
 }

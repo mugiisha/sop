@@ -21,4 +21,6 @@ public class SecurityProperties {
     public void setSwaggerPaths(String swaggerPathsString) {
         this.swaggerPaths = Arrays.asList(swaggerPathsString.split(","));
     }
+
+
 }

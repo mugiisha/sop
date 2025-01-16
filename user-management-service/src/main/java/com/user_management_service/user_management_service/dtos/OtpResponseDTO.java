@@ -10,4 +10,5 @@ import lombok.NoArgsConstructor;
 public class OtpResponseDTO {
     private String expiresIn;
     private String email;
+
 }

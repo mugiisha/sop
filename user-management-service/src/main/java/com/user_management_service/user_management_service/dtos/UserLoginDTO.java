@@ -18,4 +18,5 @@ public class UserLoginDTO {
 
     public UserLoginDTO(String mail, String wrongpass) {
     }
+    
 }
