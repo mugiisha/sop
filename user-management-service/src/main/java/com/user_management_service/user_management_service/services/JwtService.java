@@ -22,14 +22,17 @@ public class JwtService {
     private final String secretKey;
     private final long jwtExpiration;
     private final long resetTokenExpiration;
+    private final TokenBlacklistService tokenBlacklistService;
 
     public JwtService(
             @Value("${jwt.secret}") String secretKey,
             @Value("${jwt.expiration}") long jwtExpiration,
-            @Value("${jwt.reset.expiration}") long resetTokenExpiration) {
+            @Value("${jwt.reset.expiration}") long resetTokenExpiration,
+            TokenBlacklistService tokenBlacklistService) {
         this.secretKey = secretKey;
         this.jwtExpiration = jwtExpiration;
         this.resetTokenExpiration = resetTokenExpiration;
+        this.tokenBlacklistService = tokenBlacklistService;
     }
 
     private Key getSigningKey() {
@@ -69,6 +72,11 @@ public class JwtService {
 
     public String validatePasswordResetTokenAndGetEmail(String token) {
         try {
+            if (tokenBlacklistService.isTokenBlacklisted(token)) {
+                log.warn("Password reset token is blacklisted");
+                return null;
+            }
+
             Claims claims = extractAllClaims(token);
 
             String tokenType = claims.get("tokenType", String.class);
@@ -109,6 +117,20 @@ public class JwtService {
         return extractClaim(token, claims -> claims.get("tokenType", String.class));
     }
 
+    public long getTokenTimeToLive(String token) {
+        try {
+            Claims claims = extractAllClaims(token);
+            Date expiration = claims.getExpiration();
+            return Math.max(0, expiration.getTime() - System.currentTimeMillis());
+        } catch (ExpiredJwtException e) {
+            log.warn("Token has already expired");
+            return 0;
+        } catch (Exception e) {
+            log.error("Error calculating token TTL", e);
+            return 0;
+        }
+    }
+
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         final Claims claims = extractAllClaims(token);
         return claimsResolver.apply(claims);
@@ -124,6 +146,12 @@ public class JwtService {
 
     public boolean isTokenValid(String token) {
         try {
+            // Check if token is blacklisted
+            if (tokenBlacklistService.isTokenBlacklisted(token)) {
+                log.warn("Token is blacklisted");
+                return false;
+            }
+
             Claims claims = extractAllClaims(token);
             String tokenType = claims.get("tokenType", String.class);
 
@@ -205,5 +233,4 @@ public class JwtService {
             return true;
         }
     }
-
 }
