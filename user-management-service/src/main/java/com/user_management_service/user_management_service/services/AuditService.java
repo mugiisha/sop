@@ -23,6 +23,11 @@ public class AuditService {
                 userId, email, LocalDateTime.now());
     }
 
+    public void logUserLogout(UUID userId, String email) {
+        log.info("User logout - UserID: {}, Email: {}, Timestamp: {}",
+                userId, email, LocalDateTime.now());
+    }
+
     public void logPasswordResetRequest(UUID userId, String email) {
         log.info("Password reset requested - UserID: {}, Email: {}, Timestamp: {}",
                 userId, email, LocalDateTime.now());
@@ -77,6 +82,7 @@ public class AuditService {
         log.info("Verification token generated - UserID: {}, Email: {}, Timestamp: {}",
                 userId, email, LocalDateTime.now());
     }
+
     public void logVerificationEmailResent(UUID userId, String email) {
         log.info("Verification email resent - UserID: {}, Email: {}, Timestamp: {}",
                 userId, email, LocalDateTime.now());
@@ -86,6 +92,7 @@ public class AuditService {
         log.info("Forced email verification - UserID: {}, Email: {}, Timestamp: {}",
                 userId, email, LocalDateTime.now());
     }
+
     public void logProfilePictureUpdate(UUID userId, String email) {
         log.info("Profile picture updated - UserID: {}, Email: {}, Timestamp: {}",
                 userId, email, LocalDateTime.now());

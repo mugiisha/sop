@@ -27,6 +27,7 @@ public class AuthService {
     private final AuditService auditService;
     private final UserRoleClientService userRoleClientService;
     private final KafkaTemplate<String, CustomUserDto> kafkaTemplate;
+    private final TokenBlacklistService tokenBlacklistService;
 
     private static final int MAX_LOGIN_ATTEMPTS = 10;
 
@@ -55,6 +56,40 @@ public class AuthService {
 
         log.info("Successfully logged in user: {}", loginDTO.getEmail());
         return createLoginResponse(user, token, roleName);
+    }
+
+    @Transactional
+    public void logout(String token) {
+        log.info("Processing logout request");
+
+        try {
+            // Get user info from token
+            String email = jwtService.extractEmail(token);
+            User user = authRepository.findByEmail(email)
+                    .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
+
+            // Calculate remaining token validity time
+            long timeToLiveMs = jwtService.getTokenTimeToLive(token);
+
+            // Blacklist the token
+            tokenBlacklistService.blacklistToken(token, timeToLiveMs);
+
+            // Log the event
+            auditService.logUserLogout(user.getId(), user.getEmail());
+
+            // Send logout event
+            CustomUserDto logoutUserDto = new CustomUserDto();
+            logoutUserDto.setId(user.getId());
+            logoutUserDto.setEmail(user.getEmail());
+            logoutUserDto.setName(user.getName());
+
+            kafkaTemplate.send("user-logout", logoutUserDto);
+
+            log.info("User successfully logged out: {}", email);
+        } catch (Exception e) {
+            log.error("Error during logout process", e);
+            throw new AuthenticationException("Invalid or expired token");
+        }
     }
 
     @Transactional
@@ -99,11 +134,19 @@ public class AuthService {
         validatePasswordReset(resetDTO);
 
         String email = jwtService.validatePasswordResetTokenAndGetEmail(resetToken);
+        if (email == null) {
+            throw new InvalidTokenException("Invalid or expired reset token");
+        }
+
         User user = authRepository.findByEmail(email)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found", ErrorCode.DEPARTMENT_NOT_FOUND.getCode()));
 
         validateNewPassword(resetDTO.getNewPassword(), user);
         updateUserPassword(user, resetDTO.getNewPassword());
+
+        // Blacklist the reset token after successful password reset
+        long timeToLiveMs = jwtService.getTokenTimeToLive(resetToken);
+        tokenBlacklistService.blacklistToken(resetToken, timeToLiveMs);
 
         log.info("Password reset successful for user: {}", email);
     }
@@ -162,7 +205,6 @@ public class AuthService {
         user.setActive(false);
         user.setDeactivatedAt(LocalDateTime.now());
 
-        // prepare object to be sent via kafka
         CustomUserDto customUserDto = new CustomUserDto();
         customUserDto.setId(user.getId());
         customUserDto.setEmail(user.getEmail());
@@ -195,7 +237,6 @@ public class AuthService {
         }
         authRepository.save(user);
 
-        // prepare object to send via kafka
         CustomUserDto createdUserDto = new CustomUserDto();
         createdUserDto.setId(user.getId());
         createdUserDto.setEmail(user.getEmail());

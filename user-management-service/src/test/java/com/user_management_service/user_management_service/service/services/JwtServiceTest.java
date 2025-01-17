@@ -3,6 +3,7 @@ package com.user_management_service.user_management_service.service.services;
 import com.user_management_service.user_management_service.models.User;
 import com.user_management_service.user_management_service.models.Department;
 import com.user_management_service.user_management_service.services.JwtService;
+import com.user_management_service.user_management_service.services.TokenBlacklistService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -10,6 +11,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
 import java.util.UUID;
@@ -29,9 +31,12 @@ class JwtServiceTest {
     @Mock
     private Department mockDepartment;
 
+    @Mock
+    private TokenBlacklistService tokenBlacklistService;
+
     @BeforeEach
     void setUp() {
-        jwtService = new JwtService(SECRET_KEY, JWT_EXPIRATION, RESET_TOKEN_EXPIRATION);
+        jwtService = new JwtService(SECRET_KEY, JWT_EXPIRATION, RESET_TOKEN_EXPIRATION, tokenBlacklistService);
 
         UUID userId = UUID.randomUUID();
         UUID departmentId = UUID.randomUUID();
@@ -40,6 +45,7 @@ class JwtServiceTest {
         when(mockUser.getEmail()).thenReturn("test@example.com");
         when(mockUser.getDepartment()).thenReturn(mockDepartment);
         when(mockDepartment.getId()).thenReturn(departmentId);
+        when(tokenBlacklistService.isTokenBlacklisted(anyString())).thenReturn(false);
     }
 
     @Test
@@ -89,7 +95,7 @@ class JwtServiceTest {
     @Test
     void validatePasswordResetToken_WithExpiredToken_ShouldReturnNull() {
         // Arrange
-        JwtService shortExpirationJwtService = new JwtService(SECRET_KEY, JWT_EXPIRATION, 0);
+        JwtService shortExpirationJwtService = new JwtService(SECRET_KEY, JWT_EXPIRATION, 0, tokenBlacklistService);
         String token = shortExpirationJwtService.generatePasswordResetToken(mockUser);
 
         // Act & Assert
@@ -99,7 +105,7 @@ class JwtServiceTest {
     @Test
     void isTokenValid_WithExpiredToken_ShouldReturnFalse() {
         // Arrange
-        JwtService shortExpirationJwtService = new JwtService(SECRET_KEY, 0, RESET_TOKEN_EXPIRATION);
+        JwtService shortExpirationJwtService = new JwtService(SECRET_KEY, 0, RESET_TOKEN_EXPIRATION, tokenBlacklistService);
         String token = shortExpirationJwtService.generateToken(mockUser, "ADMIN");
 
         // Act & Assert
@@ -107,10 +113,13 @@ class JwtServiceTest {
     }
 
     @Test
-    void isTokenValid_WithInvalidTokenType_ShouldReturnFalse() {
-        // This test would require modifying the token claims directly, which isn't possible
-        // with the current implementation. In a real scenario, you might need to use a
-        // different JWT library or create a test-specific method to generate invalid tokens.
+    void isTokenValid_WithBlacklistedToken_ShouldReturnFalse() {
+        // Arrange
+        String token = jwtService.generateToken(mockUser, "ADMIN");
+        when(tokenBlacklistService.isTokenBlacklisted(token)).thenReturn(true);
+
+        // Act & Assert
+        assertFalse(jwtService.isTokenValid(token));
     }
 
     @Test
@@ -137,9 +146,19 @@ class JwtServiceTest {
         String token = jwtService.generateToken(mockUser, role);
 
         // Assert
-        Date expirationDate = new Date(currentTime + JWT_EXPIRATION);
         assertTrue(jwtService.isTokenValid(token));
-        // Note: We can't directly test the exact expiration time due to the small time difference
-        // between token generation and assertion, but we can verify it's valid
+    }
+
+    @Test
+    void getTokenTimeToLive_WithValidToken_ShouldReturnPositiveValue() {
+        // Arrange
+        String token = jwtService.generateToken(mockUser, "ADMIN");
+
+        // Act
+        long ttl = jwtService.getTokenTimeToLive(token);
+
+        // Assert
+        assertTrue(ttl > 0);
+        assertTrue(ttl <= JWT_EXPIRATION);
     }
 }
